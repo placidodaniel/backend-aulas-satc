@@ -309,12 +309,12 @@ Antes de começar, confirme que você tem:
 
 - **JDK instalado** — o projeto usa Java na versão 25. Confirme com o comando `java -version` no terminal. Se não tiver, peça ajuda ao professor antes de continuar.
 - **IntelliJ IDEA instalado** — pode ser a versão Community (gratuita) ou Ultimate. É o programa (IDE) que usaremos para escrever e rodar código Java.
-- **Projeto `ola-mundo` recebido** — o arquivo `ola-mundo.zip` deve estar salvo em uma pasta de fácil acesso, por exemplo Documentos ou a Área de Trabalho.
+- **Projeto `ola-mundo` recebido** — o arquivo [`ola-mundo.zip`](<Aula 02/ola-mundo.zip>) deve estar salvo em uma pasta de fácil acesso, por exemplo Documentos ou a Área de Trabalho.
 > **Dica:** se algo da lista estiver faltando, avise o professor agora — é mais rápido resolver antes de seguir para os próximos passos.
 
 #### Passo 1 — Extraindo o projeto ola-mundo
 
-- O projeto foi entregue como um arquivo compactado: `ola-mundo.zip`.
+- O projeto foi entregue como um arquivo compactado: [`ola-mundo.zip`](<Aula 02/ola-mundo.zip>).
 - Clique com o botão direito sobre o arquivo `.zip`.
   - **Windows:** escolha "Extrair tudo..." (*Extract All*).
   - **Mac:** dê duplo clique para descompactar automaticamente.
