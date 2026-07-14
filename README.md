@@ -12,6 +12,7 @@
   - [Tópico 01 — Introdução à Web](#tópico-01--introdução-à-web)
   - [Tópico 02 — Arquitetura da Web](#tópico-02--arquitetura-da-web)
 - [Aula 2 — Ambiente de Desenvolvimento: Java na prática + Git na prática](#aula-2--ambiente-de-desenvolvimento-java-na-prática--git-na-prática)
+  - [Materiais](#materiais)
   - [Objetivo da aula](#objetivo-da-aula)
   - [Parte 1 — Java na prática](#parte-1--java-na-prática)
   - [Parte 2 — Git na prática](#parte-2--git-na-prática)
@@ -282,7 +283,7 @@ curl -v https://exemplo.com
 
 ## Aula 2 — Ambiente de Desenvolvimento: Java na prática + Git na prática
 
-**Materiais:**
+### Materiais
 
 | Arquivo | Conteúdo |
 |---|---|
