@@ -396,7 +396,7 @@ Digite o seu sobrenome agora:
 Lovelace
 Olá Ada Lovelace!
 O ano atual é: 2026
-O tamanho do seu nome é: 10
+O tamanho do seu nome é: 11
 Seu nome é longo
 Média final: 8
 Nota Final: 10
@@ -404,6 +404,13 @@ Olá mundo!
 ```
 
 #### Entendendo o código — leitura e variáveis
+
+Antes de entrar no código, alguns fundamentos de sintaxe:
+
+- Todo programa Java vive dentro de uma **classe** (aqui, `Main`).
+- A execução começa pelo método `main` — é o ponto de entrada do programa.
+- Cada instrução termina com `;` (ponto e vírgula).
+- Chaves `{ }` marcam o início e o fim de um bloco de código (classe, método, `if`, `for`, etc.).
 
 ```java
 Scanner leitor = new Scanner(System.in);
@@ -661,6 +668,21 @@ Primeiro, volte para o branch que vai receber as alterações (geralmente `main`
 Working Directory  →  Staging Area  →  Local Repository  →  Remote Repository (GitHub)
         git add             git commit              git push
 ```
+
+#### Cheat-sheet: comandos Git desta aula
+
+| Comando | O que faz |
+|---|---|
+| `git init` | Inicia um repositório Git na pasta atual |
+| `git config --global user.name/user.email` | Define sua identidade nos commits |
+| `git add .` | Move alterações para a staging area |
+| `git commit -m "mensagem"` | Salva uma versão no repositório local |
+| `git remote add origin <url>` | Vincula o repositório local a um remoto |
+| `git push -u origin main` | Envia commits locais para o GitHub |
+| `git fetch` | Atualiza referências do remoto, sem alterar arquivos |
+| `git pull` | Atualiza referências e aplica as mudanças localmente |
+| `git checkout -b <nome>` | Cria e muda para um novo branch |
+| `git merge <branch>` | Incorpora as alterações de outro branch |
 
 ---
 
