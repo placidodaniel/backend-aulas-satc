@@ -11,6 +11,9 @@ public class Animal implements Rastreavel {
     private int latitude; // coordenada de posição (eixo 1)
     private int longitude; // coordenada de posição (eixo 2)
 
+    // @Override avisa o compilador que este método deve sobrescrever algo existente
+    // (aqui, o rastrear() do contrato Rastreavel); se a assinatura não bater, dá erro
+    // de compilação em vez de criar silenciosamente um método novo, sem relação nenhuma
     @Override
     public String rastrear() {
         // implementação do contrato de Rastreavel: devolve a posição como "lat / long"
