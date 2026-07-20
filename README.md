@@ -17,13 +17,23 @@
   - [Parte 1 — Java na prática](#parte-1--java-na-prática)
   - [Parte 2 — Git na prática](#parte-2--git-na-prática)
   - [O que aprendemos hoje](#o-que-aprendemos-hoje)
-- [Aula 3 — Orientação a Objetos em Java + Tópicos Especiais](#aula-3--orientação-a-objetos-em-java--tópicos-especiais)
+- [Aula 3 e 4 — Orientação a Objetos em Java + Tópicos Especiais](#aula-3-e-4--orientação-a-objetos-em-java--tópicos-especiais)
   - [Materiais](#materiais-1)
   - [Objetivo da aula](#objetivo-da-aula-1)
   - [Parte 1 — Orientação a Objetos em Java](#parte-1--orientação-a-objetos-em-java)
   - [Parte 2 — Tópicos Especiais em Java](#parte-2--tópicos-especiais-em-java)
   - [Parte 3 — Prática: evoluindo o projeto exemplo-oop](#parte-3--prática-evoluindo-o-projeto-exemplo-oop)
   - [Glossário rápido](#glossário-rápido)
+- [Aula 5 — Avaliação N1](#aula-5--avaliação-n1)
+- [Aula 6 — Web Services + Protocolo HTTP/JSON](#aula-6--web-services--protocolo-httpjson)
+  - [Materiais](#materiais-2)
+  - [Objetivo da aula](#objetivo-da-aula-2)
+  - [Parte 1 — Web Services](#parte-1--web-services)
+  - [Parte 2 — Protocolo HTTP](#parte-2--protocolo-http)
+  - [Parte 3 — Formatos de Dados e JSON](#parte-3--formatos-de-dados-e-json)
+  - [Parte 4 — Arquiteturas de Web Services](#parte-4--arquiteturas-de-web-services)
+  - [Exercícios](#exercícios)
+  - [Glossário rápido](#glossário-rápido-1)
 
 ---
 
@@ -704,7 +714,7 @@ Working Directory  →  Staging Area  →  Local Repository  →  Remote Reposit
 
 ---
 
-## Aula 3 — Orientação a Objetos em Java + Tópicos Especiais
+## Aula 3 e 4 — Orientação a Objetos em Java + Tópicos Especiais
 
 ### Materiais
 
@@ -1146,3 +1156,276 @@ Rastreavel «interface»
 | **`try` / `catch` / `finally`** | Blocos que capturam, tratam e sempre executam (finally) ao redor de código que pode falhar. |
 
 **Próxima aula:** Avaliação N1, cobrindo o conteúdo desta aula.
+
+## Aula 5 — Avaliação N1
+
+Prova teórica cobrindo Arquitetura da Web, HTTP e Orientação a Objetos em Java (Aulas 1 a 4). Sem materiais adicionais.
+
+**Próxima aula:** Web Services + Protocolo HTTP/JSON.
+
+## Aula 6 — Web Services + Protocolo HTTP/JSON
+
+**Materiais:**
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula06-webservices-http-json.pdf](<Aula 06/aula06-webservices-http-json.pdf>) | P6+P7 — Web Services, Protocolo HTTP, Formatos de Dados/JSON e Arquiteturas |
+
+### Objetivo da aula
+
+Entender o que é um Web Service, como o protocolo HTTP estrutura a conversa entre cliente e servidor, e como JSON padroniza os dados trocados nessa conversa — a base de tudo que vamos construir em REST a partir da próxima aula.
+
+---
+
+### Parte 1 — Web Services
+
+#### O que é um Web Service?
+
+- É um serviço — uma funcionalidade — acessível pela Web, usando a internet como meio de comunicação.
+- Permite que sistemas diferentes, em linguagens e plataformas diferentes, conversem entre si (ex.: um app mobile, um site em JavaScript e um sistema desktop em Java podem consumir o mesmo Web Service).
+- Segue o mesmo modelo cliente-servidor da Aula 01: quem oferece o serviço é o servidor, quem usa é o cliente.
+
+#### Três características centrais
+
+| Característica | O que significa |
+|---|---|
+| **Interoperabilidade** | Funciona com diferentes tipos de clientes (Java, PHP, .NET, mobile...) |
+| **Portabilidade** | Pode mudar de ambiente/servidor com impacto mínimo para quem já integra |
+| **Escalabilidade** | Atende múltiplos usuários simultâneos, crescendo com a demanda |
+
+#### Web Service x Web API
+
+"Web Service" é o termo mais amplo (inclui SOAP, REST e outros modelos). "Web API" é o termo mais usado hoje para descrever serviços que fornecem dados para outros sistemas através de um contrato público. Na prática do mercado, os dois termos são usados quase como sinônimos.
+
+> 🌍 **Exemplos do dia a dia:** Google Maps (mapas), OpenWeather (previsão do tempo), OpenAI (LLMs), GitHub (repositórios), Stripe (pagamentos).
+
+---
+
+### Parte 2 — Protocolo HTTP
+
+#### O que é HTTP?
+
+- HTTP (*HyperText Transfer Protocol*) define como cliente e servidor trocam mensagens na Web.
+- Funciona no modelo requisição-resposta: o cliente envia uma requisição, o servidor devolve uma resposta.
+- É **stateless** (sem estado): cada requisição é independente — o servidor não guarda memória da anterior por padrão.
+- **HTTPS** = HTTP + uma camada de criptografia (TLS), protegendo os dados no trajeto.
+
+#### Anatomia de uma requisição e de uma resposta
+
+```
+# Requisição
+POST /produtos HTTP/1.1
+Host: api.exemplo.com
+Content-Type: application/json
+
+{ "nome": "Mouse Gamer", "preco": 149.90 }
+
+# Resposta
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{ "id": 101, "nome": "Mouse Gamer", "preco": 149.90 }
+```
+
+Uma requisição tem **método**, **caminho (path)**, **headers** e, quando necessário, **corpo (body)**. Uma resposta tem **linha de status**, **headers** e **corpo**.
+
+#### Métodos HTTP mais usados
+
+| Método | Para que serve | Envia corpo? | Idempotente? |
+|---|---|---|---|
+| `GET` | Buscar/ler um recurso existente | Não | Sim |
+| `POST` | Criar um novo recurso | Sim | Não |
+| `PUT` | Substituir um recurso inteiro | Sim | Sim |
+| `PATCH` | Atualizar parte de um recurso | Sim | Não (geralmente) |
+| `DELETE` | Remover um recurso existente | Geralmente não | Sim |
+
+> 💡 **Idempotência:** repetir a mesma requisição várias vezes tem o mesmo efeito de fazer uma única vez. Importa na prática — se a internet cair e o cliente reenviar a requisição, o comportamento precisa ser previsível.
+
+#### Headers HTTP comuns
+
+| Header | Para que serve |
+|---|---|
+| `Content-Type` | Formato dos dados enviados no corpo (ex.: `application/json`) |
+| `Accept` | Formato de resposta que o cliente aceita |
+| `Authorization` | Credenciais de acesso do cliente (ex.: `Bearer <token>`) |
+| `User-Agent` | Identifica o cliente que fez a chamada |
+| `Cache-Control` | Regras de cache da resposta |
+
+#### Códigos de status HTTP
+
+| Faixa | Categoria |
+|---|---|
+| `1xx` | Informational — requisição recebida, processo continua |
+| `2xx` | Sucesso — requisição atendida |
+| `3xx` | Redirecionamento — é preciso ir a outro endereço |
+| `4xx` | Erro do cliente — o cliente pediu algo errado |
+| `5xx` | Erro do servidor — o servidor falhou ao processar |
+
+| Código | Significado |
+|---|---|
+| `200 OK` | Sucesso |
+| `201 Created` | Um novo recurso foi criado |
+| `204 No Content` | Sucesso, sem corpo de resposta (comum em `DELETE`) |
+| `400 Bad Request` | Dados enviados pelo cliente estão incorretos |
+| `401 Unauthorized` | Faltam credenciais válidas |
+| `403 Forbidden` | Cliente conhecido, mas sem permissão |
+| `404 Not Found` | O recurso pedido não existe |
+| `500 Internal Server Error` | Algo quebrou do lado do servidor |
+
+#### Testando na prática: curl e Postman
+
+```bash
+# GET
+curl -X GET https://api.exemplo.com/produtos/101 \
+  -H "Accept: application/json"
+
+# POST + JSON
+curl -X POST https://api.exemplo.com/produtos \
+  -H "Content-Type: application/json" \
+  -d '{"nome": "Mouse Gamer", "preco": 149.90}'
+```
+
+**Postman** é uma ferramenta gráfica para montar, enviar e organizar requisições HTTP sem terminal — permite salvar *coleções* (conjuntos de requisições documentadas) e *environments* (variáveis reutilizáveis, como URL base e token).
+
+#### Contrato de API
+
+Um contrato de API define o que o cliente deve enviar e o que deve esperar de volta: **rota**, **método**, **formato dos dados** e **status esperado** em cada cenário. Documentar isso permite que cliente e servidor sejam construídos em paralelo, por times diferentes, sem travar um no outro — é a base do que veremos em REST.
+
+---
+
+### Parte 3 — Formatos de Dados e JSON
+
+#### Por que padronizar?
+
+Web Services são acessados por plataformas diferentes (Java, JavaScript, Python, mobile...). Sem um formato combinado, cada sistema entenderia os dados de um jeito diferente. Hoje, o formato mais usado em APIs web é o **JSON**.
+
+| Formato | Características | Onde é comum |
+|---|---|---|
+| **JSON** | Leve, legível, baseado em objetos e arrays | APIs REST modernas |
+| **XML** | Verboso, baseado em tags, suporta esquemas rígidos | Integrações corporativas, SOAP |
+| **YAML** | Legível por humanos, baseado em indentação | Arquivos de configuração |
+| **CSV** | Tabular simples, separado por vírgulas | Planilhas, exportação de dados |
+| **Plain Text** | Texto puro, sem estrutura definida | Logs e respostas simples |
+
+#### Sintaxe básica do JSON
+
+```json
+{
+  "nome": "Mouse Gamer",
+  "preco": 149.90,
+  "disponivel": true,
+  "categoria": null
+}
+```
+
+Tipos básicos: texto (`string`), número, booleano (`true`/`false`) e nulo (`null`). Chaves são sempre strings entre aspas duplas.
+
+#### Objetos aninhados e arrays
+
+```json
+{
+  "id": 55,
+  "cliente": { "nome": "Ana", "vip": true },
+  "itens": [
+    { "produto": "Mouse Gamer", "qtd": 1 },
+    { "produto": "Teclado Mecânico", "qtd": 1 }
+  ]
+}
+```
+
+Um array (entre `[ ]`) guarda vários valores, inclusive vários objetos — é o que permite representar, por exemplo, um pedido com vários produtos dentro.
+
+#### JSON em Java com Jackson
+
+```java
+public class Produto {
+    private String nome;
+    private double preco;
+    // getters e setters
+}
+
+ObjectMapper mapper = new ObjectMapper();
+
+// Java -> JSON
+String json = mapper.writeValueAsString(produto);
+
+// JSON -> Java
+Produto p = mapper.readValue(json, Produto.class);
+```
+
+`Jackson` é o padrão de mercado para converter entre objetos Java e JSON. Frameworks como Spring Web já usam essa conversão automaticamente dentro dos controllers.
+
+---
+
+### Parte 4 — Arquiteturas de Web Services
+
+| Estilo | Formato comum | Melhor uso |
+|---|---|---|
+| **SOAP** | XML | Integrações corporativas e contratos formais |
+| **REST** | JSON | CRUD e APIs web tradicionais |
+| **gRPC** | Protobuf | Comunicação de alta performance entre microsserviços |
+| **GraphQL** | JSON | Consultas flexíveis para múltiplos clientes |
+| **WebSocket** | Frames | Comunicação bidirecional em tempo real |
+| **Webhook** | JSON | Notificações assíncronas orientadas a eventos |
+
+**REST em poucas palavras** (prévia — aprofundamos na próxima aula): organiza a API em torno de recursos, usa os verbos HTTP já vistos e é stateless. É a arquitetura mais usada em APIs web hoje.
+
+**WebSocket** não é uma arquitetura de API como REST/SOAP — é um protocolo de comunicação bidirecional e persistente, útil para chats, jogos online, notificações e dashboards em tempo real.
+
+#### Frameworks e o primeiro endpoint
+
+No curso, vamos construir a API REST em **Java com Spring Web**. Outras opções no mercado: NestJS (TypeScript), Express (Node.js), Flask (Python), Laravel (PHP).
+
+```java
+@RestController
+public class HelloWorldController {
+
+    @GetMapping("/")
+    public String olaMundo() {
+        return "Olá mundo";
+    }
+}
+```
+
+#### Microsserviços x Monolitos
+
+**Monolitos** são sistemas completos, com múltiplos domínios, em uma única aplicação. **Microsserviços** dividem o sistema em serviços menores e independentes que trabalham em conjunto. Nenhuma abordagem é "melhor" de forma absoluta — depende do tamanho e complexidade do time e do produto. No curso, começamos com uma API única (um pequeno monolito) antes de falar em integração entre serviços.
+
+#### Onde um Web Service roda?
+
+| Infraestrutura | Descrição |
+|---|---|
+| **Servidor físico** | Máquina própria, configurada e mantida manualmente |
+| **VPS** | Servidor virtual privado, contratado de um provedor |
+| **Nuvem (Cloud)** | AWS, Azure, Google Cloud — infraestrutura sob demanda |
+
+---
+
+### Exercícios
+
+1. **Interpretando um contrato de API** — a partir de um contrato dado (`PUT /pedidos/{id}/cancelar`), identificar método, rota, corpo esperado e status de sucesso.
+2. **Convertendo um objeto Java em JSON** — usar o Jackson (`ObjectMapper`) para serializar e desserializar a classe `Produto`.
+3. **Desafio final: montando seu primeiro contrato de API** — descrever o contrato completo (rota, método, corpo e status) de uma API de lista de tarefas (criar, listar, concluir). Este contrato será implementado de verdade nas próximas aulas, com Spring Web.
+
+---
+
+### Glossário rápido
+
+| Termo | Significado |
+|---|---|
+| **Web Service** | Serviço acessível pela Web, que permite a comunicação entre sistemas diferentes. |
+| **Web API** | Termo atual para um Web Service que fornece dados via um contrato público. |
+| **HTTP** | Protocolo de requisição-resposta usado para trocar mensagens na Web. |
+| **Stateless** | Cada requisição é independente; o servidor não guarda memória da anterior. |
+| **Idempotência** | Repetir a mesma requisição várias vezes tem o mesmo efeito de fazer uma vez. |
+| **Header** | Metadado de uma requisição/resposta HTTP (ex.: `Content-Type`). |
+| **Status code** | Código de três dígitos que resume o resultado de uma requisição HTTP. |
+| **Contrato de API** | Definição de rota, método, formato e status esperado entre cliente e servidor. |
+| **JSON** | Formato de dados leve baseado em objetos e arrays, padrão em APIs REST. |
+| **Jackson** | Biblioteca Java padrão de mercado para converter entre objetos e JSON. |
+| **REST** | Arquitetura de API baseada em recursos e nos verbos HTTP. |
+| **WebSocket** | Protocolo de comunicação bidirecional e persistente, para tempo real. |
+| **Monolito** | Sistema completo, com múltiplos domínios, em uma única aplicação. |
+| **Microsserviço** | Serviço menor e independente, que trabalha em conjunto com outros. |
+
+**Próxima aula:** Padrões de Arquitetura + Arquitetura REST — vamos implementar, na prática, os contratos de API que projetamos hoje.
