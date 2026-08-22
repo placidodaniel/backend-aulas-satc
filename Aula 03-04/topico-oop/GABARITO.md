@@ -61,7 +61,7 @@ Em sistema financeiro real: `BigDecimal` (construído a partir de **String**) ou
 
 **2.3 — O cabeçalho diz `VALOR (R$)` mas os valores são dólares. Como consertar sem copiar o `toString()`?**
 
-Criando um **gancho**: um método na mãe que a subclasse sobrescreve, exatamente como o `tipoDeConta()` do Exercício 3.
+Criando um **gancho** (na literatura de padrões de projeto, "método-gancho"): um método na mãe que não faz nada de especial sozinho, só existe pra subclasse sobrescrever e pendurar ali seu próprio comportamento — exatamente como o `tipoDeConta()` do Exercício 3.
 
 ```java
 // em Conta
