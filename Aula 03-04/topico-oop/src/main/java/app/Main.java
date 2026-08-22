@@ -63,6 +63,15 @@
 // Quem clonar o projeto precisa ter só o JDK instalado -- Maven não precisa estar na máquina.
 // Acrescente -o para rodar offline depois do primeiro download: ./mvnw -o test
 //
+// Se o mvnw.cmd der erro de permissão do Windows (comum em máquina de laboratório),
+// rode os testes DIRETO PELO INTELLIJ, sem precisar do wrapper:
+//   1. File > Open -> escolhe esta pasta (a que tem o pom.xml). O IntelliJ importa
+//      o projeto Maven sozinho.
+//   2. Botão direito em src/test/java (ou numa classe de teste específica, ex.:
+//      ContaCorrenteTest) -> "Run 'Tests in ...'".
+//   3. Se reclamar de SDK, ajusta em File > Project Structure > Project.
+// O IntelliJ usa o runner de JUnit dele direto -- nem chama o Maven wrapper.
+//
 // Main fica no pacote "app" (src/main/java/app/). Repare no mapa do projeto:
 //
 //   src/main/java/

@@ -98,7 +98,10 @@ package app;
 import java.util.ArrayList;
 import java.util.Locale;
 
+import contas.Conta;
 import contas.ContaCorrente;
+import contas.ContaEstrangeira;
+import contas.ContaInvestimento;
 import contas.ContaPoupanca;
 import investimentos.Acao;
 import tributaveis.Tributavel;
@@ -160,26 +163,54 @@ public class Main {
         // Se o atributo fosse público, bastaria "cpWesley.saldo = 999999" e a regra do banco
         // viraria decoração. A operação recusada nem entra no extrato -- ela nunca aconteceu.
         //
-        // sacar() devolve false quando falta saldo.
-        boolean deuCerto = cpWesley.sacar(999999);
+        // >>> EXCEÇÃO (Exercício 5): "saldo insuficiente" é uma regra do NOSSO código
+        // (Conta.sacar(), lá em contas/Conta.java), não um erro que a JVM detecta sozinha --
+        // por isso é um throw explícito, e não algo como dividir por zero.
+        //
+        // throw dispara a exceção lá dentro de sacar(); aqui do lado de fora, try/catch é
+        // quem evita que ela DERRUBE o programa inteiro.
+        try {
 
-        // Monta a mensagem. O "? :" é o operador ternário: um if de uma linha só.
-        System.out.println(">> Saque de R$ 999.999,00 na conta " + cpWesley.getNumero()
-                + (deuCerto ? " AUTORIZADO" : " RECUSADO (saldo insuficiente)"));
+            // Tudo que está dentro do try roda normalmente até a primeira linha que falhar.
+            // Esta aqui lança IllegalArgumentException, e a execução pula DIRETO para o catch --
+            // nenhuma linha depois desta, dentro do try, chega a rodar.
+            cpWesley.sacar(999999);
+
+            System.out.println(">> Saque de R$ 999.999,00 na conta " + cpWesley.getNumero() + " AUTORIZADO");
+
+        } catch (IllegalArgumentException e) {
+
+            // O catch só roda se o try lançou uma exceção do tipo declarado (ou subtipo).
+            // e.getMessage() devolve exatamente o texto que o throw carregou lá em Conta.java.
+            System.out.println(">> Saque de R$ 999.999,00 na conta " + cpWesley.getNumero()
+                    + " RECUSADO (" + e.getMessage() + ")");
+
+        } finally {
+
+            // finally roda SEMPRE -- com exceção ou sem ela. É o lugar certo para liberar
+            // recursos (fechar arquivo, conexão, etc.); aqui só ilustra que a linha executa
+            // nos dois casos.
+            System.out.println(">> Fim da tentativa de saque.");
+
+        // Fim do try/catch/finally.
+        }
 
         // println() sem argumento imprime só uma linha em branco.
         System.out.println();
         // ------------------------------------------------------------------------------------------------------
-        // Exercício 1: torne Conta abstract (ela é um conceito, ninguém tem uma "conta genérica").
-        // Depois descomente o bloco abaixo, adicione "import contas.Conta;" lá em cima
-        // e observe o que compila e o que não compila.
-        /*
+        // EXERCÍCIO 1 (RESOLVIDO): Conta virou abstract.
+        //
+        // Repare no que MUDOU e no que NÃO mudou:
+        //   - "new Conta(...)" parou de compilar (linha comentada logo abaixo)
+        //   - Conta como TIPO de array e de variável continua funcionando normalmente
+        //
         // Array de Conta guardando duas SUBCLASSES diferentes.
         Conta[] listaContas = {ccNatan, cpWesley};
 
-        // Hoje esta linha compila. Depois que Conta virar abstract, vira erro de compilação --
-        // e repare que os argumentos estão certos: o problema não é o construtor, é o "new".
-        Conta contaGenerica = new Conta("Fulano", "0000-0");
+        // DESCOMENTE esta linha para ver o erro do Exercício 1:
+        //     error: Conta is abstract; cannot be instantiated
+        // Repare que os argumentos estão certos -- o problema não é o construtor, é o "new".
+        //Conta contaGenerica = new Conta("Fulano", "0000-0");
 
         // Polimorfismo puro: a variável é do tipo Conta, mas cada objeto aplica a SUA regra.
         // Linha separadora.
@@ -205,8 +236,94 @@ public class Main {
 
         // Fim do for.
         }
-        */
         // ------------------------------------------------------------------------------------------------------
+        // Linha em branco separando os blocos da saída.
+        System.out.println();
+
+        // ======================================================================================
+        // EXERCÍCIO 2 (RESOLVIDO): transferência de uma conta corrente para uma conta em dólar.
+        // ======================================================================================
+        //
+        // Contas novas, separadas das de cima, para os números baterem com o EXERCICIOS.md.
+        ContaCorrente ccOrigem = new ContaCorrente("Natan", "1234-5");
+
+        // Saldo: 1000.00
+        ccOrigem.depositar(1000);
+
+        // Saldo: 899.50 (100 + 0.50 de taxa)
+        ccOrigem.sacar(100);
+
+        // >>> OBJETO: a conta em dólar. O saldo dela é guardado em DÓLARES.
+        ContaEstrangeira ceNatan = new ContaEstrangeira("Natan", "9999-9");
+
+        // >>> POLIMORFISMO: esta única linha dispara DUAS regras que ela não conhece.
+        // Saem R$ 500,50 da corrente (500 + taxa) e entram US$ 92,59 na estrangeira (500 / 5,40).
+        // O método transferir() não tem um "if" sequer perguntando o tipo das contas.
+        //
+        // >>> EXCEÇÃO: transferir() virou void (Exercício 5) -- "deu certo" agora é só
+        // "não lançou". Este saque tem saldo de sobra, então nenhuma exceção sobe até aqui.
+        ccOrigem.transferir(ceNatan, 500);
+
+        // Cabeçalho do bloco.
+        System.out.println("-".repeat(LARGURA));
+        System.out.println("TRANSFERÊNCIA: R$ 500,00 da corrente para o dólar");
+        System.out.println("-".repeat(LARGURA));
+
+        // Confirmação da operação: chegou até aqui sem exceção, então foi autorizada.
+        System.out.println("Autorizada?         true");
+
+        // Saldo da origem: 399.00 -- saíram os 500 mais a taxa de 0,50.
+        System.out.println(String.format(BR, "%-28.28s %,16.2f", "Saldo da corrente (R$)", ccOrigem.getSaldo()));
+
+        // Saldo do destino: 92.59 DÓLARES.
+        System.out.println(String.format(BR, "%-28.28s %,16.2f", "Saldo da estrangeira (US$)", ceNatan.getSaldo()));
+
+        // O mesmo saldo convertido de volta para reais.
+        //
+        // ATENÇÃO ao contraste das duas linhas abaixo: é o subexercício 2.2 na tela.
+        // Formatado com %.2f o valor sai "500,00" -- o arredondamento ESCONDE o problema.
+        // Impresso cru, aparece o 499.99999999999994 que o double realmente guardou.
+        System.out.println(String.format(BR, "%-28.28s %,16.2f", "Convertido de volta (R$)", ceNatan.getSaldoEmReais()));
+
+        // O mesmo número, sem formatação nenhuma.
+        System.out.println("   valor cru, sem %.2f: " + ceNatan.getSaldoEmReais());
+
+        // >>> EXCEÇÃO: mesmo padrão do saque lá em cima -- transferir() propaga o throw de
+        // sacar() (repare que Conta.transferir() não tem try/catch nenhum), então quem
+        // segura o programa de pé é este try/catch aqui no Main.
+        try {
+
+            // Transferência sem saldo: o throw interrompe ANTES do destino.depositar(),
+            // então nenhum dos dois saldos se mexe.
+            ccOrigem.transferir(ceNatan, 99999);
+
+            System.out.println("Transferir R$ 99.999? true");
+
+        } catch (IllegalArgumentException e) {
+
+            System.out.println("Transferir R$ 99.999? false (" + e.getMessage() + ")");
+
+        } finally {
+
+            System.out.println("Fim da tentativa de transferência.");
+
+        // Fim do try/catch/finally.
+        }
+
+        // Linha em branco separando os blocos da saída.
+        System.out.println();
+
+        // ======================================================================================
+        // EXERCÍCIO 4 (RESOLVIDO): conta de investimento, com imposto só sobre o lucro.
+        // ======================================================================================
+        ContaInvestimento ciNatan = new ContaInvestimento("Natan", "7777-7");
+
+        // Aplica R$ 1.000. Saldo 1000.00, e imposto 0.00 -- ainda não houve lucro.
+        ciNatan.depositar(1000);
+
+        // Rende 10%. Saldo 1100.00, lucro 100.00, imposto 22.50 (22,5% sobre o lucro).
+        ciNatan.aplicarRendimento(0.10);
+
         // Linha em branco separando os blocos da saída.
         System.out.println();
 
@@ -228,6 +345,19 @@ public class Main {
 
         // Extrato da poupança (com a linha de rendimento).
         System.out.println(cpWesley);
+
+        // Linha em branco entre os documentos.
+        System.out.println();
+
+        // Extrato da conta em dólar (Exercício 2). Repare no "(Conta em Dólar)" do cabeçalho:
+        // é o tipoDeConta() do Exercício 3 respondendo.
+        System.out.println(ceNatan);
+
+        // Linha em branco entre os documentos.
+        System.out.println();
+
+        // Extrato da conta de investimento (Exercício 4), com o IR sobre o lucro no rodapé.
+        System.out.println(ciNatan);
 
         // Linha em branco entre os documentos.
         System.out.println();
@@ -254,6 +384,12 @@ public class Main {
 
         // Adiciona a ação à lista, mesmo sem nenhum parentesco com as contas.
         listaTributaveis.add(petrobras);
+
+        // Desafio do Exercício 4: entram mais duas origens na lista. O laço lá embaixo
+        // NÃO precisou de uma única alteração para lidar com elas -- é isso que o
+        // polimorfismo compra: código novo entra sem mexer no código que já existe.
+        listaTributaveis.add(ceNatan);
+        listaTributaveis.add(ciNatan);
 
         // Percorre a lista chamando calcularImposto() de cada objeto -- cada classe implementa
         // esse método do seu próprio jeito (0,5% do saldo nas contas, 15% do lucro na ação).
