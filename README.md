@@ -1543,7 +1543,7 @@ public class HelloWorldController {
 | Arquivo | Conteúdo |
 |---|---|
 | [aula07-padroes-arquitetura-rest.pdf](<Aula 07/aula07-padroes-arquitetura-rest.pdf>) | P8+P9 — Protocolos de rede, HTTP por dentro e Arquitetura REST com Spring Web |
-| [exemplo-oop1](<Aula 06/exemplo-oop1>) | Projeto `exemplo-oop` (Aula 3 e 4) evoluído para uma API Spring Web real |
+| [exemplo-api-spring](<Aula 06/exemplo-api-spring>) | Projeto `exemplo-oop` (Aula 3 e 4) evoluído para uma API Spring Web real |
 
 ### Objetivo da aula
 
@@ -1784,7 +1784,7 @@ spring.datasource.url=jdbc:h2:mem:teste
 
 ### Parte 3 — Prática: API REST com Spring Web
 
-Primeiro contrato de API da disciplina implementado de verdade, em cima do projeto `exemplo-oop` (copiado para `exemplo-oop1` para virar uma API): reaproveita as classes `Conta`/`ContaCorrente`/`ContaPoupanca` já prontas, sem duplicar nenhuma regra de negócio.
+Primeiro contrato de API da disciplina implementado de verdade, em cima do projeto `exemplo-oop` (copiado para `exemplo-api-spring` para virar uma API): reaproveita as classes `Conta`/`ContaCorrente`/`ContaPoupanca` já prontas, sem duplicar nenhuma regra de negócio.
 
 **Contrato:** `GET /contas/{numero}/saldo` → devolve o saldo da conta.
 
@@ -1802,7 +1802,7 @@ GET /contas/0000-0/saldo
 Conta não encontrada: 0000-0
 ```
 
-**Camadas** (projeto em [`exemplo-oop1`](<Aula 06/exemplo-oop1>)):
+**Camadas** (projeto em [`exemplo-api-spring`](<Aula 06/exemplo-api-spring>)):
 
 | Camada | Classe | Papel |
 |---|---|---|
@@ -1817,7 +1817,7 @@ Quem devolve o `404 Not Found` é o `ApiExceptionHandler` (`@RestControllerAdvic
 Para rodar:
 
 ```bash
-cd "Aula 06/exemplo-oop1"
+cd "Aula 06/exemplo-api-spring"
 mvn spring-boot:run
 
 # em outro terminal

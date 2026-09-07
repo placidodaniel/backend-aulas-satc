@@ -1,6 +1,6 @@
 # Exercícios: Tratamento de Exceções
 
-Todos os exercícios usam o projeto `exemplo-oop1`. Para rodar e conferir:
+Todos os exercícios usam o projeto `exemplo-api-spring`. Para rodar e conferir:
 
 ```bash
 ./mvnw test                                  # Linux/Mac  (Windows: mvnw.cmd test)
@@ -35,7 +35,7 @@ Não envie as respostas em anexo, nem só o link do repositório. As respostas t
 
 ```
 Nome: Fulano de Tal
-Repositório: https://github.com/fulano/exemplo-oop1
+Repositório: https://github.com/fulano/exemplo-api-spring
 
 --------------------------------------------------
 Exercício 1.1
