@@ -33,6 +33,12 @@ public class Application {
         return "Olá, mundo!";
     }
 
+    @GetMapping("/ola1")
+    public String olaMundoGet1() {
+        return "Teste, mundo!";
+    }
+
+
     // POST /ola -> recebe um corpo JSON, ex.: {"nome": "Maria"}
     // @RequestBody pega o corpo da requisição e converte pro record Nome sozinho.
     // Testar via curl:

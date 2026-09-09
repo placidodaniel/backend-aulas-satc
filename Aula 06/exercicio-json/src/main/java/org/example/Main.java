@@ -1,5 +1,6 @@
 package org.example;
 
+//import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Main {
@@ -13,7 +14,12 @@ public class Main {
         System.out.println("Java -> JSON: " + json);
 
         // JSON -> Java
+
         Produto produtoConvertido = mapper.readValue(json, Produto.class);
+
+        /*JsonNode node = mapper.readTree(json);
+        double peso = node.get("peso").asDouble();
+        produtoConvertido.setPeso(peso);*/
         System.out.println("JSON -> Java: " + produtoConvertido);
 
         if (!produto.getNome().equals(produtoConvertido.getNome())
