@@ -4,10 +4,7 @@ package api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 // Exemplo mínimo, tudo numa classe só, para focar em três ideias:
 //
@@ -33,9 +30,9 @@ public class Application {
         return "Olá, mundo!";
     }
 
-    @GetMapping("/ola1")
-    public String olaMundoGet1() {
-        return "Teste, mundo!";
+    @GetMapping("/health")
+    public String helloHealth() {
+        return "Working...";
     }
 
 
@@ -44,12 +41,15 @@ public class Application {
     // Testar via curl:
     //   curl -X POST http://localhost:8080/ola -H "Content-Type: application/json" -d "{\"nome\":\"Maria\"}"
     @PostMapping("/ola")
-    public String olaMundoPost(@RequestBody Nome nome) {
-        return "Olá, " + nome.nome() + "!";
+    public String olaMundoPost(@RequestBody Pessoa pessoa) {
+        return "Olá, " + pessoa.nome() +" - Idade:"+ pessoa.idade()+ "!";
     }
-
+    @DeleteMapping("/ola")
+    public String olaMundoDelete(@RequestBody Pessoa pessoa) {
+        return "Olá, " + pessoa.nome() +" - Idade:"+ pessoa.idade()+ "! Simulação de Registro "+ pessoa.id() +" excluído com sucesso";
+    }
     // Record = classe de dados minimalista do Java; aqui só existe para dar forma
     // ao JSON esperado no corpo do POST ({"nome": "..."}).
-    record Nome(String nome) {}
+    record Pessoa(int id, String nome, int idade) {}
 
 }
