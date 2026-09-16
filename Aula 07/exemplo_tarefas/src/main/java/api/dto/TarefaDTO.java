@@ -4,8 +4,6 @@ package api.dto;
 
 import java.time.LocalDate;
 
-// @NotBlank/@NotNull vêm do Bean Validation (jakarta.validation) -- usadas
-// mais abaixo, nos campos deste DTO.
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 

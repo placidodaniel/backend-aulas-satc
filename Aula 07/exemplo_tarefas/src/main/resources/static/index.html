@@ -16,18 +16,22 @@
 
   * { box-sizing: border-box; }
 
-  html, body { height: 100%; }
+  /* height (não min-height) + overflow:hidden aqui é o que trava a página
+     inteira em 100vh -- sem isso, .grid/.panel/.log-panel só "sugerem" uma
+     altura, e a página cresce junto com o log em vez de deixar só o #log
+     (mais abaixo) rolar sozinho. */
+  html, body { height: 100%; overflow: hidden; }
 
   body {
     margin: 0;
-    min-height: 100vh;
+    height: 100vh;
     background: linear-gradient(135deg, var(--navy-dark), var(--navy));
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
 
   .container {
     width: 100%;
-    min-height: 100vh;
+    height: 100vh;
     margin: 0;
     padding: 20px 32px;
     display: flex;
@@ -49,6 +53,9 @@
     align-items: stretch;
   }
   @media (max-width: 900px) {
+    /* Empilhado, o esquema de "página travada em 100vh" não faz sentido --
+       melhor deixar a página rolar normal e dar um teto fixo só pro log. */
+    html, body { height: auto; overflow: visible; }
     .container { height: auto; min-height: 100vh; }
     .grid { flex: none; grid-template-columns: 1fr; }
     #log { max-height: 480px; }
@@ -185,6 +192,10 @@
   .log-ok-step { color: #6FE0C7; }
   .log-ok { color: #4ADE80; font-weight: 700; }
   .log-err { color: #FF6B6B; font-weight: 700; }
+
+  /* Uma linha antes de cada nova requisição -- separa visualmente onde um
+     ciclo request/response termina e o próximo começa. */
+  .log-separador { border: none; border-top: 1px dashed #3b437a; margin: 10px 0; }
 
   footer { flex: none; text-align: center; color: #9aa8d6; font-size: 12px; margin-top: 16px; }
 </style>
@@ -479,6 +490,11 @@
 
     const texto = STATUS_TEXTO[resposta.status] || resposta.statusText || '';
     log(`← ${resposta.status} ${texto}   ${corpo}`, tipo, 'RESPOSTA');
+
+    // resposta._duracaoMs foi guardado em enviarRequisicao(), logo depois do
+    // fetch() -- é só o tempo real de rede/servidor, sem as pausas artificiais
+    // (wait()) usadas pra narrar o log aos poucos.
+    log(`  Tempo de requisição: ${resposta._duracaoMs} ms`, tipo, 'RESPOSTA');
   }
 
   // Função interna, usada por todas as outras abaixo: dispara o fetch de
@@ -486,6 +502,15 @@
   // (a requisição em si, e o Tomcat recebendo a conexão). Quem chamou
   // continua o log depois, com os detalhes específicos daquele endpoint.
   async function enviarRequisicao(metodo, caminho, corpo) {
+    // Uma linha horizontal antes de cada requisição nova -- menos a primeira
+    // (log ainda vazio) -- separando visualmente onde um ciclo request/response
+    // termina e o próximo começa.
+    if (logEl.children.length > 0) {
+      const separador = document.createElement('hr');
+      separador.className = 'log-separador';
+      logEl.appendChild(separador);
+    }
+
     // Monta a URL final: relativa (mesma origem) ou absoluta (aberto via file://).
     const url = API_BASE + caminho;
     // Só existe corpo em JSON quando "corpo" foi passado (GET/DELETE não têm).
@@ -501,6 +526,10 @@
 
     // Guarda a resposta fora do try, pra poder ser usada depois dele.
     let resposta;
+    // performance.now(): relógio de alta precisão do navegador, em milissegundos
+    // -- medido só em volta do fetch(), pra cronometrar a requisição de verdade
+    // (rede + servidor), sem contar nenhuma pausa artificial deste JavaScript.
+    const inicio = performance.now();
     try {
       // fetch(): a requisição HTTP de verdade, indo pro servidor Spring Boot.
       resposta = await fetch(url, {
@@ -517,6 +546,11 @@
       // Devolve null: quem chamou sabe que a requisição nem chegou a rodar.
       return null;
     }
+
+    // Guarda a duração direto no objeto da resposta -- assim logResposta() lê
+    // esse valor sem precisar mudar a assinatura de todas as funções de
+    // endpoint que só repassam "resposta" adiante.
+    resposta._duracaoMs = Math.round(performance.now() - inicio);
 
     // Pausa só pra dar tempo de ler o log -- a resposta real já chegou no
     // fetch acima; isso aqui não atrasa nem afeta a requisição em si.
