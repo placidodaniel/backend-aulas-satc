@@ -69,7 +69,11 @@
     color: var(--navy);
     overflow-y: auto;
   }
-  .panel h2 { margin: 0 0 14px; font-size: 19px; }
+  .panel h2 { margin: 0; font-size: 19px; }
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; gap: 10px;
+  }
 
   form.add-form { display: flex; flex-direction: column; gap: 8px; }
   .add-form-row { display: flex; gap: 8px; }
@@ -212,7 +216,10 @@
 
     <!-- ================= PAINEL: CADASTRO ================= -->
     <section class="panel">
-      <h2>📋 Tarefas</h2>
+      <div class="panel-header">
+        <h2>📋 Tarefas</h2>
+        <button class="ghost" id="btn-atualizar-lista">🔄 Atualizar (GET /tarefas)</button>
+      </div>
 
       <form class="add-form" id="form-add">
         <div class="add-form-row">
@@ -936,6 +943,20 @@
   // Botão "Limpar": apaga só o conteúdo visual do log -- não afeta a API nem os dados.
   document.getElementById('btn-limpar-log').addEventListener('click', () => {
     logEl.innerHTML = '';
+  });
+
+  // Botão "🔄 Atualizar": refaz o GET /tarefas e redesenha a lista com o que
+  // vier de verdade do servidor -- útil depois de mexer direto pela API
+  // (curl, Postman) e querer ver o resultado sem dar F5 na página inteira.
+  document.getElementById('btn-atualizar-lista').addEventListener('click', async () => {
+    if (busy) return;
+    setBusy(true);
+    tarefas = await listarTarefas();
+    setBusy(false);
+    // Sai do modo de edição, se algum item estivesse sendo editado -- a lista
+    // que acabou de chegar do servidor vale mais do que uma edição em andamento.
+    editandoId = null;
+    renderLista();
   });
 
   // ---------------------------------------------------------------- inicialização

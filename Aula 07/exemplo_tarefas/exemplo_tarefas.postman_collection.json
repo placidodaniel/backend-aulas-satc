@@ -1,0 +1,115 @@
+{
+  "info": {
+    "_postman_id": "a3f1c8e2-6b4d-4e91-9c2a-7d0f5b2e1a10",
+    "name": "exemplo_tarefas — Aula 07",
+    "description": "Coleção da API de tarefas (Aula 07 — Backend, SATC 2026.1). Suba a API antes de testar:\n\n```\ncd \"Aula 07/exemplo_tarefas\"\n./mvnw spring-boot:run\n```\n\nA variável {{baseUrl}} já vem configurada para http://localhost:8080 (padrão do Spring Boot). Troque em Variables se estiver usando outra porta.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "CRUD oficial (Aula 07)",
+      "item": [
+        {
+          "name": "Listar tarefas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/tarefas", "host": ["{{baseUrl}}"], "path": ["tarefas"] },
+            "description": "GET /tarefas — TarefaController.listar() → TarefaService.listarTodas() → TarefaRepository.listarTodas()."
+          }
+        },
+        {
+          "name": "Criar tarefa",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Estudar Spring Web\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-31\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/tarefas", "host": ["{{baseUrl}}"], "path": ["tarefas"] },
+            "description": "POST /tarefas — corpo validado pelo TarefaDTO (@NotBlank em titulo/responsavel, @NotNull em dataPrazo). Sucesso devolve 201 Created com a tarefa (id e dataCadastro gerados pela API)."
+          }
+        },
+        {
+          "name": "Buscar tarefa por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/tarefas/1", "host": ["{{baseUrl}}"], "path": ["tarefas", "1"] },
+            "description": "GET /tarefas/{id} — troque o \"1\" pelo id que quiser buscar."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bônus (fora do CRUD oficial)",
+      "item": [
+        {
+          "name": "Atualizar tarefa",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Estudar Spring Web (revisado)\",\n  \"responsavel\": \"Bruno\",\n  \"dataPrazo\": \"2027-01-15\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/tarefas/1", "host": ["{{baseUrl}}"], "path": ["tarefas", "1"] },
+            "description": "PUT /tarefas/{id} — atualiza título, responsável e prazo (mesmo TarefaDTO e validação da criação). dataCadastro e concluida não mudam aqui."
+          }
+        },
+        {
+          "name": "Concluir / reabrir tarefa",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/tarefas/1/concluir", "host": ["{{baseUrl}}"], "path": ["tarefas", "1", "concluir"] },
+            "description": "PUT /tarefas/{id}/concluir — alterna o campo concluida (true↔false). Sem corpo na requisição."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Casos de erro (400 / 404)",
+      "item": [
+        {
+          "name": "Criar tarefa sem título (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-31\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/tarefas", "host": ["{{baseUrl}}"], "path": ["tarefas"] },
+            "description": "@NotBlank do TarefaDTO rejeita antes de chegar no TarefaService — 400 Bad Request com o corpo de erro do Spring (errors[].defaultMessage)."
+          }
+        },
+        {
+          "name": "Buscar id inexistente (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/tarefas/999", "host": ["{{baseUrl}}"], "path": ["tarefas", "999"] },
+            "description": "TarefaService.buscarPorId() lança TarefaNaoEncontradaException; ApiExceptionHandler (@RestControllerAdvice) converte em 404 Not Found com o texto \"Tarefa não encontrada: 999\"."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Excluir tarefa",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/tarefas/1", "host": ["{{baseUrl}}"], "path": ["tarefas", "1"] },
+        "description": "DELETE /tarefas/{id} — sucesso devolve 204 No Content (sem corpo). Deixado por último de propósito: se rodar a coleção inteira em sequência (Run collection), os requests acima (buscar/atualizar/concluir na tarefa #1) precisam rodar ANTES dela ser excluída."
+      }
+    }
+  ]
+}
