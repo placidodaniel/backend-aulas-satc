@@ -1544,6 +1544,8 @@ public class HelloWorldController {
 |---|---|
 | [aula07-padroes-arquitetura-rest.pdf](<Aula 07/aula07-padroes-arquitetura-rest.pdf>) | P8+P9 — Protocolos de rede, HTTP por dentro e Arquitetura REST com Spring Web |
 | [exemplo-api-spring](<Aula 06/exemplo-api-spring>) | Projeto `exemplo-oop` (Aula 3 e 4) evoluído para uma API Spring Web real |
+| [exemplo_tarefas](<Aula 07/exemplo_tarefas>) | CRUD de `/tarefas` completo (Controller, Service, Repository, DTO com validação), referência para os Exercícios 2 e 3 |
+| [static/index.html](<Aula 07/exemplo_tarefas/src/main/resources/static/index.html>) | Cadastro de tarefas em HTML/JS puro, servido pelo próprio Spring Boot, com chamadas `fetch()` **reais** à API e um log que narra por onde cada requisição passa (Controller → Service → Repository), incluindo validação e o 404 |
 
 ### Objetivo da aula
 
@@ -1832,6 +1834,20 @@ curl http://localhost:8080/contas/1234-5/saldo
 2. **Construindo um endpoint de listagem e criação** — implementar `GET` e `POST` em `TarefaController`, com `TarefaService`, testando com curl/Postman.
 3. **Completando o CRUD de `/tarefas`** — adicionar `GET /{id}` e `DELETE /{id}`, `TarefaDTO` com validação, `ResponseEntity` com `204 No Content`, e um `@RestControllerAdvice` para a exceção de tarefa não encontrada.
 
+Solução de referência dos Exercícios 2 e 3 em [`exemplo_tarefas`](<Aula 07/exemplo_tarefas>):
+
+```bash
+cd "Aula 07/exemplo_tarefas"
+mvn spring-boot:run
+
+# abra http://localhost:8080/ no navegador para usar a página de cadastro
+# (chama a API de verdade e loga cada passo), ou teste direto por curl:
+curl http://localhost:8080/tarefas
+curl -X POST http://localhost:8080/tarefas -H "Content-Type: application/json" -d '{"titulo":"Estudar Spring Web"}'
+curl http://localhost:8080/tarefas/1
+curl -X DELETE http://localhost:8080/tarefas/1
+```
+
 ---
 
 ### Glossário rápido
@@ -1860,5 +1876,3 @@ curl http://localhost:8080/contas/1234-5/saldo
 | **`@RestControllerAdvice`** | Centraliza o tratamento de exceções para todos os controllers. |
 
 **Próxima aula:** Persistência de Dados — conectando a API REST de hoje a um banco de dados de verdade.
-
-**Próxima aula:** Padrões de Arquitetura + Arquitetura REST — vamos implementar, na prática, os contratos de API que projetamos hoje.
