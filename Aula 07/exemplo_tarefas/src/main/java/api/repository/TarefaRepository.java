@@ -1,5 +1,5 @@
 package api.repository;
-
+import java.util.Comparator;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Map;
@@ -44,5 +44,12 @@ public class TarefaRepository {
     // true se removeu, false se o id não existia.
     public boolean remover(Long id) {
         return tarefas.remove(id) != null;
+    }
+
+    // TarefaRepository -- aqui está a parte que você precisa completar
+    public Collection<Tarefa> buscarPorResponsavel(String responsavel) {
+        return tarefas.values().stream()
+                .filter(tarefa -> tarefa.getResponsavel(responsavel) != null)
+                .toList();
     }
 }

@@ -1,5 +1,5 @@
 package api.service;
-
+import java.util.Comparator;
 import java.util.Collection;
 
 import org.springframework.stereotype.Service;
@@ -8,6 +8,7 @@ import api.dto.TarefaDTO;
 import api.model.Tarefa;
 import api.repository.TarefaRepository;
 
+import java.time.LocalDate;
 // @Service: camada de regra de negócio -- o Controller fala com o Service,
 // nunca direto com o Repository.
 @Service
@@ -19,10 +20,6 @@ public class TarefaService {
 
     public TarefaService(TarefaRepository repository) {
         this.repository = repository;
-    }
-
-    public Collection<Tarefa> listarTodas() {
-        return repository.listarTodas();
     }
 
     public Tarefa criar(TarefaDTO dto) {
@@ -64,5 +61,24 @@ public class TarefaService {
         Tarefa tarefa = buscarPorId(id);
         tarefa.setConcluida(!tarefa.isConcluida());
         return tarefa;
+    }
+    // TarefaService -- não existe método novo no Repository; reaproveita listarTodas()
+    public Collection<Tarefa> listarAtrasadas() {
+        return repository.listarTodas().stream()
+                .filter(tarefa -> tarefa.getDataPrazo().isBefore(LocalDate.now()))
+                .filter(tarefa -> !tarefa.isConcluida())
+                .toList();
+    }
+
+    // TarefaService -- só repassa pro Repository, igual listarTodas()
+    public Collection<Tarefa> buscarPorResponsavel(String responsavel) {
+        return repository.buscarPorResponsavel(responsavel);
+    }
+
+    // TarefaService
+    public Collection<Tarefa> listarTodas() {
+        return repository.listarTodas().stream()
+                .sorted(Comparator.comparing(Tarefa::getDataPrazo))
+                .toList();
     }
 }

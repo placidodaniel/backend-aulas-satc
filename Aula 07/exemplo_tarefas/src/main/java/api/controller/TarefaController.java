@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import api.dto.TarefaDTO;
 import api.model.Tarefa;
@@ -74,5 +75,15 @@ public class TarefaController {
     @PutMapping("/{id}/concluir")
     public Tarefa concluir(@PathVariable Long id) {
         return service.alternarConcluida(id);
+    }
+
+    @GetMapping("/atrasadas")
+    public Collection<Tarefa> listarAtrasadas() {
+        return service.listarAtrasadas();
+    }
+
+    @GetMapping("/buscar")
+    public Collection<Tarefa> buscarPorResponsavel(@RequestParam String responsavel) {
+        return service.buscarPorResponsavel(responsavel);
     }
 }

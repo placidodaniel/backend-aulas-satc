@@ -48,6 +48,10 @@ public class Tarefa {
         return responsavel;
     }
 
+    public String getResponsavel(String responsavel) {
+        return this.responsavel = responsavel;
+    }
+
     public void setResponsavel(String responsavel) {
         this.responsavel = responsavel;
     }
