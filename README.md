@@ -43,6 +43,14 @@
   - [Parte 3 — Prática: API REST com Spring Web](#parte-3--prática-api-rest-com-spring-web)
   - [Exercícios](#exercícios-1)
   - [Glossário rápido](#glossário-rápido-2)
+- [Aula 8 — Persistência de Dados + Mapeamento com JPA](#aula-8--persistência-de-dados--mapeamento-com-jpa)
+  - [Materiais](#materiais-4)
+  - [Objetivo da aula](#objetivo-da-aula-4)
+  - [Parte 1 — Persistência de Dados](#parte-1--persistência-de-dados)
+  - [Parte 2 — Mapeamento Objeto-Relacional](#parte-2--mapeamento-objeto-relacional)
+  - [Parte 3 — Migrations e Prática](#parte-3--migrations-e-prática)
+  - [Exercícios](#exercícios-2)
+  - [Glossário rápido](#glossário-rápido-3)
 
 ---
 
@@ -1876,3 +1884,290 @@ curl -X DELETE http://localhost:8080/tarefas/1
 | **`@RestControllerAdvice`** | Centraliza o tratamento de exceções para todos os controllers. |
 
 **Próxima aula:** Persistência de Dados — conectando a API REST de hoje a um banco de dados de verdade.
+---
+
+## Aula 8 — Persistência de Dados + Mapeamento com JPA
+
+### Materiais
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula08-persistencia-jpa-postgres.pdf](<Aula 08/aula08-persistencia-jpa-postgres.pdf>) | Persistência, bancos relacionais, ORM com JPA/Hibernate/Spring Data JPA e migrations com Flyway |
+| [exemplo_tarefas](<Aula 08/exemplo_tarefas>) | O mesmo CRUD de `/tarefas` da Aula 7, agora gravando no PostgreSQL (Spring Data JPA + Flyway) |
+| [README do exemplo](<Aula 08/exemplo_tarefas/README.md>) | Passo a passo para subir o banco no Docker, rodar a API e conferir as migrations |
+| [docker-compose.yml](<Aula 08/exemplo_tarefas/docker-compose.yml>) | PostgreSQL 16 em container, na porta `5433` do host |
+
+### Objetivo da aula
+
+Tirar as tarefas da memória da aplicação: entender por que o `Map` da Aula 7 não basta, como um banco relacional organiza os dados, e como o JPA mapeia a classe `Tarefa` para a tabela `tarefas` — trocando **só o Repository**, sem mudar o Controller nem o contrato da API.
+
+---
+
+### Parte 1 — Persistência de Dados
+
+#### Memória x Persistência
+
+- Dados em memória (variáveis, listas, `Map`) vivem enquanto o processo Java estiver rodando: reiniciou a API, sumiram.
+- **Persistir** é gravar os dados em um meio que sobrevive ao fim do processo — um banco de dados.
+- O banco também resolve acesso concorrente, consultas, integridade e backup, e é compartilhado por todas as instâncias da API.
+
+#### Banco relacional
+
+| Conceito | No banco | Equivalente em Java |
+|---|---|---|
+| Tabela | `tarefas` | Classe `Tarefa` |
+| Linha (registro) | Uma tarefa específica | Um objeto instanciado |
+| Coluna | `titulo`, `concluida`, `data_prazo`... | Atributos |
+| Chave primária | `id` (`PRIMARY KEY`) | Identificador único do objeto |
+
+#### Do Java para o SQL: tipos equivalentes
+
+| Tipo Java | Tipo PostgreSQL | Onde aparece na `Tarefa` |
+|---|---|---|
+| `Long` | `BIGINT` | `id` |
+| `String` | `VARCHAR(255)` | `titulo`, `responsavel` |
+| `boolean` | `BOOLEAN` | `concluida` |
+| `LocalDate` | `DATE` | `dataPrazo` → `data_prazo`, `dataCadastro` → `data_cadastro` |
+| `BigDecimal` | `NUMERIC(10,2)` | Valores monetários |
+
+#### SQL: o CRUD dentro do banco
+
+Cada operação HTTP do CRUD vira um comando SQL: `POST` → `INSERT`, `GET` → `SELECT`, `PUT` → `UPDATE`, `DELETE` → `DELETE`.
+
+```sql
+INSERT INTO tarefas (titulo, responsavel, data_prazo)
+VALUES ('Estudar JPA', 'Ana', '2026-10-01');
+
+SELECT id, titulo, concluida FROM tarefas WHERE responsavel = 'Ana';
+
+UPDATE tarefas SET concluida = TRUE WHERE id = 1;
+
+DELETE FROM tarefas WHERE id = 1;
+```
+
+#### PostgreSQL com Docker Compose
+
+Em vez de instalar o PostgreSQL na máquina, ele roda em um container descrito no [`docker-compose.yml`](<Aula 08/exemplo_tarefas/docker-compose.yml>):
+
+```yaml
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tarefas
+      POSTGRES_USER: tarefas
+      POSTGRES_PASSWORD: tarefas
+    ports:
+      - "5433:5432"   # 5433 no host → 5432 no container
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+
+> 💾 **Volume:** `docker compose down` mantém os dados; `docker compose down -v` apaga o volume e, com ele, todas as tarefas.
+
+---
+
+### Parte 2 — Mapeamento Objeto-Relacional
+
+#### O problema: objetos x tabelas
+
+No Java pensamos em classes e atributos em `camelCase`; no banco, em tabelas e colunas em `snake_case`. Converter objeto ↔ linha à mão (JDBC puro) é repetitivo e fácil de errar. **ORM** (*Object-Relational Mapping*) automatiza essa tradução a partir de anotações na classe.
+
+#### JPA, Hibernate e Spring Data JPA
+
+| Camada | Papel |
+|---|---|
+| **Seu código (Service)** | Chama `repository.save(tarefa)` |
+| **Spring Data JPA** | Cria os repositórios prontos (`JpaRepository`) |
+| **JPA** (`jakarta.persistence`) | Especificação: define as anotações (`@Entity`, `@Id`, `@Column`) |
+| **Hibernate** | Implementação da JPA: lê as anotações e gera o SQL |
+| **JDBC + driver PostgreSQL** | Conexão de rede com o banco |
+
+#### Dependências novas no `pom.xml`
+
+| Dependência | Para que serve |
+|---|---|
+| `spring-boot-starter-data-jpa` | JPA, Hibernate e Spring Data JPA já configurados |
+| `org.postgresql:postgresql` | Driver JDBC do PostgreSQL (`scope runtime`) |
+| `flyway-core` | Motor de migrations |
+| `flyway-database-postgresql` | Suporte do Flyway ao PostgreSQL |
+
+#### Configurando a conexão
+
+```properties
+# src/main/resources/application.properties
+spring.datasource.url=jdbc:postgresql://localhost:5433/tarefas
+spring.datasource.username=tarefas
+spring.datasource.password=tarefas
+
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.open-in-view=false
+
+spring.flyway.enabled=true
+```
+
+#### Mapeando a entidade
+
+```java
+@Entity
+@Table(name = "tarefas")
+public class Tarefa {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String titulo;
+
+    @Column(name = "data_prazo", nullable = false)
+    private LocalDate dataPrazo;
+
+    @Column(name = "data_cadastro", nullable = false, updatable = false)
+    private LocalDate dataCadastro;
+
+    protected Tarefa() { }   // exigido pelo Hibernate para ler do banco
+
+    @PrePersist               // roda antes do INSERT
+    private void definirDataCadastro() {
+        if (dataCadastro == null) {
+            dataCadastro = LocalDate.now();
+        }
+    }
+}
+```
+
+| Anotação | O que faz |
+|---|---|
+| `@Entity` | Marca a classe como entidade persistida |
+| `@Table` | Define o nome da tabela |
+| `@Id` | Marca a chave primária |
+| `@GeneratedValue(IDENTITY)` | O banco gera o `id` no `INSERT` |
+| `@Column` | Configura nome, `nullable`, `updatable`, `length` |
+| `@PrePersist` | Método executado antes do `INSERT` |
+
+#### Spring Data JPA: repositório sem implementação
+
+O `TarefaRepository` deixa de ser uma classe com um `Map` e vira apenas uma interface — o Spring cria a implementação em runtime:
+
+```java
+public interface TarefaRepository extends JpaRepository<Tarefa, Long> {
+}
+```
+
+| Método herdado | SQL gerado (simplificado) | Usado em `TarefaService` |
+|---|---|---|
+| `findAll()` | `SELECT * FROM tarefas` | `listarTodas()` |
+| `findById(id)` | `SELECT ... WHERE id = ?` | `buscarPorId()` — devolve `Optional` |
+| `save(nova)` | `INSERT INTO tarefas ...` | `criar()` |
+| `save(existente)` | `UPDATE tarefas SET ... WHERE id = ?` | `atualizar()`, `alternarConcluida()` |
+| `existsById(id)` | `SELECT count(*) ... WHERE id = ?` | `remover()` |
+| `deleteById(id)` | `DELETE FROM tarefas WHERE id = ?` | `remover()` |
+
+#### Consultas pelo nome do método
+
+O Spring Data lê o nome do método e monta a consulta — usando os **atributos da entidade** (`dataPrazo`), não as colunas (`data_prazo`):
+
+```java
+List<Tarefa> findByResponsavelIgnoreCase(String responsavel);
+List<Tarefa> findByConcluidaFalseAndDataPrazoBefore(LocalDate data);
+List<Tarefa> findAllByOrderByDataPrazoAsc();
+```
+
+> 🧱 **O valor das camadas:** o `TarefaController` é exatamente o mesmo da Aula 7. No `TarefaService`, só as chamadas ao `Map` viraram chamadas ao `JpaRepository` — e o `404` continua vindo do `orElseThrow(() -> new TarefaNaoEncontradaException(id))`.
+
+---
+
+### Parte 3 — Migrations e Prática
+
+#### Quem cria as tabelas?
+
+| Abordagem | Como funciona | Quando usar |
+|---|---|---|
+| `ddl-auto=create` / `update` | O Hibernate altera o banco sozinho | Protótipos — perigoso em produção |
+| **Flyway** + `ddl-auto=validate` | Scripts SQL versionados criam/evoluem o banco; o Hibernate só confere | Projetos reais — **é o que usamos** |
+
+#### A primeira migration
+
+[`V1__criar_tarefas.sql`](<Aula 08/exemplo_tarefas/src/main/resources/db/migration/V1__criar_tarefas.sql>), em `src/main/resources/db/migration`:
+
+```sql
+CREATE TABLE tarefas (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    titulo VARCHAR(255) NOT NULL,
+    concluida BOOLEAN NOT NULL DEFAULT FALSE,
+    responsavel VARCHAR(255) NOT NULL,
+    data_prazo DATE NOT NULL,
+    data_cadastro DATE NOT NULL DEFAULT CURRENT_DATE
+);
+```
+
+- Nome do arquivo: `V` + versão + `__` (dois underlines) + descrição + `.sql`.
+- No startup, o Flyway compara a pasta com a tabela `flyway_schema_history` e executa **só as pendentes**, em ordem, uma única vez.
+- **Nunca edite uma migration que já rodou** — o Flyway detecta a mudança (checksum) e a aplicação não sobe. Crie a próxima versão (`V2__...`).
+
+#### O que acontece quando a API sobe
+
+1. O Spring Boot lê o `application.properties` e conecta no PostgreSQL.
+2. O Flyway aplica as migrations pendentes.
+3. O Hibernate valida as entidades contra as tabelas (`validate`).
+4. O Spring Data cria a implementação do `TarefaRepository` e injeta no `TarefaService`.
+5. O Tomcat sobe na porta `8080`.
+
+> ⚠️ Se o Docker não estiver rodando, a falha acontece já no passo 1: `Connection refused` na porta `5433`.
+
+#### Rodando o projeto
+
+Passo a passo completo (Windows/PowerShell) no [README do exemplo](<Aula 08/exemplo_tarefas/README.md>). Resumo:
+
+```bash
+cd "Aula 08/exemplo_tarefas"
+
+docker compose up -d          # sobe o PostgreSQL
+docker compose ps             # deve aparecer como "healthy"
+
+./mvnw spring-boot:run        # Windows: .\mvnw.cmd spring-boot:run
+
+# em outro terminal
+curl http://localhost:8080/tarefas
+docker compose exec postgres psql -U tarefas -d tarefas -c "SELECT * FROM flyway_schema_history;"
+```
+
+Reinicie a API e liste as tarefas de novo: **elas continuam lá**. Esse é o objetivo da aula.
+
+---
+
+### Exercícios
+
+1. **Memória, tabela ou SQL: o que acontece?** — check rápido: restart da API da Aula 7, um `SELECT` com filtro, por que o `id` é a chave primária e o efeito de `docker compose down` x `down -v`.
+2. **Consultas com métodos derivados** — refazer as consultas da Aula 7 usando o banco: `GET /tarefas/buscar?responsavel=` com `findByResponsavelIgnoreCase`, `GET /tarefas/atrasadas` com `findByConcluidaFalseAndDataPrazoBefore(LocalDate.now())`, e `GET /tarefas` ordenado com `findAllByOrderByDataPrazoAsc()`. Confira o SQL gerado ligando `spring.jpa.show-sql=true`.
+3. **Nova coluna com uma migration V2** — criar `V2__adicionar_prioridade.sql` (`ALTER TABLE tarefas ADD COLUMN prioridade INTEGER NOT NULL DEFAULT 3;`), mapear `prioridade` na entidade, validar no `TarefaDTO` com `@Min(1)`/`@Max(5)` e conferir a V2 em `flyway_schema_history`.
+
+---
+
+### Glossário rápido
+
+| Termo | Significado |
+|---|---|
+| **Persistência** | Guardar dados em um meio que sobrevive ao fim do processo da aplicação. |
+| **Banco relacional** | Banco que organiza os dados em tabelas, linhas e colunas. |
+| **Chave primária** | Coluna que identifica cada linha de forma única (`PRIMARY KEY`). |
+| **SQL** | Linguagem padrão para consultar e alterar bancos relacionais. |
+| **PostgreSQL** | Banco relacional open source usado na disciplina. |
+| **Docker Compose** | Ferramenta que sobe containers descritos em um arquivo `docker-compose.yml`. |
+| **ORM** | Mapeamento objeto-relacional: traduz objetos Java em linhas de tabela e vice-versa. |
+| **JPA** | Especificação Java de persistência (`jakarta.persistence`): define as anotações. |
+| **Hibernate** | Implementação da JPA que gera e executa o SQL. |
+| **Spring Data JPA** | Cria repositórios prontos a partir de interfaces (`JpaRepository`). |
+| **`@Entity`** | Marca uma classe como entidade persistida no banco. |
+| **`@Id` / `@GeneratedValue`** | Marcam a chave primária e como ela é gerada. |
+| **`@Column`** | Configura o mapeamento de um atributo para uma coluna. |
+| **Derived query** | Consulta criada a partir do nome do método (ex.: `findByResponsavel`). |
+| **Migration** | Script SQL versionado que cria ou altera a estrutura do banco. |
+| **Flyway** | Ferramenta que aplica as migrations em ordem e registra em `flyway_schema_history`. |
+| **`ddl-auto`** | Define se o Hibernate cria, altera ou só valida as tabelas (`validate`). |
+
+**Próxima aula:** DTO e Mapeamento — separando de vez o contrato da API das entidades do banco.

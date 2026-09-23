@@ -1,0 +1,39 @@
+# Define os serviços que serão executados pelo Docker Compose.
+services:
+  # Declara o serviço do banco de dados da aplicação.
+  postgres:
+    # Usa uma imagem leve do PostgreSQL 16.
+    image: postgres:16-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: exemplo-tarefas-postgres
+    # Define as variáveis que o PostgreSQL lê na primeira inicialização.
+    environment:
+      # Cria o banco lógico usado pela aplicação.
+      POSTGRES_DB: tarefas
+      # Cria o usuário dono do banco.
+      POSTGRES_USER: tarefas
+      # Define a senha do usuário do banco.
+      POSTGRES_PASSWORD: tarefas
+    # Publica a porta interna do banco no computador host.
+    ports:
+      # Usa 5433 no host porque 5432 já estava ocupada neste ambiente.
+      - "5433:5432"
+    # Guarda os dados fora do ciclo de vida do container.
+    volumes:
+      # Monta o volume nomeado no diretório padrão de dados do PostgreSQL.
+      - postgres_data:/var/lib/postgresql/data
+    # Verifica se o PostgreSQL está pronto para receber conexões.
+    healthcheck:
+      # Executa o comando oficial de verificação do PostgreSQL.
+      test: ["CMD-SHELL", "pg_isready -U tarefas -d tarefas"]
+      # Aguarda cinco segundos entre verificações.
+      interval: 5s
+      # Interrompe uma verificação que demorar mais que cinco segundos.
+      timeout: 5s
+      # Tenta cinco vezes antes de marcar o serviço como unhealthy.
+      retries: 5
+
+# Declara os volumes nomeados usados pelos serviços.
+volumes:
+  # Mantém os dados do PostgreSQL entre reinicializações.
+  postgres_data:

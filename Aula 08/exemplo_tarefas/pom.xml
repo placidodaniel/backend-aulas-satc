@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- Declara que este arquivo é a configuração Maven do projeto. -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- spring-boot-starter-parent: dá versão gerenciada para todo dependency/plugin do
+         ecossistema Spring (não precisa mais escrever <version> neles) e configura o
+         maven-compiler-plugin a partir da property java.version, logo abaixo. -->
+    <parent>
+        <!-- Define o grupo que identifica o projeto Spring Boot pai. -->
+        <groupId>org.springframework.boot</groupId>
+        <!-- Importa as configurações e versões oficiais do Spring Boot. -->
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <!-- Escolhe a versão do Spring Boot usada pela aplicação. -->
+        <version>3.5.16</version>
+    </parent>
+
+    <!-- Identifica o grupo acadêmico que criou o projeto. -->
+    <groupId>org.example</groupId>
+    <!-- Define o nome usado para o artefato gerado pelo Maven. -->
+    <artifactId>exemplo-tarefas</artifactId>
+    <!-- Define a versão atual do projeto. -->
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <!-- Diz ao compilador qual versão da linguagem Java deve ser usada. -->
+        <java.version>25</java.version>
+        <!-- Faz o Maven tratar os arquivos de texto como UTF-8. -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Spring MVC + servidor Tomcat embutido: é o que permite @RestController/@GetMapping. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Adiciona Spring MVC, Jackson e Tomcat embutido. -->
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Habilita @Valid e as anotações de validação (@NotBlank...) usadas em TarefaDTO;
+             sem esta dependência, o Spring ignora @Valid silenciosamente. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Habilita as anotações de validação usadas nos DTOs. -->
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Reúne Spring Data JPA, JPA e Hibernate para persistência relacional. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Cria os repositórios JPA e configura o Hibernate automaticamente. -->
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Driver JDBC que permite ao Java conversar com o PostgreSQL. -->
+        <dependency>
+            <!-- Grupo oficial do driver PostgreSQL. -->
+            <groupId>org.postgresql</groupId>
+            <!-- Dependência que implementa a conexão JDBC com o PostgreSQL. -->
+            <artifactId>postgresql</artifactId>
+            <!-- Só é necessário quando a aplicação está executando. -->
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Motor principal do Flyway para controlar versões do banco. -->
+        <dependency>
+            <!-- Grupo que publica o Flyway. -->
+            <groupId>org.flywaydb</groupId>
+            <!-- Inclui a API e o executor das migrations. -->
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- Extensão que permite ao Flyway entender recursos específicos do PostgreSQL. -->
+        <dependency>
+            <!-- Grupo que publica os módulos do Flyway. -->
+            <groupId>org.flywaydb</groupId>
+            <!-- Adiciona o suporte de banco PostgreSQL ao Flyway. -->
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- JUnit 5 (Jupiter). O artefato "junit-jupiter" já traz a API, o engine e os params.
+             scope=test: entra só na compilação/execução dos testes, não vai para o programa. -->
+        <dependency>
+            <!-- Grupo que publica o JUnit. -->
+            <groupId>org.junit.jupiter</groupId>
+            <!-- Biblioteca usada para escrever e executar testes JUnit 5. -->
+            <artifactId>junit-jupiter</artifactId>
+            <!-- Define a versão do JUnit usada pelo projeto. -->
+            <version>5.12.2</version>
+            <!-- Mantém o JUnit fora do artefato de produção. -->
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Empacota a aplicação como jar executável (java -jar) e dá o goal
+                 "mvn spring-boot:run" para rodar a API direto pelo Maven. -->
+            <plugin>
+                <!-- Grupo dos plugins oficiais do Spring Boot. -->
+                <groupId>org.springframework.boot</groupId>
+                <!-- Plugin que executa e empacota a aplicação Spring Boot. -->
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Surefire é quem roda os testes no "mvn test".
+                 A versão precisa ser 3.x: as antigas não enxergam JUnit 5. -->
+            <plugin>
+                <!-- Grupo dos plugins oficiais do Maven. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <!-- Plugin responsável por executar os testes. -->
+                <artifactId>maven-surefire-plugin</artifactId>
+                <!-- Versão do plugin compatível com JUnit 5. -->
+                <version>3.5.4</version>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

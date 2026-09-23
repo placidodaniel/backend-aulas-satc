@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cadastro de Tarefas — Aula 07</title>
+<style>
+  :root {
+    --navy-dark: #12173a;
+    --navy: #1E2761;
+    --card-bg: #F3F6FD;
+    --muted: #5A6B8C;
+    --green: #1B7A6E;
+    --red: #C0392B;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* height (não min-height) + overflow:hidden aqui é o que trava a página
+     inteira em 100vh -- sem isso, .grid/.panel/.log-panel só "sugerem" uma
+     altura, e a página cresce junto com o log em vez de deixar só o #log
+     (mais abaixo) rolar sozinho. */
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .container {
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 20px 32px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header { text-align: center; margin-bottom: 20px; flex: none; }
+  header h1 { color: #fff; font-size: 28px; margin: 0 0 6px; }
+  header p { color: #CADCFC; font-size: 15px; margin: 0; }
+
+  /* .container é flex-column (header/grid/footer); .grid ocupa o espaço que
+     sobrar (flex:1), esticando .panel e .log-panel pra tela cheia. */
+  .grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 22px;
+    align-items: stretch;
+  }
+  @media (max-width: 900px) {
+    /* Empilhado, o esquema de "página travada em 100vh" não faz sentido --
+       melhor deixar a página rolar normal e dar um teto fixo só pro log. */
+    html, body { height: auto; overflow: visible; }
+    .container { height: auto; min-height: 100vh; }
+    .grid { flex: none; grid-template-columns: 1fr; }
+    #log { max-height: 480px; }
+  }
+
+  .panel {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 22px 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    color: var(--navy);
+    overflow-y: auto;
+  }
+  .panel h2 { margin: 0; font-size: 19px; }
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; gap: 10px;
+  }
+
+  form.add-form { display: flex; flex-direction: column; gap: 8px; }
+  .add-form-row { display: flex; gap: 8px; }
+  label.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  input[type=text], input[type=number], input[type=date] {
+    flex: 1; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #c7d2ee; font-size: 15px; font-family: inherit;
+  }
+  .add-form-row input[type=date] { flex: none; width: 160px; }
+  input:disabled, button:disabled { opacity: .55; cursor: not-allowed; }
+
+  button.primary {
+    background: var(--navy); color: #fff; border: none;
+    padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px;
+  }
+  button.primary:hover:not(:disabled) { background: #151c49; }
+
+  button.ghost {
+    background: transparent; border: 1px solid var(--navy); color: var(--navy);
+    padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+  button.ghost:hover:not(:disabled) { background: #e3e9fb; }
+
+  .error-msg { color: var(--red); font-size: 13px; margin: 6px 0 0 2px; min-height: 16px; }
+
+  .lista h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 20px 0 8px;
+  }
+  ul.tarefas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+  li.tarefa {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 1px solid #dbe3f7; border-radius: 10px; padding: 10px 12px;
+  }
+  li.tarefa.concluida { opacity: .7; }
+  li.tarefa.concluida .titulo { text-decoration: line-through; color: var(--muted); }
+  li.tarefa.editando { flex-wrap: wrap; }
+
+  .edit-form { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; align-items: center; }
+  .edit-form input {
+    padding: 6px 10px; border-radius: 8px;
+    border: 1px solid #c7d2ee; font-size: 14px; font-family: inherit;
+  }
+  .edit-form .edit-input { flex: 2; min-width: 140px; }
+  .edit-form .edit-responsavel { flex: 1; min-width: 100px; }
+  .edit-form .edit-prazo { flex: none; width: 150px; }
+  .edit-erro { display: none; flex-basis: 100%; color: var(--red); font-size: 12px; margin-top: 4px; }
+
+  .badge-id {
+    font-size: 11px; background: var(--navy); color: #fff;
+    border-radius: 999px; padding: 3px 9px; font-weight: 700; flex-shrink: 0;
+  }
+  .conteudo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .titulo { font-size: 15px; word-break: break-word; }
+  .meta { font-size: 12px; color: var(--muted); }
+  .acoes { display: flex; gap: 6px; flex-shrink: 0; }
+
+  .icon-btn {
+    border: none; background: #eef2fc; border-radius: 8px; width: 30px; height: 30px;
+    cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover:not(:disabled) { background: #dbe3f7; }
+  .icon-btn.done { background: #e3f5ef; }
+  .icon-btn.danger:hover:not(:disabled) { background: #fbe3e1; }
+
+  .empty { color: var(--muted); font-size: 13px; font-style: italic; padding: 4px 2px; }
+
+  .test-panel { margin-top: 22px; border-top: 1px dashed #c7d2ee; padding-top: 16px; }
+  .test-panel p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  .test-panel .row { display: flex; gap: 8px; }
+  .test-panel input { width: 90px; flex: none; }
+
+  .log-panel {
+    background: #0d1030; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    display: flex; flex-direction: column;
+  }
+  .log-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; background: #161c4d; color: #fff;
+  }
+  .log-header h2 { margin: 0; font-size: 16px; }
+  .log-header p { margin: 2px 0 0; font-size: 12px; color: #9aa8d6; }
+  button.clear {
+    background: transparent; border: 1px solid #3b437a; color: #c3cbe6;
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
+  }
+  button.clear:hover { background: #1c2352; }
+
+  #log {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 14px 18px; font-family: Consolas, Menlo, "SFMono-Regular", monospace;
+    font-size: 13px; line-height: 1.65;
+  }
+  .log-line { white-space: pre-wrap; word-break: break-word; }
+  .log-time { color: #5c6a99; margin-right: 8px; }
+  .log-fase {
+    display: inline-block; min-width: 96px; text-align: center;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 4px; margin-right: 8px;
+    background: rgba(255,255,255,.08);
+  }
+  /* Selo extra, só nas linhas de camada 'BACKEND': identifica qual classe do
+     projeto está rodando naquele passo -- cor fixa própria (não herda do tipo
+     da linha), pra não se confundir com o selo de fase (.log-fase) ao lado. */
+  .log-camada {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .03em; text-transform: uppercase;
+    padding: 1px 7px; border-radius: 4px; margin-right: 8px; color: #fff;
+  }
+  .log-camada-controller { background: #2E5AAC; }
+  .log-camada-service    { background: #1B7A6E; }
+  .log-camada-repository { background: #8A6D1F; }
+  .log-camada-dto        { background: #6A4C93; }
+  .log-camada-model      { background: #B5541E; }
+  .log-req { color: #7FB3FF; font-weight: 700; }
+  .log-step { color: #c3cbe6; }
+  .log-ok-step { color: #6FE0C7; }
+  .log-ok { color: #4ADE80; font-weight: 700; }
+  .log-err { color: #FF6B6B; font-weight: 700; }
+
+  /* Uma linha antes de cada nova requisição -- separa visualmente onde um
+     ciclo request/response termina e o próximo começa. */
+  .log-separador { border: none; border-top: 1px dashed #3b437a; margin: 10px 0; }
+
+  footer { flex: none; text-align: center; color: #9aa8d6; font-size: 12px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🗂️ Cadastro de Tarefas</h1>
+    <p>Aula 07 · esta página chama de verdade a API do <code>exemplo_tarefas</code> (Controller → Service → Repository)</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- ================= PAINEL: CADASTRO ================= -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>📋 Tarefas</h2>
+        <button class="ghost" id="btn-atualizar-lista">🔄 Atualizar (GET /tarefas)</button>
+      </div>
+
+      <form class="add-form" id="form-add">
+        <div class="add-form-row">
+          <label class="sr" for="input-titulo">Título da nova tarefa</label>
+          <input type="text" id="input-titulo" placeholder="Título da nova tarefa (ex.: Estudar Spring Web)">
+        </div>
+        <div class="add-form-row">
+          <label class="sr" for="input-responsavel">Responsável</label>
+          <input type="text" id="input-responsavel" placeholder="Responsável (ex.: Ana)">
+          <label class="sr" for="input-prazo">Data de prazo</label>
+          <input type="date" id="input-prazo">
+          <button type="submit" class="primary" id="btn-add">Adicionar (POST)</button>
+        </div>
+      </form>
+      <div class="error-msg" id="erro-titulo"></div>
+
+      <div class="lista">
+        <h3>📝 A fazer</h3>
+        <ul class="tarefas" id="lista-abertas"></ul>
+
+        <h3>✅ Concluídas</h3>
+        <ul class="tarefas" id="lista-concluidas"></ul>
+      </div>
+
+      <div class="test-panel">
+        <p>🧪 Testar um id específico (ex.: <strong>999</strong>, que não existe, para ver o 404):</p>
+        <div class="row">
+          <label class="sr" for="input-id-teste">Id para testar</label>
+          <input type="number" id="input-id-teste" placeholder="id" min="1">
+          <button class="ghost" id="btn-buscar-id">Buscar (GET /{id})</button>
+          <button class="ghost" id="btn-excluir-id">Excluir (DELETE /{id})</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAINEL: LOG ================= -->
+    <section class="log-panel">
+      <div class="log-header">
+        <div>
+          <h2>🧾 Log da API</h2>
+          <p>cada linha é uma chamada real (fetch) à API rodando em localhost:8080</p>
+        </div>
+        <button class="clear" id="btn-limpar-log">Limpar</button>
+      </div>
+      <div id="log"></div>
+    </section>
+
+  </div>
+
+  <footer>
+    * Esta página faz chamadas HTTP de verdade — rode <code>mvn spring-boot:run</code> em <code>exemplo_tarefas</code> antes de usar.
+  </footer>
+
+</div>
+
+<script>
+  // ---------------------------------------------------------------- estado
+
+  // Cache local das tarefas exibidas na tela. É preenchida com o que a API
+  // real devolve (função iniciar(), lá embaixo) -- nada aqui é inventado.
+  let tarefas = [];
+
+  // true enquanto uma requisição está em andamento; trava os controles pra
+  // não deixar clicar em duas ações ao mesmo tempo e embaralhar o log.
+  let busy = false;
+
+  // Id da tarefa em modo de edição (ou null, se nenhuma estiver sendo editada).
+  // Só uma por vez -- é o que faz criarItem() desenhar o <form> de edição no
+  // lugar do título normal, pra aquele item específico.
+  let editandoId = null;
+
+  // Se esta página está sendo servida pelo próprio Spring Boot (o caso normal:
+  // "mvn spring-boot:run" e depois abrir http://localhost:8080/), os fetches
+  // abaixo usam caminho relativo ("/tarefas") -- mesma origem, sem CORS.
+  // Se o arquivo foi aberto direto (duplo clique, URL "file://"), cai aqui:
+  // aponta pra localhost:8080 e depende do @CrossOrigin no TarefaController.
+  const API_BASE = location.protocol === 'file:' ? 'http://localhost:8080' : '';
+
+  // Função utilitária que só "pausa" a execução por alguns milissegundos --
+  // serve pra dar tempo de ler cada linha do log. Não afeta a requisição real,
+  // que já foi concluída antes dessas pausas começarem (ver enviarRequisicao).
+  const wait = ms => new Promise(resolver => setTimeout(resolver, ms));
+
+  // ---------------------------------------------------------------- log
+
+  // Elemento onde as linhas do log são desenhadas.
+  const logEl = document.getElementById('log');
+
+  // Acrescenta uma linha no log, com horário, uma cor de acordo com o tipo
+  // ('req' = requisição saindo, 'step' = passo intermediário, 'ok'/'ok-step'
+  // = sucesso, 'err' = erro), um selo dizendo em qual fase do ciclo HTTP essa
+  // linha está ('REQUISIÇÃO', 'BACKEND' ou 'RESPOSTA') e, opcionalmente, um
+  // segundo selo dizendo qual CAMADA do projeto está rodando ('CONTROLLER',
+  // 'SERVICE', 'REPOSITORY', 'DTO' ou 'MODEL') -- só as linhas de dentro do
+  // backend têm isso; passos de infraestrutura (Tomcat) e as linhas de
+  // REQUISIÇÃO/RESPOSTA não pertencem a nenhuma camada específica do projeto.
+  function log(texto, tipo = 'step', fase = 'BACKEND', camada = null) {
+    // <div> que vai representar esta linha do log.
+    const linha = document.createElement('div');
+    // A classe CSS log-<tipo> é quem decide a cor do texto (e, por herança, do selo).
+    linha.className = 'log-line log-' + tipo;
+
+    // Horário atual, só HH:MM:SS, pra saber quando cada passo aconteceu.
+    const hora = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+    // <span> separado só pro horário, pra poder colorir ele diferente (.log-time).
+    const spanHora = document.createElement('span');
+    spanHora.className = 'log-time';
+    spanHora.textContent = hora;
+
+    // <span> do selo de fase -- herda a cor do texto da própria linha (.log-req/
+    // .log-step/...), só ganha uma caixinha de fundo via .log-fase.
+    const spanFase = document.createElement('span');
+    spanFase.className = 'log-fase';
+    spanFase.textContent = fase;
+
+    // Monta a linha: horário, selo de fase e, se houver camada, o selo dela
+    // também -- com cor PRÓPRIA (.log-camada-*), fixa, que não muda com
+    // sucesso/erro, porque a camada é sempre a mesma classe do projeto.
+    linha.appendChild(spanHora);
+    linha.appendChild(spanFase);
+    if (camada) {
+      const spanCamada = document.createElement('span');
+      spanCamada.className = 'log-camada log-camada-' + camada.toLowerCase();
+      spanCamada.textContent = camada;
+      linha.appendChild(spanCamada);
+    }
+    // createTextNode (em vez de innerHTML) evita que um texto vindo da API
+    // (título de tarefa, mensagem de erro) seja interpretado como HTML.
+    linha.appendChild(document.createTextNode(texto));
+
+    // Insere a linha pronta no final do log.
+    logEl.appendChild(linha);
+    // Rola o log pro final, pra sempre mostrar a linha mais recente.
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Ativa/desativa todo botão e input da página de uma vez.
+  function setBusy(valor) {
+    // Guarda o estado global, checado no início de cada handler de clique.
+    busy = valor;
+    // querySelectorAll pega TODOS os botões/inputs -- form, listas, painel de teste.
+    document.querySelectorAll('button, input').forEach(elemento => elemento.disabled = valor);
+  }
+
+  // ---------------------------------------------------------------- render
+
+  // Redesenha as duas listas (A fazer / Concluídas) a partir do array "tarefas".
+  function renderLista() {
+    // Pega as duas <ul> onde os itens são desenhados.
+    const abertas = document.getElementById('lista-abertas');
+    const concluidas = document.getElementById('lista-concluidas');
+    // Apaga o conteúdo anterior antes de desenhar a versão atual.
+    abertas.innerHTML = '';
+    concluidas.innerHTML = '';
+
+    // Separa as tarefas em dois grupos, sem alterar o array original.
+    const abertasArr = tarefas.filter(tarefa => !tarefa.concluida);
+    const concluidasArr = tarefas.filter(tarefa => tarefa.concluida);
+
+    // Sem tarefa aberta: mostra um texto no lugar da lista vazia.
+    if (abertasArr.length === 0) {
+      abertas.innerHTML = '<li class="empty">Nenhuma tarefa a fazer.</li>';
+    } else {
+      // Uma tarefa por vez: cria o <li> (criarItem) e encaixa na <ul>.
+      abertasArr.forEach(tarefa => abertas.appendChild(criarItem(tarefa)));
+    }
+
+    // Mesma lógica para a lista de concluídas.
+    if (concluidasArr.length === 0) {
+      concluidas.innerHTML = '<li class="empty">Nenhuma tarefa concluída ainda.</li>';
+    } else {
+      concluidasArr.forEach(tarefa => concluidas.appendChild(criarItem(tarefa)));
+    }
+
+    // Se alguma tarefa estiver em edição, o <input> dela já foi desenhado acima
+    // (dentro de criarItem) -- só falta colocar o foco nele, pra digitar direto.
+    if (editandoId !== null) {
+      const inputEdicao = document.querySelector('.edit-input');
+      if (inputEdicao) inputEdicao.focus();
+    }
+  }
+
+  // Monta o <li> de uma tarefa -- em modo normal (três botões) ou em modo de
+  // edição (input + salvar/cancelar), dependendo de "editandoId".
+  function criarItem(tarefa) {
+    // <li> que vai representar esta tarefa dentro da <ul>.
+    const li = document.createElement('li');
+    // "concluida" ativa o risco no texto; "editando" deixa o <li> quebrar linha
+    // (flex-wrap), pra sobrar espaço pra mensagem de erro embaixo do input.
+    const emEdicao = tarefa.id === editandoId;
+    li.className = 'tarefa' + (tarefa.concluida ? ' concluida' : '') + (emEdicao ? ' editando' : '');
+
+    if (emEdicao) {
+      // Modo de edição: título, responsável e prazo viram <input> dentro de um
+      // <form> -- Enter ou o botão 💾 disparam o "submit" tratado mais abaixo
+      // (ver atualizarTarefa). O TarefaDTO exige os três campos (@NotBlank/
+      // @NotNull), por isso os três aparecem aqui, não só o título.
+      li.innerHTML = `
+        <span class="badge-id">#${tarefa.id}</span>
+        <form class="edit-form" data-id="${tarefa.id}">
+          <input type="text" class="edit-input" placeholder="Título">
+          <input type="text" class="edit-responsavel" placeholder="Responsável">
+          <input type="date" class="edit-prazo">
+          <button type="submit" class="icon-btn" title="Salvar (PUT /{id})">💾</button>
+          <button type="button" class="icon-btn danger" title="Cancelar" data-acao="cancelar-edicao" data-id="${tarefa.id}">✕</button>
+          <div class="edit-erro"></div>
+        </form>
+      `;
+      // Valor inicial dos inputs via propriedade JS (não via atributo
+      // value="...."), pelo mesmo motivo do textContent logo abaixo: dado vindo
+      // de fora não deve ser interpolado dentro do HTML.
+      li.querySelector('.edit-input').value = tarefa.titulo;
+      li.querySelector('.edit-responsavel').value = tarefa.responsavel || '';
+      // dataPrazo já vem da API como "yyyy-MM-dd" -- o mesmo formato que um
+      // <input type="date"> espera no .value, sem nenhuma conversão.
+      li.querySelector('.edit-prazo').value = tarefa.dataPrazo || '';
+      return li;
+    }
+
+    // Modo normal: badge do id, o título + uma linha de meta-informação (dentro
+    // de ".conteudo", pra empilhar as duas sem desalinhar os botões) e os
+    // três botões de ação.
+    li.innerHTML = `
+      <span class="badge-id">#${tarefa.id}</span>
+      <div class="conteudo">
+        <span class="titulo"></span>
+        <span class="meta"></span>
+      </div>
+      <span class="acoes">
+        <button class="icon-btn ${tarefa.concluida ? '' : 'done'}" title="${tarefa.concluida ? 'Reabrir (PUT /{id}/concluir, bônus fora do CRUD oficial)' : 'Concluir (PUT /{id}/concluir, bônus fora do CRUD oficial)'}" data-acao="concluir" data-id="${tarefa.id}">${tarefa.concluida ? '↺' : '✓'}</button>
+        <button class="icon-btn" title="Editar (GET /{id} pra conferir, PUT /{id} pra salvar)" data-acao="buscar" data-id="${tarefa.id}">🔍</button>
+        <button class="icon-btn danger" title="Excluir (DELETE /{id})" data-acao="excluir" data-id="${tarefa.id}">🗑</button>
+      </span>
+    `;
+    // Título e meta vêm de fora (API) -- usa textContent, nunca interpolado
+    // dentro do innerHTML, pra não abrir brecha de HTML/script injetado.
+    li.querySelector('.titulo').textContent = tarefa.titulo;
+    li.querySelector('.meta').textContent =
+      `👤 ${tarefa.responsavel || '—'}   ·   📅 Prazo: ${formatarData(tarefa.dataPrazo)}   ·   Cadastrada em ${formatarData(tarefa.dataCadastro)}`;
+    // Devolve o <li> pronto pra quem chamou (renderLista) inserir na <ul>.
+    return li;
+  }
+
+  // Converte "yyyy-MM-dd" (formato do LocalDate/Jackson e do <input type="date">)
+  // pra "dd/mm/aaaa" -- só troca a ordem dos pedaços, sem usar Date/fuso horário
+  // (evita o clássico bug de "off-by-one dia" ao converter string em Date).
+  function formatarData(iso) {
+    if (!iso) return '--';
+    const [ano, mes, dia] = iso.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  // ---------------------------------------------------------------- chamadas reais à API
+
+  // Nome amigável de cada status HTTP usado neste projeto -- só pra o log ficar
+  // legível ("200 OK" em vez de só "200"). resposta.statusText existe, mas o
+  // Tomcat embutido às vezes manda a "reason phrase" vazia -- por isso o mapa fixo.
+  const STATUS_TEXTO = {
+    200: 'OK', 201: 'Created', 204: 'No Content',
+    400: 'Bad Request', 404: 'Not Found',
+  };
+
+  // Loga headers + corpo de uma resposta HTTP DE VERDADE -- chamado no final de
+  // toda função de endpoint, sucesso ou erro, pra nunca esconder o que voltou.
+  function logResposta(resposta, tipo, corpo) {
+    // resposta.headers é iterável: cada volta do for dá um par [chave, valor].
+    // OBS: numa página servida pelo próprio Spring Boot (mesma origem) isso
+    // mostra TODOS os headers da resposta; se a página for aberta via file://
+    // (origem diferente), o navegador só expõe os headers "seguros" de CORS.
+    const linhas = [];
+    for (const [chave, valor] of resposta.headers.entries()) {
+      linhas.push(`${chave}: ${valor}`);
+    }
+    log(`  Headers da resposta → ${linhas.join('  |  ') || '(nenhum)'}`, tipo, 'RESPOSTA');
+
+    const texto = STATUS_TEXTO[resposta.status] || resposta.statusText || '';
+    log(`← ${resposta.status} ${texto}   ${corpo}`, tipo, 'RESPOSTA');
+
+    // resposta._duracaoMs foi guardado em enviarRequisicao(), logo depois do
+    // fetch() -- é só o tempo real de rede/servidor, sem as pausas artificiais
+    // (wait()) usadas pra narrar o log aos poucos.
+    log(`  Tempo de requisição: ${resposta._duracaoMs} ms`, tipo, 'RESPOSTA');
+  }
+
+  // Função interna, usada por todas as outras abaixo: dispara o fetch de
+  // verdade e já loga as duas primeiras linhas, comuns a qualquer chamada
+  // (a requisição em si, e o Tomcat recebendo a conexão). Quem chamou
+  // continua o log depois, com os detalhes específicos daquele endpoint.
+  async function enviarRequisicao(metodo, caminho, corpo) {
+    // Uma linha horizontal antes de cada requisição nova -- menos a primeira
+    // (log ainda vazio) -- separando visualmente onde um ciclo request/response
+    // termina e o próximo começa.
+    if (logEl.children.length > 0) {
+      const separador = document.createElement('hr');
+      separador.className = 'log-separador';
+      logEl.appendChild(separador);
+    }
+
+    // Monta a URL final: relativa (mesma origem) ou absoluta (aberto via file://).
+    const url = API_BASE + caminho;
+    // Só existe corpo em JSON quando "corpo" foi passado (GET/DELETE não têm).
+    const corpoTexto = corpo !== undefined ? JSON.stringify(corpo) : undefined;
+
+    // Loga a linha de saída -- ex.: "→ POST /tarefas   {"titulo":"..."}"
+    log(`→ ${metodo} ${caminho}` + (corpoTexto ? `   ${corpoTexto}` : ''), 'req', 'REQUISIÇÃO');
+    // Headers que ESTE código manda de propósito (ver o "headers:" do fetch logo
+    // abaixo). O navegador manda outros por baixo dos panos (Host, Accept,
+    // User-Agent...) que o JavaScript não tem como inspecionar -- por isso o
+    // log só mostra o que o código realmente decidiu.
+    log(`  Headers enviados → ${corpoTexto ? 'Content-Type: application/json' : '(nenhum -- ' + metodo + ' não manda corpo)'}`, 'req', 'REQUISIÇÃO');
+
+    // Guarda a resposta fora do try, pra poder ser usada depois dele.
+    let resposta;
+    // performance.now(): relógio de alta precisão do navegador, em milissegundos
+    // -- medido só em volta do fetch(), pra cronometrar a requisição de verdade
+    // (rede + servidor), sem contar nenhuma pausa artificial deste JavaScript.
+    const inicio = performance.now();
+    try {
+      // fetch(): a requisição HTTP de verdade, indo pro servidor Spring Boot.
+      resposta = await fetch(url, {
+        method: metodo,
+        // Só manda Content-Type quando realmente existe corpo pra enviar.
+        headers: corpoTexto ? { 'Content-Type': 'application/json' } : undefined,
+        body: corpoTexto,
+      });
+    } catch (erro) {
+      // fetch() só cai aqui se a conexão falhar de verdade (API fora do ar,
+      // porta errada, CORS bloqueado) -- nunca por causa de status HTTP.
+      log('  Não consegui falar com a API -- ela está rodando? (cd exemplo_tarefas && mvn spring-boot:run)', 'err', 'FALHA');
+      log(`← Falha de conexão: ${erro.message}`, 'err', 'FALHA');
+      // Devolve null: quem chamou sabe que a requisição nem chegou a rodar.
+      return null;
+    }
+
+    // Guarda a duração direto no objeto da resposta -- assim logResposta() lê
+    // esse valor sem precisar mudar a assinatura de todas as funções de
+    // endpoint que só repassam "resposta" adiante.
+    resposta._duracaoMs = Math.round(performance.now() - inicio);
+
+    // Pausa só pra dar tempo de ler o log -- a resposta real já chegou no
+    // fetch acima; isso aqui não atrasa nem afeta a requisição em si.
+    await wait(150);
+    log('  Tomcat recebe a conexão HTTP', 'step', 'BACKEND');
+
+    // Devolve o Response inteiro; quem chamou decide como ler o corpo
+    // (.json() ou .text()), porque isso depende do status de cada endpoint.
+    return resposta;
+  }
+
+  // GET /tarefas -- busca a lista completa de tarefas no servidor real.
+  async function listarTarefas() {
+    const resposta = await enviarRequisicao('GET', '/tarefas');
+    // enviarRequisicao já logou o motivo do erro; devolve lista vazia.
+    if (!resposta) return [];
+
+    await wait(150);
+    log('  Spring MVC resolve a rota → TarefaController.listar()', 'step', 'BACKEND', 'CONTROLLER');
+    await wait(150);
+    log('  TarefaService.listarTodas() delega pro Repository', 'step', 'BACKEND', 'SERVICE');
+    await wait(150);
+    log('  TarefaRepository.listarTodas() devolve os values() do Map', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+
+    // .json(): lê o corpo da resposta (um array) e converte de JSON pra objeto JS.
+    const lista = await resposta.json();
+    // Loga headers + o array inteiro, exatamente como veio do servidor.
+    logResposta(resposta, 'ok', JSON.stringify(lista));
+    return lista;
+  }
+
+  // POST /tarefas -- cria uma tarefa nova a partir dos dados do formulário.
+  async function criarTarefa(titulo, responsavel, dataPrazo) {
+    const corpo = { titulo, responsavel };
+    // Só entra no JSON se o campo estiver preenchido -- assim, se a data vier
+    // vazia, quem barra é o @NotNull do TarefaDTO (400 limpo, com mensagem),
+    // em vez do Jackson tentar converter "" em LocalDate e explodir antes disso.
+    if (dataPrazo) corpo.dataPrazo = dataPrazo;
+
+    const resposta = await enviarRequisicao('POST', '/tarefas', corpo);
+    if (!resposta) return null;
+
+    await wait(150);
+    log('  Spring MVC resolve a rota → TarefaController.criar()', 'step', 'BACKEND', 'CONTROLLER');
+    await wait(150);
+    log('  @RequestBody converte o JSON em TarefaDTO', 'step', 'BACKEND', 'DTO');
+    await wait(150);
+    log('  @Valid confere @NotBlank (título, responsável) e @NotNull (prazo)', 'step', 'BACKEND', 'DTO');
+    await wait(150);
+
+    // status 400 só acontece se o @NotBlank do TarefaDTO realmente rejeitou o
+    // título -- quem decidiu isso foi o Spring de verdade, não este JavaScript.
+    if (resposta.status === 400) {
+      // Lê o corpo de erro do Spring como JSON -- o log mostra ele por inteiro.
+      const erro = await resposta.json().catch(() => ({}));
+      log('  @Valid rejeitou -- Spring responde antes do TarefaService rodar', 'err', 'BACKEND', 'DTO');
+      await wait(120);
+      logResposta(resposta, 'err', JSON.stringify(erro));
+      // Devolve null: quem chamou sabe que nenhuma tarefa foi criada.
+      return null;
+    }
+
+    log('  TarefaService.criar(dto) monta uma Tarefa a partir do DTO', 'step', 'BACKEND', 'SERVICE');
+    await wait(150);
+    log('  Tarefa (model) nasce com id=null, concluida=false e dataCadastro=hoje', 'step', 'BACKEND', 'MODEL');
+    await wait(150);
+    log('  TarefaRepository.salvar(tarefa) gera o id e guarda no Map', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+
+    // 201 Created: o corpo é a tarefa que o servidor acabou de salvar, já com id.
+    const tarefa = await resposta.json();
+    logResposta(resposta, 'ok', JSON.stringify(tarefa));
+    return tarefa;
+  }
+
+  // GET /tarefas/{id} -- busca uma tarefa específica pelo id.
+  async function buscarTarefa(id) {
+    const resposta = await enviarRequisicao('GET', `/tarefas/${id}`);
+    if (!resposta) return null;
+
+    await wait(150);
+    log(`  Spring MVC resolve a rota → TarefaController.buscarPorId(${id})`, 'step', 'BACKEND', 'CONTROLLER');
+    await wait(150);
+    log('  TarefaService.buscarPorId(id) delega pro Repository', 'step', 'BACKEND', 'SERVICE');
+    await wait(150);
+    log('  TarefaRepository.buscarPorId(id) procura no Map', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+
+    // 404 de verdade: o Repository não achou o id, o Service lançou a exceção,
+    // e o ApiExceptionHandler converteu isso na resposta que chegou aqui.
+    if (resposta.status === 404) {
+      // Este endpoint devolve texto puro no erro (ApiExceptionHandler usa
+      // ResponseEntity<String>) -- por isso .text() em vez de .json().
+      const texto = await resposta.text();
+      log('  Repository devolve Optional vazio', 'err', 'BACKEND', 'REPOSITORY');
+      await wait(120);
+      log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
+      await wait(120);
+      // ApiExceptionHandler é @RestControllerAdvice -- "conselho" para
+      // controllers, por isso a camada aqui é CONTROLLER, não SERVICE.
+      log('  ApiExceptionHandler (@RestControllerAdvice) captura a exceção', 'err', 'BACKEND', 'CONTROLLER');
+      await wait(120);
+      logResposta(resposta, 'err', texto);
+      return null;
+    }
+
+    // 200 OK: o corpo é a própria tarefa encontrada.
+    const tarefa = await resposta.json();
+    log('  Tarefa (model) encontrada: id, titulo e concluida', 'ok-step', 'BACKEND', 'MODEL');
+    await wait(120);
+    logResposta(resposta, 'ok', JSON.stringify(tarefa));
+    return tarefa;
+  }
+
+  // PUT /tarefas/{id} -- bônus, fora do CRUD oficial da Aula 07, mas atualiza
+  // título, responsável e prazo de verdade no servidor (mesmo TarefaDTO e
+  // mesma validação da criação -- dataCadastro e concluida não mudam aqui).
+  async function atualizarTarefa(id, titulo, responsavel, dataPrazo) {
+    const corpo = { titulo, responsavel };
+    if (dataPrazo) corpo.dataPrazo = dataPrazo;
+
+    const resposta = await enviarRequisicao('PUT', `/tarefas/${id}`, corpo);
+    if (!resposta) return null;
+
+    await wait(150);
+    log(`  Spring MVC resolve a rota → TarefaController.atualizar(${id})`, 'step', 'BACKEND', 'CONTROLLER');
+    await wait(150);
+    log('  @RequestBody converte o JSON em TarefaDTO', 'step', 'BACKEND', 'DTO');
+    await wait(150);
+    log('  @Valid confere @NotBlank (título, responsável) e @NotNull (prazo)', 'step', 'BACKEND', 'DTO');
+    await wait(150);
+
+    // 400: @Valid rejeitou antes até de chamar o Service -- mesmo caminho de criarTarefa.
+    if (resposta.status === 400) {
+      const erro = await resposta.json().catch(() => ({}));
+      log('  @Valid rejeitou -- Spring responde antes do TarefaService rodar', 'err', 'BACKEND', 'DTO');
+      await wait(120);
+      logResposta(resposta, 'err', JSON.stringify(erro));
+      return null;
+    }
+
+    log('  TarefaService.atualizar(id, dto) chama buscarPorId(id)', 'step', 'BACKEND', 'SERVICE');
+    await wait(150);
+    log('  TarefaRepository.buscarPorId(id) procura no Map', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+
+    // 404: os dados passaram no @Valid, mas o id não existe -- mesmo caminho de
+    // erro dos outros endpoints (buscarPorId lança TarefaNaoEncontradaException).
+    if (resposta.status === 404) {
+      const texto = await resposta.text();
+      log('  Repository devolve Optional vazio', 'err', 'BACKEND', 'REPOSITORY');
+      await wait(120);
+      log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
+      await wait(120);
+      log('  ApiExceptionHandler (@RestControllerAdvice) captura a exceção', 'err', 'BACKEND', 'CONTROLLER');
+      await wait(120);
+      logResposta(resposta, 'err', texto);
+      return null;
+    }
+
+    // 200 OK: o corpo é a tarefa já com título, responsável e prazo trocados.
+    const tarefa = await resposta.json();
+    log('  Tarefa (model) tem titulo, responsavel e dataPrazo alterados', 'ok-step', 'BACKEND', 'MODEL');
+    await wait(120);
+    logResposta(resposta, 'ok', JSON.stringify(tarefa));
+    return tarefa;
+  }
+
+  // DELETE /tarefas/{id} -- remove uma tarefa pelo id.
+  async function removerTarefa(id) {
+    const resposta = await enviarRequisicao('DELETE', `/tarefas/${id}`);
+    if (!resposta) return false;
+
+    await wait(150);
+    log(`  Spring MVC resolve a rota → TarefaController.remover(${id})`, 'step', 'BACKEND', 'CONTROLLER');
+    await wait(150);
+    log('  TarefaService.remover(id) delega pro Repository', 'step', 'BACKEND', 'SERVICE');
+    await wait(150);
+    log('  TarefaRepository.remover(id) chama Map.remove(id)', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+
+    // Mesmo caminho de erro de buscarTarefa: id não existia no Map.
+    if (resposta.status === 404) {
+      const texto = await resposta.text();
+      log('  Map.remove(id) devolve null -- id não existia', 'err', 'BACKEND', 'REPOSITORY');
+      await wait(120);
+      log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
+      await wait(120);
+      log('  ApiExceptionHandler (@RestControllerAdvice) captura a exceção', 'err', 'BACKEND', 'CONTROLLER');
+      await wait(120);
+      logResposta(resposta, 'err', texto);
+      return false;
+    }
+
+    // 204 No Content: sucesso, mas sem corpo -- nada pra ler com .json()/.text().
+    log('  Map.remove(id) removeu com sucesso', 'ok-step', 'BACKEND', 'REPOSITORY');
+    await wait(120);
+    logResposta(resposta, 'ok', '(sem corpo -- 204 No Content nunca tem)');
+    return true;
+  }
+
+  // PUT /tarefas/{id}/concluir -- bônus, fora do CRUD oficial da Aula 07 (que é só
+  // listar/criar/buscar/excluir), mas chama a API de verdade como os outros.
+  async function concluirTarefa(id) {
+    const resposta = await enviarRequisicao('PUT', `/tarefas/${id}/concluir`);
+    if (!resposta) return null;
+
+    await wait(150);
+    log(`  Spring MVC resolve a rota → TarefaController.concluir(${id})`, 'step', 'BACKEND', 'CONTROLLER');
+    await wait(150);
+    log('  TarefaService.alternarConcluida(id) chama buscarPorId(id)', 'step', 'BACKEND', 'SERVICE');
+    await wait(150);
+    log('  TarefaRepository.buscarPorId(id) procura no Map', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+
+    // Mesmo caminho de erro dos outros endpoints: id não existe no Map.
+    if (resposta.status === 404) {
+      const texto = await resposta.text();
+      log('  Repository devolve Optional vazio', 'err', 'BACKEND', 'REPOSITORY');
+      await wait(120);
+      log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
+      await wait(120);
+      log('  ApiExceptionHandler (@RestControllerAdvice) captura a exceção', 'err', 'BACKEND', 'CONTROLLER');
+      await wait(120);
+      logResposta(resposta, 'err', texto);
+      return null;
+    }
+
+    // 200 OK: o corpo é a tarefa já com o campo "concluida" invertido.
+    const tarefa = await resposta.json();
+    log('  Tarefa (model) tem o campo concluida invertido', 'ok-step', 'BACKEND', 'MODEL');
+    await wait(120);
+    logResposta(resposta, 'ok', JSON.stringify(tarefa));
+    return tarefa;
+  }
+
+  // ---------------------------------------------------------------- eventos
+
+  // Envio do formulário de "adicionar tarefa".
+  document.getElementById('form-add').addEventListener('submit', async (evento) => {
+    // Impede o comportamento padrão do form (recarregar a página).
+    evento.preventDefault();
+    // Ignora um novo clique se já tem requisição em andamento.
+    if (busy) return;
+
+    const input = document.getElementById('input-titulo');
+    const inputResp = document.getElementById('input-responsavel');
+    const inputPrazo = document.getElementById('input-prazo');
+    const erro = document.getElementById('erro-titulo');
+    // Limpa a mensagem de erro de uma tentativa anterior.
+    erro.textContent = '';
+
+    // Trava a tela, dispara a criação de verdade na API e destrava no final.
+    setBusy(true);
+    const criada = await criarTarefa(input.value, inputResp.value, inputPrazo.value);
+    setBusy(false);
+
+    // criarTarefa devolve null quando a API recusou (400) -- mostra o erro e para.
+    if (!criada) {
+      erro.textContent = 'Não deu pra criar -- confira o log (título, responsável e prazo são obrigatórios).';
+      return;
+    }
+
+    // Deu certo: limpa os campos, guarda a tarefa recém-criada na lista local e redesenha.
+    input.value = '';
+    inputResp.value = '';
+    inputPrazo.value = '';
+    tarefas.push(criada);
+    renderLista();
+  });
+
+  // Um único listener no container ".lista" cobre os cliques em QUALQUER botão
+  // de QUALQUER item (abertos e concluídos) -- delegação de evento, em vez de
+  // registrar um listener por botão (que teria que ser refeito a cada renderLista).
+  document.querySelector('.lista').addEventListener('click', async (evento) => {
+    // Sobe do elemento clicado até achar o <button data-acao="...">, se existir.
+    const botao = evento.target.closest('button[data-acao]');
+    if (!botao || busy) return;
+
+    // Os dois dados que identificam a ação vêm dos atributos data-* do botão.
+    const id = Number(botao.dataset.id);
+    const acao = botao.dataset.acao;
+
+    // "cancelar-edicao" só sai do modo de edição -- não chama a API.
+    if (acao === 'cancelar-edicao') {
+      editandoId = null;
+      renderLista();
+      return;
+    }
+
+    setBusy(true);
+    // "concluir" chama a API de verdade e atualiza a tarefa local com a resposta.
+    if (acao === 'concluir') {
+      const atualizada = await concluirTarefa(id);
+      if (atualizada) {
+        const indice = tarefas.findIndex(t => t.id === id);
+        if (indice !== -1) tarefas[indice] = atualizada;
+      }
+    }
+    // "buscar" (botão 🔍) confere a tarefa com um GET de verdade e, se ela ainda
+    // existir, entra em modo de edição -- é o "editar" pedido: primeiro busca,
+    // depois deixa trocar o título e salvar com PUT (ver o "submit" abaixo).
+    if (acao === 'buscar') {
+      const encontrada = await buscarTarefa(id);
+      if (encontrada) {
+        const indice = tarefas.findIndex(t => t.id === id);
+        if (indice !== -1) tarefas[indice] = encontrada;
+        editandoId = id;
+      }
+    }
+    // "excluir" remove de verdade no servidor; só some da lista local se deu certo.
+    if (acao === 'excluir') {
+      const removeu = await removerTarefa(id);
+      if (removeu) tarefas = tarefas.filter(t => t.id !== id);
+    }
+    setBusy(false);
+
+    renderLista();
+  });
+
+  // Envio do <form class="edit-form"> (Enter no campo ou clique no 💾) --
+  // delegado no mesmo container ".lista", igual o listener de clique acima.
+  document.querySelector('.lista').addEventListener('submit', async (evento) => {
+    // Só reage se o submit veio de um form de edição (ignora outros submits).
+    const form = evento.target.closest('form.edit-form');
+    if (!form || busy) return;
+    // Impede o comportamento padrão do form (recarregar a página).
+    evento.preventDefault();
+
+    const id = Number(form.dataset.id);
+    const input = form.querySelector('.edit-input');
+    const inputResp = form.querySelector('.edit-responsavel');
+    const inputPrazo = form.querySelector('.edit-prazo');
+    const erro = form.querySelector('.edit-erro');
+    // Esconde a mensagem de erro de uma tentativa anterior, se houver.
+    erro.style.display = 'none';
+
+    setBusy(true);
+    const atualizada = await atualizarTarefa(id, input.value, inputResp.value, inputPrazo.value);
+    setBusy(false);
+
+    // atualizarTarefa devolve null tanto no 400 (título vazio) quanto no 404
+    // (tarefa sumiu nesse meio-tempo) -- os detalhes de qual foi já estão no
+    // log; aqui só avisa, sem sair do modo de edição, pra tentar de novo.
+    if (!atualizada) {
+      erro.textContent = 'Não deu pra salvar -- confira o log (veja o motivo do erro ali).';
+      erro.style.display = 'block';
+      return;
+    }
+
+    // Deu certo: atualiza a tarefa local, sai do modo de edição e redesenha.
+    const indice = tarefas.findIndex(t => t.id === id);
+    if (indice !== -1) tarefas[indice] = atualizada;
+    editandoId = null;
+    renderLista();
+  });
+
+  // Painel de teste: busca um id qualquer digitado (ex.: 999, pra ver um 404).
+  document.getElementById('btn-buscar-id').addEventListener('click', async () => {
+    if (busy) return;
+    const id = Number(document.getElementById('input-id-teste').value);
+    // Campo vazio ou não numérico: Number(...) devolve 0/NaN, e o "!id" barra os dois.
+    if (!id) return;
+    setBusy(true);
+    await buscarTarefa(id);
+    setBusy(false);
+  });
+
+  // Painel de teste: exclui um id qualquer digitado.
+  document.getElementById('btn-excluir-id').addEventListener('click', async () => {
+    if (busy) return;
+    const id = Number(document.getElementById('input-id-teste').value);
+    if (!id) return;
+    setBusy(true);
+    const removeu = await removerTarefa(id);
+    // Se o id excluído também estava na lista visível, tira ele de lá também.
+    if (removeu) tarefas = tarefas.filter(t => t.id !== id);
+    setBusy(false);
+    renderLista();
+  });
+
+  // Botão "Limpar": apaga só o conteúdo visual do log -- não afeta a API nem os dados.
+  document.getElementById('btn-limpar-log').addEventListener('click', () => {
+    logEl.innerHTML = '';
+  });
+
+  // Botão "🔄 Atualizar": refaz o GET /tarefas e redesenha a lista com o que
+  // vier de verdade do servidor -- útil depois de mexer direto pela API
+  // (curl, Postman) e querer ver o resultado sem dar F5 na página inteira.
+  document.getElementById('btn-atualizar-lista').addEventListener('click', async () => {
+    if (busy) return;
+    setBusy(true);
+    tarefas = await listarTarefas();
+    setBusy(false);
+    // Sai do modo de edição, se algum item estivesse sendo editado -- a lista
+    // que acabou de chegar do servidor vale mais do que uma edição em andamento.
+    editandoId = null;
+    renderLista();
+  });
+
+  // ---------------------------------------------------------------- inicialização
+
+  // Roda assim que o script carrega: busca a lista real no servidor antes de
+  // desenhar qualquer coisa na tela -- por isso a página começa "vazia" por
+  // uma fração de segundo, até a primeira resposta da API chegar.
+  (async function iniciar() {
+    tarefas = await listarTarefas();
+    renderLista();
+  })();
+</script>
+</body>
+</html>
