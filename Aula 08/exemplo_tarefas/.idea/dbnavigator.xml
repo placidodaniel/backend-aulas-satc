@@ -11,11 +11,11 @@
   </component>
   <component name="DBNavigator.Project.DatabaseAssistantManager">
     <assistants>
-      <assistant-state connection-id="c95c0cd4-7e8d-4f73-a4ac-2bf031e43d2e" assistant-type="SELECT_AI" default-profile-name="" selected-chat-id="" availability="UNAVAILABLE" acknowledgement="NONE">
+      <assistant-state connection-id="c95c0cd4-7e8d-4f73-a4ac-2bf031e43d2e" assistant-type="PUBLIC" default-profile-name="" selected-chat-id="" availability="AVAILABLE" acknowledgement="NONE" selected="true">
         <tools />
         <mcp-servers />
       </assistant-state>
-      <assistant-state connection-id="c95c0cd4-7e8d-4f73-a4ac-2bf031e43d2e" assistant-type="PUBLIC" default-profile-name="" selected-chat-id="" availability="AVAILABLE" acknowledgement="NONE" selected="true">
+      <assistant-state connection-id="c95c0cd4-7e8d-4f73-a4ac-2bf031e43d2e" assistant-type="SELECT_AI" default-profile-name="" selected-chat-id="" availability="UNAVAILABLE" acknowledgement="NONE">
         <tools />
         <mcp-servers />
       </assistant-state>
@@ -37,9 +37,7 @@
     <last-used-providers />
   </component>
   <component name="DBNavigator.Project.DatabaseFileManager">
-    <open-files>
-      <object connection-id="c95c0cd4-7e8d-4f73-a4ac-2bf031e43d2e" object-ref="schemas/public/tables/tarefas" />
-    </open-files>
+    <open-files />
   </component>
   <component name="DBNavigator.Project.DatabasePrerequisiteManager">
     <prerequisites />
@@ -59,7 +57,12 @@
     <filters />
   </component>
   <component name="DBNavigator.Project.Settings">
-    <states />
+    <states>
+      <state category="SECRET_STORAGE_MIGRATION">
+        <cleaned value="true" />
+        <migrated value="true" />
+      </state>
+    </states>
     <connections>
       <connection source-id="" id="c95c0cd4-7e8d-4f73-a4ac-2bf031e43d2e" active="true" signed="true">
         <database>

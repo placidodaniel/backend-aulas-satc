@@ -1,8 +1,9 @@
-# Exercícios: Filtro, Regra de Negócio e Validação
+# Exercícios: Consultas JPA, Validação e Fluxo Completo
 
 Todos os exercícios usam o projeto `exemplo_tarefas`. Para rodar e conferir:
 
 ```bash
+docker compose up -d                         # sobe o PostgreSQL
 ./mvnw spring-boot:run                       # Linux/Mac  (Windows: mvnw.cmd spring-boot:run)
 
 # em outro terminal (ou abra http://localhost:8080/ no navegador)
@@ -11,7 +12,54 @@ curl http://localhost:8080/tarefas
 
 > **Atenção:** este projeto exige **JDK 25**. Confira com `java -version` antes de começar.
 
-O projeto já vem com o CRUD completo **pronto e funcionando** (`GET /tarefas`, `POST /tarefas`, `GET /tarefas/{id}`, `PUT /tarefas/{id}`, `DELETE /tarefas/{id}`, `PUT /tarefas/{id}/concluir`), nas classes `TarefaController` → `TarefaService` → `TarefaRepository`. Leia esse fluxo inteiro antes de começar — é o modelo que você vai repetir nos exercícios abaixo, em lugares onde ele ainda não existe. A página em `http://localhost:8080/` (depois de subir a API) também serve pra testar visualmente, com um log mostrando cada requisição.
+O projeto já vem com o CRUD completo **pronto e funcionando** (`GET /tarefas`, `POST /tarefas`, `GET /tarefas/{id}`, `PUT /tarefas/{id}`, `DELETE /tarefas/{id}`, `PUT /tarefas/{id}/concluir`), nas classes `TarefaController` → `TarefaService` → `TarefaRepository` → Spring Data JPA/Hibernate → PostgreSQL. Leia esse fluxo inteiro antes de começar — é o modelo que você vai repetir nos exercícios abaixo, em lugares onde ele ainda não existe. A página em `http://localhost:8080/` (depois de subir a API) também serve pra testar visualmente, com um log mostrando cada requisição, o Repository e o SQL enviado ao banco.
+
+## Como executar uma migration
+
+As migrations ficam em `src/main/resources/db/migration` e são executadas
+automaticamente pelo **Flyway** durante o startup do Spring Boot. Não existe um
+comando separado de migration neste projeto.
+
+Para executar a migration inicial:
+
+1. Suba o PostgreSQL:
+
+   ```bash
+   docker compose up -d
+   docker compose ps
+   ```
+
+2. Inicie a aplicação:
+
+   ```bash
+   ./mvnw spring-boot:run       # Linux/Mac
+   # Windows PowerShell: .\mvnw.cmd spring-boot:run
+   ```
+
+3. Confira no console do Spring a aplicação de `V1__criar_tarefas.sql`.
+   O Flyway registra o resultado na tabela `flyway_schema_history`.
+
+Para executar uma nova migration, como a `V2__adicionar_prioridade.sql` do
+Exercício 5:
+
+1. Crie o arquivo na pasta de migrations, sem editar `V1__criar_tarefas.sql`.
+2. Pare e inicie a aplicação novamente. O Flyway encontra a versão pendente e
+   executa o SQL antes de o Spring Boot terminar de subir.
+3. Verifique o histórico:
+
+   ```bash
+   docker compose exec postgres psql -U tarefas -d tarefas \
+     -c "SELECT installed_rank, version, description, success FROM flyway_schema_history;"
+   ```
+
+Se precisar testar todas as migrations desde o começo, apague o volume local e
+suba a aplicação novamente. Isso apaga os dados do banco:
+
+```bash
+docker compose down -v
+docker compose up -d
+./mvnw spring-boot:run
+```
 
 ---
 
@@ -44,10 +92,10 @@ Exercício 1.1
 Pergunta: ...
 Resposta: ...
 
-(e assim por diante, até o 4.2)
+(e assim por diante, até o 5.2)
 ```
 
-São **6 subexercícios** no total, distribuídos entre os 4 exercícios. Responda todos.
+São **8 subexercícios** no total, distribuídos entre os 5 exercícios. Responda todos.
 
 ---
 
@@ -57,14 +105,14 @@ Hoje só existe uma forma de buscar uma tarefa específica: por id (`GET /tarefa
 
 ### O que fazer
 
-1. Crie `GET /tarefas/buscar?responsavel=Ana` em `TarefaController`, usando `@RequestParam String responsavel` (o mesmo jeito de ler query string já mostrado no README da Aula 07, na Parte 2).
+1. Crie `GET /tarefas/buscar?responsavel=Ana` em `TarefaController`, usando `@RequestParam String responsavel`.
 2. Crie `TarefaService.buscarPorResponsavel(String responsavel)`, que chama um método novo no Repository.
-3. Crie `TarefaRepository.buscarPorResponsavel(String responsavel)`, filtrando o `Map` com Stream (`.stream().filter(...).toList()`) -- comparando os nomes **sem diferenciar maiúsculas/minúsculas** (`equalsIgnoreCase`).
+3. Declare em `TarefaRepository` o método derivado `findByResponsavelIgnoreCase(String responsavel)`. O Spring Data JPA transforma o nome do método em uma consulta no PostgreSQL; não filtre uma lista em memória.
 
 <details>
 <summary>💡 Dica de código (tente sozinho antes de abrir)</summary>
 
-O "encanamento" (Controller → Service → Repository) é sempre o mesmo dos outros endpoints -- a novidade é o `filter(...)` de dentro do Repository:
+O "encanamento" (Controller → Service → Repository → banco) é sempre o mesmo dos outros endpoints -- a novidade é o nome do método derivado:
 
 ```java
 // TarefaController
@@ -77,20 +125,16 @@ public Collection<Tarefa> buscarPorResponsavel(@RequestParam String responsavel)
 ```java
 // TarefaService -- só repassa pro Repository, igual listarTodas()
 public Collection<Tarefa> buscarPorResponsavel(String responsavel) {
-    return repository.buscarPorResponsavel(responsavel);
+    return repository.findByResponsavelIgnoreCase(responsavel);
 }
 ```
 
 ```java
-// TarefaRepository -- compara ignorando maiúsculas/minúsculas
-public Collection<Tarefa> buscarPorResponsavel(String responsavel) {
-    return tarefas.values().stream()
-            .filter(tarefa -> tarefa.getResponsavel().equalsIgnoreCase(responsavel))
-            .toList();
-}
+// TarefaRepository -- o Spring Data JPA gera o SELECT no PostgreSQL
+List<Tarefa> findByResponsavelIgnoreCase(String responsavel);
 ```
 
-`@RequestParam` já vem importado (mesmo pacote `org.springframework.web.bind.annotation` dos outros -- só falta adicionar o import).
+Você precisará dos imports de `List` e `RequestParam`.
 
 </details>
 
@@ -115,12 +159,13 @@ public Collection<Tarefa> buscarPorResponsavel(String responsavel) {
 
 ## Exercício 2: Tarefas atrasadas
 
-"Atrasada" é uma regra de negócio: uma tarefa está atrasada quando o prazo (`dataPrazo`) já passou **e** ela ainda não foi concluída. Isso não existe em lugar nenhum do projeto ainda.
+"Atrasada" é uma tarefa cujo prazo (`dataPrazo`) já passou **e** ela ainda não foi concluída. Isso não existe em lugar nenhum do projeto ainda.
 
 ### O que fazer
 
 1. Crie `GET /tarefas/atrasadas` em `TarefaController`.
-2. Crie `TarefaService.listarAtrasadas()`, que pega `repository.listarTodas()` e filtra com Stream: `dataPrazo` antes de `LocalDate.now()` **e** `concluida == false`.
+2. Crie em `TarefaRepository` o método derivado `findByConcluidaFalseAndDataPrazoBefore(LocalDate data)`.
+3. Crie `TarefaService.listarAtrasadas()`, que chama o método do Repository com `LocalDate.now()`.
 
 <details>
 <summary>💡 Dica de código (tente sozinho antes de abrir)</summary>
@@ -134,21 +179,25 @@ public Collection<Tarefa> listarAtrasadas() {
 ```
 
 ```java
-// TarefaService -- não existe método novo no Repository; reaproveita listarTodas()
+// TarefaService -- o Repository transforma a consulta em SQL
 public Collection<Tarefa> listarAtrasadas() {
-    return repository.listarTodas().stream()
-            .filter(tarefa -> tarefa.getDataPrazo().isBefore(LocalDate.now()) && !tarefa.isConcluida())
-            .toList();
+    return repository.findByConcluidaFalseAndDataPrazoBefore(LocalDate.now());
 }
 ```
 
-Precisa de `import java.time.LocalDate;` no `TarefaService` (o `Tarefa` já importa, mas o `Service` ainda não usa `LocalDate` diretamente).
+No Repository, declare:
+
+```java
+List<Tarefa> findByConcluidaFalseAndDataPrazoBefore(LocalDate data);
+```
+
+Precisa de `import java.time.LocalDate;` no Service e no Repository.
 
 </details>
 
 ### Regras
 
-- A regra de "o que é atrasada" mora **inteira dentro do Service**. Não crie um método `listarAtrasadas()` dentro do `TarefaRepository` -- o Repository só sabe guardar e devolver dados, quem decide o que é "atrasada" é o Service.
+- A consulta fica no **Repository**, onde o Spring Data pode executá-la no PostgreSQL. O Service continua sendo a porta da regra para o Controller; o Controller não acessa o Repository diretamente.
 
 ### Resultado esperado
 
@@ -160,7 +209,7 @@ Precisa de `import java.time.LocalDate;` no `TarefaService` (o `Tarefa` já impo
 
 ### Subexercícios
 
-**2.1**: Se essa mesma regra estivesse dentro do `TarefaRepository` em vez do `TarefaService`, o que teoricamente ficaria mais difícil de fazer no futuro (pense em trocar o Map em memória por um banco de dados de verdade, na Aula 08)?
+**2.1**: Qual é a vantagem de deixar o filtro no método derivado do Repository em vez de buscar todas as tarefas e filtrar no Service? Pense na quantidade de dados transferida do PostgreSQL para a aplicação.
 
 ---
 
@@ -212,35 +261,74 @@ curl -X POST http://localhost:8080/tarefas -H "Content-Type: application/json" \
 
 ## Exercício 4: Ordenar por prazo
 
-Hoje `GET /tarefas` devolve as tarefas na ordem em que foram guardadas no Map -- não necessariamente a ordem que importa pra quem está usando um cadastro de tarefas (a mais urgente primeiro).
+Hoje `GET /tarefas` devolve as tarefas na ordem escolhida pelo banco -- não necessariamente a ordem que importa pra quem está usando um cadastro de tarefas (a mais urgente primeiro).
 
 ### O que fazer
 
-1. Em `TarefaService.listarTodas()`, ordene a coleção antes de devolver, usando `Comparator.comparing(Tarefa::getDataPrazo)` -- prazo mais próximo primeiro.
-2. Confirme testando `GET /tarefas` com tarefas de prazos diferentes.
+1. Crie em `TarefaRepository` o método derivado `findAllByOrderByDataPrazoAsc()`.
+2. Em `TarefaService.listarTodas()`, chame esse método para devolver o prazo mais próximo primeiro.
+3. Confirme testando `GET /tarefas` com tarefas de prazos diferentes.
 
 <details>
 <summary>💡 Dica de código (tente sozinho antes de abrir)</summary>
 
 ```java
-import java.util.Comparator;
+// TarefaRepository -- o ORDER BY será executado pelo PostgreSQL
+List<Tarefa> findAllByOrderByDataPrazoAsc();
 
 // TarefaService
 public Collection<Tarefa> listarTodas() {
-    return repository.listarTodas().stream()
-            .sorted(Comparator.comparing(Tarefa::getDataPrazo))
-            .toList();
+    return repository.findAllByOrderByDataPrazoAsc();
 }
 ```
 
-`Tarefa::getDataPrazo` é uma *method reference* -- o mesmo que escrever `tarefa -> tarefa.getDataPrazo()`, só mais curto. O `Comparator` usa o `LocalDate` devolvido por esse método pra decidir a ordem (`LocalDate` já sabe comparar datas sozinho, do mais antigo pro mais novo).
+O nome do método instrui o Spring Data a gerar `ORDER BY data_prazo ASC`. Você precisará do import de `List` no Repository.
 
 </details>
 
 ### Regras
 
-- A ordenação acontece no **Service**, não no `TarefaRepository.listarTodas()` nem no `TarefaController`.
+- A ordenação é pedida pelo **Service** através do Repository; não ordene no Controller nem no JavaScript do frontend.
 
 ### Subexercícios
 
-**4.1**: Por que faz mais sentido ordenar dentro do Service do que dentro do Controller (que já tem a lista em mãos e também poderia chamar `.sorted()`)?
+**4.1**: Por que faz mais sentido o Controller pedir a lista ordenada ao Service, em vez de ordenar a resposta HTTP dentro do próprio Controller?
+
+---
+
+## Exercício 5: Novo campo de prioridade — fluxo completo
+
+Agora você vai alterar um dado que percorre o caminho inteiro: formulário do frontend → JSON → DTO → entidade → Repository → Hibernate → PostgreSQL → resposta.
+
+Adicione o campo `prioridade`, um número inteiro de **1 a 5**, em uma tarefa. O valor padrão deve ser `3` quando uma linha antiga do banco for atualizada pela migration.
+
+### O que fazer
+
+1. Crie `V2__adicionar_prioridade.sql` com `ALTER TABLE tarefas ADD COLUMN prioridade INTEGER NOT NULL DEFAULT 3;`. Não edite a migration V1.
+2. Adicione `prioridade` à entidade `Tarefa`, mapeado como coluna não nula, incluindo construtor, getter e setter.
+3. Adicione `prioridade` ao `TarefaDTO` com `@NotNull`, `@Min(1)` e `@Max(5)`.
+4. Faça `TarefaService.criar()` e `TarefaService.atualizar()` copiarem o valor do DTO para a entidade. O `TarefaRepository` já persiste o novo atributo por ser um `JpaRepository`; não crie um Repository novo.
+5. No `index.html`, crie um campo numérico de prioridade no formulário de inclusão e no formulário de edição. Inclua o valor no JSON de `POST` e `PUT` e mostre-o na lista.
+6. Atualize os logs do frontend para identificar a prioridade no DTO, no model, no Repository e no SQL (`INSERT`/`UPDATE`).
+
+### Resultado esperado
+
+| teste | resultado |
+|---|---|
+| Criar pela página com prioridade `1` | `201 Created` e a tarefa aparece com prioridade 1 |
+| Atualizar pela página para prioridade `5` | `200 OK` e o PostgreSQL fica com prioridade 5 |
+| Enviar prioridade `0` ou `6` | `400 Bad Request`, sem gravar a tarefa |
+| Reiniciar a API | A prioridade permanece, pois foi persistida no banco |
+
+Confira o caminho completo no log da página e no console da aplicação. Para conferir diretamente no banco:
+
+```bash
+docker compose exec postgres psql -U tarefas -d tarefas \\
+  -c "SELECT id, titulo, prioridade FROM tarefas ORDER BY id;"
+```
+
+### Subexercícios
+
+**5.1**: Por que foi necessário criar uma migration V2 em vez de editar `V1__criar_tarefas.sql`?
+
+**5.2**: Por que não foi necessário criar uma implementação manual de `save()` no `TarefaRepository` depois de adicionar o atributo na entidade?

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cadastro de Tarefas — Aula 07</title>
+<title>Cadastro de Tarefas — Aula 08</title>
 <style>
   :root {
     --navy-dark: #12173a;
@@ -189,6 +189,7 @@
   .log-camada-controller { background: #2E5AAC; }
   .log-camada-service    { background: #1B7A6E; }
   .log-camada-repository { background: #8A6D1F; }
+  .log-camada-banco      { background: #6A4C93; }
   .log-camada-dto        { background: #6A4C93; }
   .log-camada-model      { background: #B5541E; }
   .log-req { color: #7FB3FF; font-weight: 700; }
@@ -209,7 +210,7 @@
 
   <header>
     <h1>🗂️ Cadastro de Tarefas</h1>
-    <p>Aula 07 · esta página chama de verdade a API do <code>exemplo_tarefas</code> (Controller → Service → Repository)</p>
+    <p>Aula 08 · esta página chama de verdade a API do <code>exemplo_tarefas</code> (Controller → Service → Repository → PostgreSQL)</p>
   </header>
 
   <div class="grid">
@@ -260,7 +261,7 @@
       <div class="log-header">
         <div>
           <h2>🧾 Log da API</h2>
-          <p>cada linha é uma chamada real (fetch) à API rodando em localhost:8080</p>
+          <p>cada linha mostra a chamada real e o caminho no backend até o PostgreSQL</p>
         </div>
         <button class="clear" id="btn-limpar-log">Limpar</button>
       </div>
@@ -313,7 +314,7 @@
   // = sucesso, 'err' = erro), um selo dizendo em qual fase do ciclo HTTP essa
   // linha está ('REQUISIÇÃO', 'BACKEND' ou 'RESPOSTA') e, opcionalmente, um
   // segundo selo dizendo qual CAMADA do projeto está rodando ('CONTROLLER',
-  // 'SERVICE', 'REPOSITORY', 'DTO' ou 'MODEL') -- só as linhas de dentro do
+  // 'SERVICE', 'REPOSITORY', 'BANCO', 'DTO' ou 'MODEL') -- só as linhas de dentro do
   // backend têm isso; passos de infraestrutura (Tomcat) e as linhas de
   // REQUISIÇÃO/RESPOSTA não pertencem a nenhuma camada específica do projeto.
   function log(texto, tipo = 'step', fase = 'BACKEND', camada = null) {
@@ -580,7 +581,11 @@
     await wait(150);
     log('  TarefaService.listarTodas() delega pro Repository', 'step', 'BACKEND', 'SERVICE');
     await wait(150);
-    log('  TarefaRepository.listarTodas() devolve os values() do Map', 'step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.findAll() pede os dados ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera SELECT * FROM tarefas', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL devolve as linhas da tabela tarefas', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
 
     // .json(): lê o corpo da resposta (um array) e converte de JSON pra objeto JS.
@@ -625,7 +630,11 @@
     await wait(150);
     log('  Tarefa (model) nasce com id=null, concluida=false e dataCadastro=hoje', 'step', 'BACKEND', 'MODEL');
     await wait(150);
-    log('  TarefaRepository.salvar(tarefa) gera o id e guarda no Map', 'step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.save(tarefa) encaminha a persistência ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera INSERT INTO tarefas (...)', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL grava a linha e gera o id', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
 
     // 201 Created: o corpo é a tarefa que o servidor acabou de salvar, já com id.
@@ -644,7 +653,11 @@
     await wait(150);
     log('  TarefaService.buscarPorId(id) delega pro Repository', 'step', 'BACKEND', 'SERVICE');
     await wait(150);
-    log('  TarefaRepository.buscarPorId(id) procura no Map', 'step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.findById(id) consulta o Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera SELECT ... FROM tarefas WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL responde a consulta', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
 
     // 404 de verdade: o Repository não achou o id, o Service lançou a exceção,
@@ -653,7 +666,7 @@
       // Este endpoint devolve texto puro no erro (ApiExceptionHandler usa
       // ResponseEntity<String>) -- por isso .text() em vez de .json().
       const texto = await resposta.text();
-      log('  Repository devolve Optional vazio', 'err', 'BACKEND', 'REPOSITORY');
+      log('  PostgreSQL não encontra uma linha para esse id', 'err', 'BACKEND', 'BANCO');
       await wait(120);
       log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
       await wait(120);
@@ -673,7 +686,7 @@
     return tarefa;
   }
 
-  // PUT /tarefas/{id} -- bônus, fora do CRUD oficial da Aula 07, mas atualiza
+  // PUT /tarefas/{id} -- bônus, fora do CRUD oficial da Aula 08, mas atualiza
   // título, responsável e prazo de verdade no servidor (mesmo TarefaDTO e
   // mesma validação da criação -- dataCadastro e concluida não mudam aqui).
   async function atualizarTarefa(id, titulo, responsavel, dataPrazo) {
@@ -702,14 +715,18 @@
 
     log('  TarefaService.atualizar(id, dto) chama buscarPorId(id)', 'step', 'BACKEND', 'SERVICE');
     await wait(150);
-    log('  TarefaRepository.buscarPorId(id) procura no Map', 'step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.findById(id) consulta o Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera SELECT ... FROM tarefas WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL responde a consulta', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
 
     // 404: os dados passaram no @Valid, mas o id não existe -- mesmo caminho de
     // erro dos outros endpoints (buscarPorId lança TarefaNaoEncontradaException).
     if (resposta.status === 404) {
       const texto = await resposta.text();
-      log('  Repository devolve Optional vazio', 'err', 'BACKEND', 'REPOSITORY');
+      log('  PostgreSQL não encontra uma linha para esse id', 'err', 'BACKEND', 'BANCO');
       await wait(120);
       log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
       await wait(120);
@@ -721,6 +738,12 @@
 
     // 200 OK: o corpo é a tarefa já com título, responsável e prazo trocados.
     const tarefa = await resposta.json();
+    log('  TarefaRepository.save(tarefa) encaminha o UPDATE ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera UPDATE tarefas SET ... WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL atualiza a linha', 'ok-step', 'BACKEND', 'BANCO');
+    await wait(120);
     log('  Tarefa (model) tem titulo, responsavel e dataPrazo alterados', 'ok-step', 'BACKEND', 'MODEL');
     await wait(120);
     logResposta(resposta, 'ok', JSON.stringify(tarefa));
@@ -737,13 +760,17 @@
     await wait(150);
     log('  TarefaService.remover(id) delega pro Repository', 'step', 'BACKEND', 'SERVICE');
     await wait(150);
-    log('  TarefaRepository.remover(id) chama Map.remove(id)', 'step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.existsById(id) consulta o Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera SELECT count(*) FROM tarefas WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL responde se a linha existe', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
 
-    // Mesmo caminho de erro de buscarTarefa: id não existia no Map.
+    // Mesmo caminho de erro de buscarTarefa: o id não existe no PostgreSQL.
     if (resposta.status === 404) {
       const texto = await resposta.text();
-      log('  Map.remove(id) devolve null -- id não existia', 'err', 'BACKEND', 'REPOSITORY');
+      log('  PostgreSQL informa que não existe uma linha para esse id', 'err', 'BACKEND', 'BANCO');
       await wait(120);
       log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
       await wait(120);
@@ -754,13 +781,17 @@
     }
 
     // 204 No Content: sucesso, mas sem corpo -- nada pra ler com .json()/.text().
-    log('  Map.remove(id) removeu com sucesso', 'ok-step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.deleteById(id) encaminha o DELETE ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera DELETE FROM tarefas WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL removeu a linha com sucesso', 'ok-step', 'BACKEND', 'BANCO');
     await wait(120);
     logResposta(resposta, 'ok', '(sem corpo -- 204 No Content nunca tem)');
     return true;
   }
 
-  // PUT /tarefas/{id}/concluir -- bônus, fora do CRUD oficial da Aula 07 (que é só
+  // PUT /tarefas/{id}/concluir -- bônus, fora do CRUD oficial da Aula 08 (que é só
   // listar/criar/buscar/excluir), mas chama a API de verdade como os outros.
   async function concluirTarefa(id) {
     const resposta = await enviarRequisicao('PUT', `/tarefas/${id}/concluir`);
@@ -771,13 +802,17 @@
     await wait(150);
     log('  TarefaService.alternarConcluida(id) chama buscarPorId(id)', 'step', 'BACKEND', 'SERVICE');
     await wait(150);
-    log('  TarefaRepository.buscarPorId(id) procura no Map', 'step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.findById(id) consulta o Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera SELECT ... FROM tarefas WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL responde a consulta', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
 
-    // Mesmo caminho de erro dos outros endpoints: id não existe no Map.
+    // Mesmo caminho de erro dos outros endpoints: o id não existe no PostgreSQL.
     if (resposta.status === 404) {
       const texto = await resposta.text();
-      log('  Repository devolve Optional vazio', 'err', 'BACKEND', 'REPOSITORY');
+      log('  PostgreSQL não encontra uma linha para esse id', 'err', 'BACKEND', 'BANCO');
       await wait(120);
       log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
       await wait(120);
@@ -789,6 +824,12 @@
 
     // 200 OK: o corpo é a tarefa já com o campo "concluida" invertido.
     const tarefa = await resposta.json();
+    log('  TarefaRepository.save(tarefa) encaminha o UPDATE ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log('  Hibernate gera UPDATE tarefas SET concluida = ? WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    await wait(150);
+    log('  PostgreSQL atualiza a linha', 'ok-step', 'BACKEND', 'BANCO');
+    await wait(120);
     log('  Tarefa (model) tem o campo concluida invertido', 'ok-step', 'BACKEND', 'MODEL');
     await wait(120);
     logResposta(resposta, 'ok', JSON.stringify(tarefa));

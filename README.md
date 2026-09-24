@@ -46,6 +46,7 @@
 - [Aula 8 — Persistência de Dados + Mapeamento com JPA](#aula-8--persistência-de-dados--mapeamento-com-jpa)
   - [Materiais](#materiais-4)
   - [Objetivo da aula](#objetivo-da-aula-4)
+  - [Arquitetura da infraestrutura da aula](#arquitetura-da-infraestrutura-da-aula)
   - [Parte 1 — Persistência de Dados](#parte-1--persistência-de-dados)
   - [Parte 2 — Mapeamento Objeto-Relacional](#parte-2--mapeamento-objeto-relacional)
   - [Parte 3 — Migrations e Prática](#parte-3--migrations-e-prática)
@@ -1893,6 +1894,7 @@ curl -X DELETE http://localhost:8080/tarefas/1
 | Arquivo | Conteúdo |
 |---|---|
 | [aula08-persistencia-jpa-postgres.pdf](<Aula 08/aula08-persistencia-jpa-postgres.pdf>) | Persistência, bancos relacionais, ORM com JPA/Hibernate/Spring Data JPA e migrations com Flyway |
+| [aula08-persistencia-jpa-postgres-infra.pptx](<Aula 08/aula08-persistencia-jpa-postgres-infra.pptx>) | Apresentação com o desenho da infraestrutura, Internet, frontend, backend, PostgreSQL e portas padrão |
 | [exemplo_tarefas](<Aula 08/exemplo_tarefas>) | O mesmo CRUD de `/tarefas` da Aula 7, agora gravando no PostgreSQL (Spring Data JPA + Flyway) |
 | [README do exemplo](<Aula 08/exemplo_tarefas/README.md>) | Passo a passo para subir o banco no Docker, rodar a API e conferir as migrations |
 | [docker-compose.yml](<Aula 08/exemplo_tarefas/docker-compose.yml>) | PostgreSQL 16 em container, na porta `5433` do host |
@@ -1900,6 +1902,71 @@ curl -X DELETE http://localhost:8080/tarefas/1
 ### Objetivo da aula
 
 Tirar as tarefas da memória da aplicação: entender por que o `Map` da Aula 7 não basta, como um banco relacional organiza os dados, e como o JPA mapeia a classe `Tarefa` para a tabela `tarefas` — trocando **só o Repository**, sem mudar o Controller nem o contrato da API.
+
+---
+
+### Arquitetura da infraestrutura da aula
+
+O fluxo conceitual é:
+
+```text
+Navegador / Frontend
+        │  HTTP 80 ou HTTPS 443
+        ▼
+Internet + DNS (53)
+        │
+        ▼
+Backend Spring Boot / API REST (8080)
+        │  JDBC: localhost:5433
+        ▼
+PostgreSQL no Docker (5432)
+```
+
+Na aplicação de exemplo, o frontend está em `src/main/resources/static` e é
+servido pela própria aplicação Spring Boot. Em uma implantação separada, o
+frontend pode ficar em outro servidor e chamar a API pela rede.
+
+| Serviço | Porta padrão | Uso nesta aula |
+|---|---:|---|
+| HTTP | `80/TCP` | Comunicação web sem TLS |
+| HTTPS | `443/TCP` | Comunicação web com TLS |
+| DNS | `53/UDP` ou `53/TCP` | Resolução de nomes para endereços IP |
+| Spring Boot / Tomcat | `8080/TCP` | Porta local da API REST |
+| PostgreSQL | `5432/TCP` | Porta padrão dentro do container |
+| Docker Compose | `5433 → 5432` | Porta do host para a porta interna do PostgreSQL |
+
+O mapeamento do projeto é `5433:5432`: a aplicação conecta em
+`localhost:5433`, enquanto o PostgreSQL continua escutando na porta padrão
+`5432` dentro do container. O banco não é exposto diretamente à Internet; a
+API é a camada que conversa com ele.
+
+---
+
+### Habilitar o banco no IntelliJ IDEA
+
+No IntelliJ IDEA, o recurso usado para navegar no PostgreSQL não se chama
+“DB Browser”: ele faz parte do plugin **Database Tools and SQL**. Esse plugin
+normalmente já vem incluído no IntelliJ IDEA Ultimate; se estiver desativado:
+
+1. Abra `Ctrl+Alt+S` → **Plugins**.
+2. Na aba **Installed**, procure **Database Tools and SQL**.
+3. Clique em **Enable** e reinicie o IntelliJ se ele solicitar.
+4. Abra **View** → **Tool Windows** → **Database**.
+5. Clique em `+` → **Data Source** → **PostgreSQL**.
+6. Preencha a conexão da aula:
+
+| Campo | Valor |
+|---|---|
+| Host | `localhost` |
+| Port | `5433` |
+| Database | `tarefas` |
+| User | `tarefas` |
+| Password | `tarefas` |
+
+Clique em **Test Connection**. Se o IntelliJ pedir o driver, selecione
+**Download missing driver**. A funcionalidade Database Tools and SQL não está
+disponível no IntelliJ IDEA Community Edition. Consulte também a
+[documentação oficial da JetBrains sobre conexão com banco](https://www.jetbrains.com/help/idea/connecting-to-a-database.html).
 
 ---
 
