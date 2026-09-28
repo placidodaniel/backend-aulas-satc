@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Responsáveis — Aula 08</title>
+<style>
+  :root {
+    --navy-dark: #12173a;
+    --navy: #1E2761;
+    --card-bg: #F3F6FD;
+    --muted: #5A6B8C;
+    --green: #1B7A6E;
+    --red: #C0392B;
+    --amber: #8A6D1F;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Mesmo esquema da index.html: a página fica travada em 100vh e só os
+     painéis (e o #log) rolam por dentro. */
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .container {
+    width: 100%;
+    height: 100vh;
+    padding: 20px 32px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header { text-align: center; margin-bottom: 16px; flex: none; }
+  header h1 { color: #fff; font-size: 28px; margin: 0 0 6px; }
+  header p { color: #CADCFC; font-size: 15px; margin: 0; }
+  header nav { margin-top: 8px; font-size: 13px; }
+  header nav a { color: #9fc1ff; }
+
+  .grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1.25fr 1fr;
+    gap: 22px;
+  }
+  @media (max-width: 1250px) {
+    html, body { height: auto; overflow: visible; }
+    .container { height: auto; min-height: 100vh; }
+    .grid { flex: none; grid-template-columns: 1fr 1fr; }
+    .log-panel { grid-column: 1 / -1; }
+    #log { max-height: 480px; }
+  }
+  @media (max-width: 800px) {
+    .container { padding: 16px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 22px 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    color: var(--navy);
+    overflow-y: auto;
+    min-width: 0;
+  }
+  .panel h2 { margin: 0; font-size: 19px; }
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; gap: 10px; flex-wrap: wrap;
+  }
+  .panel h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 20px 0 8px;
+  }
+
+  form.add-form { display: flex; flex-direction: column; gap: 8px; }
+  label.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  input[type=text], input[type=email], input[type=number], select {
+    padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #c7d2ee; font-size: 15px; font-family: inherit;
+    background: #fff; color: var(--navy); min-width: 0;
+  }
+  input:disabled, button:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
+
+  button.primary {
+    background: var(--navy); color: #fff; border: none;
+    padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px;
+  }
+  button.primary:hover:not(:disabled) { background: #151c49; }
+
+  button.ghost {
+    background: transparent; border: 1px solid var(--navy); color: var(--navy);
+    padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+  button.ghost:hover:not(:disabled) { background: #e3e9fb; }
+  button.ghost.danger { border-color: var(--red); color: var(--red); }
+  button.ghost.danger:hover:not(:disabled) { background: #fbe3e1; }
+
+  .error-msg { color: var(--red); font-size: 13px; margin: 6px 0 0 2px; min-height: 16px; }
+
+  ul.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.item {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 1px solid #dbe3f7; border-radius: 10px; padding: 10px 12px;
+  }
+  li.item.selecionado { border-color: var(--navy); box-shadow: 0 0 0 2px #c7d2ee; }
+  li.tarefa { flex-direction: column; align-items: stretch; }
+  li.tarefa.concluida .titulo { text-decoration: line-through; color: var(--muted); }
+  .linha { display: flex; align-items: center; gap: 10px; }
+
+  .badge-id {
+    font-size: 11px; background: var(--navy); color: #fff;
+    border-radius: 999px; padding: 3px 9px; font-weight: 700; flex-shrink: 0;
+  }
+  .conteudo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .titulo { font-size: 15px; word-break: break-word; }
+  .meta { font-size: 12px; color: var(--muted); word-break: break-word; }
+
+  .chip {
+    display: inline-block; font-size: 12px; border-radius: 999px; padding: 2px 10px;
+    background: #e3f5ef; color: var(--green); font-weight: 600;
+  }
+  .chip.vazio { background: #eef2fc; color: var(--muted); font-weight: 400; }
+
+  .vinculo { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .vinculo select { flex: 1; padding: 6px 10px; font-size: 13px; border-radius: 8px; min-width: 140px; }
+  .vinculo button { padding: 6px 10px; }
+
+  .empty { color: var(--muted); font-size: 13px; font-style: italic; padding: 4px 2px; }
+
+  .aviso {
+    background: #fff6df; border: 1px solid #ecd9a4; color: #6b5413;
+    border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px;
+  }
+  .aviso:empty { display: none; }
+
+  .test-panel { margin-top: 22px; border-top: 1px dashed #c7d2ee; padding-top: 16px; }
+  .test-panel p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  .test-panel .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .test-panel input { width: 110px; flex: none; }
+
+  /* ---------------------------------------------------------------- log */
+  .log-panel {
+    background: #0d1030; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    display: flex; flex-direction: column; min-width: 0;
+  }
+  .log-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; background: #161c4d; color: #fff;
+  }
+  .log-header h2 { margin: 0; font-size: 16px; }
+  .log-header p { margin: 2px 0 0; font-size: 12px; color: #9aa8d6; }
+  button.clear {
+    background: transparent; border: 1px solid #3b437a; color: #c3cbe6;
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
+  }
+  button.clear:hover { background: #1c2352; }
+
+  /* Checklist do contrato: cada endpoint ganha ✅ quando respondeu exatamente
+     como o contrato do Exercício 6 pede. */
+  .contrato { padding: 12px 18px; border-bottom: 1px solid #242b62; flex: none; }
+  .contrato h3 {
+    margin: 0 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #9aa8d6;
+  }
+  .contrato ul { list-style: none; margin: 0; padding: 0; font-size: 12px; font-family: Consolas, Menlo, monospace; }
+  .contrato li { display: flex; gap: 8px; color: #c3cbe6; padding: 1px 0; }
+  .contrato .estado { width: 18px; flex: none; text-align: center; }
+  .contrato .detalhe { color: #7d88b8; margin-left: auto; text-align: right; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .contrato li.ok { color: #6FE0C7; }
+  .contrato li.erro { color: #FF6B6B; }
+  .contrato li.pendente { color: #F5C66B; }
+
+  #log {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 14px 18px; font-family: Consolas, Menlo, "SFMono-Regular", monospace;
+    font-size: 13px; line-height: 1.65;
+  }
+  .log-line { white-space: pre-wrap; word-break: break-word; }
+  .log-time { color: #5c6a99; margin-right: 8px; }
+  .log-fase {
+    display: inline-block; min-width: 96px; text-align: center;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 4px; margin-right: 8px;
+    background: rgba(255,255,255,.08);
+  }
+  .log-camada {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .03em; text-transform: uppercase;
+    padding: 1px 7px; border-radius: 4px; margin-right: 8px; color: #fff;
+  }
+  .log-camada-controller { background: #2E5AAC; }
+  .log-camada-service    { background: #1B7A6E; }
+  .log-camada-repository { background: #8A6D1F; }
+  .log-camada-banco      { background: #6A4C93; }
+  .log-camada-dto        { background: #6A4C93; }
+  .log-camada-model      { background: #B5541E; }
+  .log-req { color: #7FB3FF; font-weight: 700; }
+  .log-step { color: #c3cbe6; }
+  .log-ok-step { color: #6FE0C7; }
+  .log-ok { color: #4ADE80; font-weight: 700; }
+  .log-err { color: #FF6B6B; font-weight: 700; }
+  .log-warn { color: #F5C66B; font-weight: 700; }
+  .log-separador { border: none; border-top: 1px dashed #3b437a; margin: 10px 0; }
+
+  footer { flex: none; text-align: center; color: #9aa8d6; font-size: 12px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>👥 Responsáveis e vínculo com tarefas</h1>
+    <p>Aula 08 · Exercício 6 · esta página já está pronta — ela só funciona quando a <strong>sua API</strong> segue o contrato do <code>EXERCICIOS.md</code></p>
+    <nav><a href="index.html">← voltar para o Cadastro de Tarefas</a></nav>
+  </header>
+
+  <div class="grid">
+
+    <!-- ================= PAINEL: RESPONSÁVEIS ================= -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>👤 Responsáveis</h2>
+        <button class="ghost" id="btn-atualizar-responsaveis">🔄 GET /responsaveis</button>
+      </div>
+
+      <div class="aviso" id="aviso-responsaveis"></div>
+
+      <!-- novalidate: quem valida é o @Valid da API (400), não o navegador. -->
+      <form class="add-form" id="form-responsavel" novalidate>
+        <label class="sr" for="input-nome">Nome</label>
+        <input type="text" id="input-nome" placeholder="Nome (ex.: Ana Souza)">
+        <label class="sr" for="input-email">E-mail</label>
+        <input type="email" id="input-email" placeholder="E-mail (ex.: ana@satc.edu.br)">
+        <button type="submit" class="primary">Cadastrar (POST /responsaveis)</button>
+      </form>
+      <div class="error-msg" id="erro-responsavel"></div>
+
+      <h3>Cadastrados</h3>
+      <ul class="lista" id="lista-responsaveis"></ul>
+
+      <h3 id="titulo-tarefas-do-responsavel">Tarefas do responsável</h3>
+      <ul class="lista" id="lista-tarefas-do-responsavel">
+        <li class="empty">Clique em 📋 num responsável para chamar GET /responsaveis/{id}/tarefas.</li>
+      </ul>
+    </section>
+
+    <!-- ================= PAINEL: VÍNCULO ================= -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>🔗 Vincular responsável à tarefa</h2>
+        <button class="ghost" id="btn-atualizar-tarefas">🔄 GET /tarefas</button>
+      </div>
+
+      <div class="aviso" id="aviso-tarefas"></div>
+
+      <ul class="lista" id="lista-tarefas"></ul>
+
+      <div class="test-panel">
+        <p>🧪 Testar os erros do contrato (ex.: id <strong>999</strong>, que não existe):</p>
+        <div class="row">
+          <label class="sr" for="teste-tarefa">Id da tarefa</label>
+          <input type="number" id="teste-tarefa" placeholder="tarefa id" min="1">
+          <label class="sr" for="teste-responsavel">Id do responsável</label>
+          <input type="number" id="teste-responsavel" placeholder="resp. id" min="1">
+        </div>
+        <div class="row">
+          <button class="ghost" id="btn-teste-vincular">PUT /tarefas/{id}/responsavel</button>
+          <button class="ghost" id="btn-teste-sem-id">PUT sem responsavelId (400)</button>
+          <button class="ghost" id="btn-teste-tarefas-resp">GET /responsaveis/{id}/tarefas</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAINEL: LOG ================= -->
+    <section class="log-panel">
+      <div class="log-header">
+        <div>
+          <h2>🧾 Log da API</h2>
+          <p>requisição real → caminho esperado no backend → resposta</p>
+        </div>
+        <button class="clear" id="btn-limpar-log">Limpar</button>
+      </div>
+      <div class="contrato">
+        <h3>📜 Contrato do Exercício 6</h3>
+        <ul id="contrato"></ul>
+      </div>
+      <div id="log"></div>
+    </section>
+
+  </div>
+
+  <footer>
+    * Página em <code>/responsaveis.html</code>. A rota <code>/responsaveis</code> (sem .html) é da API e devolve JSON.
+  </footer>
+
+</div>
+
+<script>
+  // ---------------------------------------------------------------- estado
+
+  // Tudo aqui vem da API -- a página não inventa dado nenhum.
+  let responsaveis = [];
+  let tarefas = [];
+  // Responsável clicado no 📋 (para mostrar as tarefas dele).
+  let selecionadoId = null;
+  let busy = false;
+
+  // Mesma regra da index.html: servida pelo Spring usa caminho relativo;
+  // aberta via file:// aponta para localhost:8080 (depende de @CrossOrigin).
+  const API_BASE = location.protocol === 'file:' ? 'http://localhost:8080' : '';
+
+  const wait = ms => new Promise(resolver => setTimeout(resolver, ms));
+
+  // ---------------------------------------------------------------- contrato
+
+  // Cada item do contrato que a página confere. O estado muda sozinho
+  // conforme as respostas chegam: '—' ainda não testado, ✅ ok,
+  // ⏳ não implementado (404/405 do próprio Spring), ❌ respondeu fora do contrato.
+  const CONTRATO = [
+    { chave: 'listar',       rota: 'GET    /responsaveis' },
+    { chave: 'criar',        rota: 'POST   /responsaveis' },
+    { chave: 'tarefasResp',  rota: 'GET    /responsaveis/{id}/tarefas' },
+    { chave: 'campo',        rota: 'GET    /tarefas  → responsavelVinculado' },
+    { chave: 'vincular',     rota: 'PUT    /tarefas/{id}/responsavel' },
+    { chave: 'desvincular',  rota: 'DELETE /tarefas/{id}/responsavel' },
+  ];
+  const ICONES = { ok: '✅', erro: '❌', pendente: '⏳', nada: '—' };
+
+  function renderContrato() {
+    const ul = document.getElementById('contrato');
+    ul.innerHTML = '';
+    CONTRATO.forEach(item => {
+      const li = document.createElement('li');
+      li.className = item.estado || 'nada';
+      const estado = document.createElement('span');
+      estado.className = 'estado';
+      estado.textContent = ICONES[item.estado || 'nada'];
+      const rota = document.createElement('span');
+      rota.textContent = item.rota;
+      const detalhe = document.createElement('span');
+      detalhe.className = 'detalhe';
+      detalhe.textContent = item.detalhe || '';
+      li.append(estado, rota, detalhe);
+      ul.appendChild(li);
+    });
+  }
+
+  function marcar(chave, estado, detalhe = '') {
+    const item = CONTRATO.find(i => i.chave === chave);
+    item.estado = estado;
+    item.detalhe = detalhe;
+    renderContrato();
+  }
+
+  // ---------------------------------------------------------------- log
+
+  const logEl = document.getElementById('log');
+
+  // Mesmo formato do log da index.html: horário, fase, camada (opcional), texto.
+  function log(texto, tipo = 'step', fase = 'BACKEND', camada = null) {
+    const linha = document.createElement('div');
+    linha.className = 'log-line log-' + tipo;
+
+    const spanHora = document.createElement('span');
+    spanHora.className = 'log-time';
+    spanHora.textContent = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+
+    const spanFase = document.createElement('span');
+    spanFase.className = 'log-fase';
+    spanFase.textContent = fase;
+
+    linha.append(spanHora, spanFase);
+    if (camada) {
+      const spanCamada = document.createElement('span');
+      spanCamada.className = 'log-camada log-camada-' + camada.toLowerCase();
+      spanCamada.textContent = camada;
+      linha.appendChild(spanCamada);
+    }
+    // textContent/createTextNode: nada que vem da API vira HTML.
+    linha.appendChild(document.createTextNode(texto));
+    logEl.appendChild(linha);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Narra, com uma pausa curta entre as linhas, o caminho que o contrato espera
+  // dentro do backend. Os nomes de classe são os sugeridos no enunciado --
+  // se você escolheu outros nomes, o caminho é o mesmo, só muda o rótulo.
+  async function narrar(passos) {
+    for (const [texto, camada, tipo] of passos) {
+      await wait(110);
+      log('  ' + texto, tipo || 'step', 'BACKEND', camada);
+    }
+    await wait(110);
+  }
+
+  function setBusy(valor) {
+    busy = valor;
+    document.querySelectorAll('button, input, select').forEach(el => el.disabled = valor);
+  }
+
+  // ---------------------------------------------------------------- HTTP
+
+  const STATUS_TEXTO = {
+    200: 'OK', 201: 'Created', 204: 'No Content',
+    400: 'Bad Request', 404: 'Not Found', 405: 'Method Not Allowed', 500: 'Internal Server Error',
+  };
+
+  // Dispara o fetch de verdade e já devolve o corpo lido (JSON ou texto),
+  // mais uma flag "naoImplementado" -- que separa o 404 do SEU código
+  // (ex.: "Responsável não encontrado: 999", texto puro vindo do
+  // ApiExceptionHandler) do 404/405 que o próprio Spring devolve quando
+  // nenhum método de Controller atende aquela rota/verbo.
+  async function requisicao(metodo, caminho, corpo) {
+    if (logEl.children.length > 0) {
+      const separador = document.createElement('hr');
+      separador.className = 'log-separador';
+      logEl.appendChild(separador);
+    }
+
+    const corpoTexto = corpo !== undefined ? JSON.stringify(corpo) : undefined;
+    log(`→ ${metodo} ${caminho}` + (corpoTexto ? `   ${corpoTexto}` : ''), 'req', 'REQUISIÇÃO');
+
+    const inicio = performance.now();
+    let resposta;
+    try {
+      resposta = await fetch(API_BASE + caminho, {
+        method: metodo,
+        headers: corpoTexto ? { 'Content-Type': 'application/json' } : undefined,
+        body: corpoTexto,
+      });
+    } catch (erro) {
+      log('  Não consegui falar com a API -- ela está rodando? (./mvnw spring-boot:run)', 'err', 'FALHA');
+      log(`← Falha de conexão: ${erro.message}`, 'err', 'FALHA');
+      return null;
+    }
+    const ms = Math.round(performance.now() - inicio);
+
+    const texto = await resposta.text();
+    let json = null;
+    if ((resposta.headers.get('content-type') || '').includes('json') && texto) {
+      try { json = JSON.parse(texto); } catch (e) { /* corpo não era JSON válido */ }
+    }
+
+    // Corpo de erro padrão do Spring: {"timestamp":..,"status":404,"error":"Not Found","path":"/..."}
+    const erroPadraoSpring = json && !Array.isArray(json) && json.path && json.error;
+    const naoImplementado = resposta.status === 405 || (resposta.status === 404 && !!erroPadraoSpring);
+
+    await wait(120);
+    log('  Tomcat recebe a conexão HTTP', 'step', 'BACKEND');
+
+    return { status: resposta.status, texto, json, ms, naoImplementado };
+  }
+
+  function logResposta(r, tipo) {
+    const status = STATUS_TEXTO[r.status] || '';
+    const corpo = r.status === 204 ? '(sem corpo -- 204 No Content)' : (r.texto || '(corpo vazio)');
+    log(`← ${r.status} ${status}   ${corpo}`, tipo, 'RESPOSTA');
+    log(`  Tempo de requisição: ${r.ms} ms`, tipo, 'RESPOSTA');
+  }
+
+  // Loga o "endpoint ainda não existe" e marca o item do contrato como pendente.
+  function logNaoImplementado(r, chave) {
+    log(`  Nenhum método de Controller atende essa rota/verbo (${r.status} gerado pelo próprio Spring)`, 'warn', 'BACKEND', 'CONTROLLER');
+    log('  → implemente este endpoint conforme o contrato do Exercício 6', 'warn', 'BACKEND');
+    logResposta(r, 'warn');
+    marcar(chave, 'pendente', `${r.status} -- não implementado`);
+  }
+
+  // Loga uma resposta que chegou, mas com status/formato diferente do contrato.
+  function logForaDoContrato(r, chave, esperado) {
+    log(`  Resposta fora do contrato -- esperado: ${esperado}`, 'err', 'BACKEND');
+    logResposta(r, 'err');
+    marcar(chave, 'erro', `esperado ${esperado}, veio ${r.status}`);
+  }
+
+  // Um Responsável no formato do contrato: {id, nome, email}.
+  const ehResponsavel = obj =>
+    obj && typeof obj === 'object' && typeof obj.id === 'number'
+      && typeof obj.nome === 'string' && typeof obj.email === 'string';
+
+  // Mensagens do 400 de validação (errors[].defaultMessage), se houver.
+  function mensagensValidacao(r) {
+    const erros = (r.json && r.json.errors) || [];
+    return erros.map(e => e.defaultMessage).filter(Boolean);
+  }
+
+  // ---------------------------------------------------------------- endpoints do contrato
+
+  // 1. GET /responsaveis → 200 [ {id, nome, email}, ... ] ordenado por nome
+  async function listarResponsaveis() {
+    const r = await requisicao('GET', '/responsaveis');
+    if (!r) return null;
+    if (r.naoImplementado) { logNaoImplementado(r, 'listar'); return null; }
+    if (r.status !== 200 || !Array.isArray(r.json) || !r.json.every(ehResponsavel)) {
+      logForaDoContrato(r, 'listar', '200 com array de {id, nome, email}');
+      return null;
+    }
+    await narrar([
+      ['Spring MVC resolve a rota → ResponsavelController.listar()', 'CONTROLLER'],
+      ['ResponsavelService.listarTodos() delega pro Repository', 'SERVICE'],
+      ['ResponsavelRepository.findAllByOrderByNomeAsc()', 'REPOSITORY'],
+      ['Hibernate gera SELECT ... FROM responsaveis ORDER BY nome', 'BANCO'],
+      ['PostgreSQL devolve as linhas da tabela responsaveis', 'BANCO', 'ok-step'],
+    ]);
+    logResposta(r, 'ok');
+    marcar('listar', 'ok', `${r.json.length} responsável(is)`);
+    return r.json;
+  }
+
+  // 2. POST /responsaveis {nome, email} → 201 {id, nome, email} | 400
+  async function criarResponsavel(nome, email) {
+    const r = await requisicao('POST', '/responsaveis', { nome, email });
+    if (!r) return { erro: 'Falha de conexão com a API.' };
+    if (r.naoImplementado) { logNaoImplementado(r, 'criar'); return { erro: 'POST /responsaveis ainda não foi implementado.' }; }
+
+    await narrar([
+      ['Spring MVC resolve a rota → ResponsavelController.criar()', 'CONTROLLER'],
+      ['@RequestBody converte o JSON em ResponsavelDTO', 'DTO'],
+      ['@Valid confere @NotBlank (nome, email) e @Email (email)', 'DTO'],
+    ]);
+
+    if (r.status === 400) {
+      const msgs = mensagensValidacao(r);
+      log('  @Valid rejeitou -- Spring responde antes do ResponsavelService rodar', 'err', 'BACKEND', 'DTO');
+      logResposta(r, 'err');
+      // 400 com dado inválido É o comportamento do contrato -- não é erro da API.
+      return { erro: msgs.length ? msgs.join(' · ') : 'Dados inválidos (400).' };
+    }
+    if (r.status !== 201 || !ehResponsavel(r.json)) {
+      logForaDoContrato(r, 'criar', '201 com {id, nome, email}');
+      return { erro: `A API respondeu ${r.status}, mas o contrato pede 201 Created com o responsável criado.` };
+    }
+    await narrar([
+      ['ResponsavelService.criar(dto) monta um Responsavel', 'SERVICE'],
+      ['ResponsavelRepository.save(responsavel)', 'REPOSITORY'],
+      ['Hibernate gera INSERT INTO responsaveis (nome, email)', 'BANCO'],
+      ['PostgreSQL grava a linha e gera o id', 'BANCO', 'ok-step'],
+    ]);
+    logResposta(r, 'ok');
+    marcar('criar', 'ok', `id ${r.json.id} criado`);
+    return { responsavel: r.json };
+  }
+
+  // 3. GET /responsaveis/{id}/tarefas → 200 [Tarefa...] | 404 (texto)
+  async function listarTarefasDoResponsavel(id) {
+    const r = await requisicao('GET', `/responsaveis/${id}/tarefas`);
+    if (!r) return null;
+    if (r.naoImplementado) { logNaoImplementado(r, 'tarefasResp'); return null; }
+    await narrar([
+      [`Spring MVC resolve a rota → ResponsavelController.listarTarefas(${id})`, 'CONTROLLER'],
+      ['ResponsavelService confere se o responsável existe', 'SERVICE'],
+    ]);
+    if (r.status === 404 && !r.json) {
+      log('  Service lança ResponsavelNaoEncontradoException', 'err', 'BACKEND', 'SERVICE');
+      log('  ApiExceptionHandler (@RestControllerAdvice) devolve 404 com texto', 'err', 'BACKEND', 'CONTROLLER');
+      logResposta(r, 'err');
+      marcar('tarefasResp', 'ok', '404 para id inexistente');
+      return null;
+    }
+    if (r.status !== 200 || !Array.isArray(r.json)) {
+      logForaDoContrato(r, 'tarefasResp', '200 com array de tarefas (ou 404 com texto)');
+      return null;
+    }
+    await narrar([
+      ['TarefaRepository.findByResponsavelVinculadoId(id)', 'REPOSITORY'],
+      ['Hibernate gera SELECT ... FROM tarefas WHERE responsavel_id = ?', 'BANCO'],
+      ['PostgreSQL devolve só as tarefas vinculadas', 'BANCO', 'ok-step'],
+    ]);
+    logResposta(r, 'ok');
+    marcar('tarefasResp', 'ok', `${r.json.length} tarefa(s)`);
+    return r.json;
+  }
+
+  // GET /tarefas (já existe) -- aqui a página confere se cada tarefa passou a
+  // trazer o campo "responsavelVinculado" (objeto ou null).
+  async function listarTarefas() {
+    const r = await requisicao('GET', '/tarefas');
+    if (!r) return null;
+    if (r.status !== 200 || !Array.isArray(r.json)) {
+      logForaDoContrato(r, 'campo', '200 com array de tarefas');
+      return null;
+    }
+    await narrar([
+      ['Spring MVC resolve a rota → TarefaController.listar()', 'CONTROLLER'],
+      ['TarefaService.listarTodas() delega pro Repository', 'SERVICE'],
+    ]);
+    const lista = r.json;
+    if (lista.length > 0 && lista.every(t => 'responsavelVinculado' in t)) {
+      await narrar([['Hibernate gera SELECT ... FROM tarefas LEFT JOIN responsaveis (@ManyToOne)', 'BANCO']]);
+    } else {
+      await narrar([['Hibernate gera SELECT ... FROM tarefas', 'BANCO']]);
+    }
+    if (lista.length === 0) {
+      logResposta(r, 'ok');
+      marcar('campo', 'nada', 'sem tarefas para conferir');
+    } else if (lista.every(t => 'responsavelVinculado' in t)) {
+      const formatoOk = lista.every(t => t.responsavelVinculado === null || ehResponsavel(t.responsavelVinculado));
+      if (formatoOk) {
+        logResposta(r, 'ok');
+        marcar('campo', 'ok', 'campo presente em todas');
+      } else {
+        log('  "responsavelVinculado" existe, mas não é null nem {id, nome, email}', 'err', 'BACKEND', 'MODEL');
+        logResposta(r, 'err');
+        marcar('campo', 'erro', 'formato diferente de {id, nome, email}');
+      }
+    } else {
+      log('  O JSON da Tarefa ainda não tem o campo "responsavelVinculado"', 'warn', 'BACKEND', 'MODEL');
+      logResposta(r, 'warn');
+      marcar('campo', 'pendente', 'campo ausente no JSON');
+    }
+    return lista;
+  }
+
+  // 4. PUT /tarefas/{id}/responsavel {responsavelId} → 200 Tarefa | 400 | 404
+  //    "semId" = true manda o corpo {} de propósito, para testar o 400.
+  async function vincular(tarefaId, responsavelId, semId = false) {
+    const corpo = semId ? {} : { responsavelId };
+    const r = await requisicao('PUT', `/tarefas/${tarefaId}/responsavel`, corpo);
+    if (!r) return { erro: 'Falha de conexão com a API.' };
+    if (r.naoImplementado) { logNaoImplementado(r, 'vincular'); return { erro: 'PUT /tarefas/{id}/responsavel ainda não foi implementado.' }; }
+
+    await narrar([
+      [`Spring MVC resolve a rota → TarefaController.vincularResponsavel(${tarefaId})`, 'CONTROLLER'],
+      ['@RequestBody converte o JSON em VinculoResponsavelDTO; @Valid confere @NotNull', 'DTO'],
+    ]);
+
+    if (r.status === 400) {
+      log('  @Valid rejeitou -- responsavelId é obrigatório', 'err', 'BACKEND', 'DTO');
+      logResposta(r, 'err');
+      if (semId) marcar('vincular', 'ok', '400 sem responsavelId');
+      return { erro: 'responsavelId é obrigatório (400).' };
+    }
+    if (semId) {
+      logForaDoContrato(r, 'vincular', '400 quando falta responsavelId');
+      return { erro: 'A API deveria ter respondido 400.' };
+    }
+    if (r.status === 404 && !r.json) {
+      log('  Service não achou a tarefa ou o responsável -- lança exceção de "não encontrado"', 'err', 'BACKEND', 'SERVICE');
+      log('  ApiExceptionHandler (@RestControllerAdvice) devolve 404 com texto', 'err', 'BACKEND', 'CONTROLLER');
+      logResposta(r, 'err');
+      return { erro: r.texto };
+    }
+    const tarefa = r.json;
+    const vinculadoOk = r.status === 200 && tarefa && tarefa.id === tarefaId
+      && ehResponsavel(tarefa.responsavelVinculado) && tarefa.responsavelVinculado.id === responsavelId;
+    if (!vinculadoOk) {
+      logForaDoContrato(r, 'vincular', `200 com a tarefa e responsavelVinculado.id = ${responsavelId}`);
+      return { erro: 'A resposta não segue o contrato -- veja o log.' };
+    }
+    await narrar([
+      ['TarefaService.vincularResponsavel(): busca a Tarefa e o Responsavel', 'SERVICE'],
+      ['TarefaRepository.findById + ResponsavelRepository.findById', 'REPOSITORY'],
+      ['tarefa.setResponsavelVinculado(responsavel)', 'MODEL'],
+      ['Hibernate gera UPDATE tarefas SET responsavel_id = ? WHERE id = ?', 'BANCO'],
+      ['PostgreSQL grava a chave estrangeira', 'BANCO', 'ok-step'],
+    ]);
+    logResposta(r, 'ok');
+    marcar('vincular', 'ok', `tarefa ${tarefaId} → resp. ${responsavelId}`);
+    return { tarefa };
+  }
+
+  // 5. DELETE /tarefas/{id}/responsavel → 204 | 404
+  async function desvincular(tarefaId) {
+    const r = await requisicao('DELETE', `/tarefas/${tarefaId}/responsavel`);
+    if (!r) return false;
+    if (r.naoImplementado) { logNaoImplementado(r, 'desvincular'); return false; }
+    await narrar([
+      [`Spring MVC resolve a rota → TarefaController.desvincularResponsavel(${tarefaId})`, 'CONTROLLER'],
+      ['TarefaService.desvincularResponsavel() busca a tarefa', 'SERVICE'],
+    ]);
+    if (r.status === 404 && !r.json) {
+      log('  Service lança TarefaNaoEncontradaException', 'err', 'BACKEND', 'SERVICE');
+      logResposta(r, 'err');
+      return false;
+    }
+    if (r.status !== 204) {
+      logForaDoContrato(r, 'desvincular', '204 No Content');
+      return false;
+    }
+    await narrar([
+      ['tarefa.setResponsavelVinculado(null)', 'MODEL'],
+      ['Hibernate gera UPDATE tarefas SET responsavel_id = NULL WHERE id = ?', 'BANCO'],
+      ['PostgreSQL limpa a chave estrangeira', 'BANCO', 'ok-step'],
+    ]);
+    logResposta(r, 'ok');
+    marcar('desvincular', 'ok', `tarefa ${tarefaId} sem responsável`);
+    return true;
+  }
+
+  // ---------------------------------------------------------------- render
+
+  function renderResponsaveis() {
+    const ul = document.getElementById('lista-responsaveis');
+    ul.innerHTML = '';
+    if (responsaveis.length === 0) {
+      ul.innerHTML = '<li class="empty">Nenhum responsável cadastrado.</li>';
+      return;
+    }
+    responsaveis.forEach(resp => {
+      const li = document.createElement('li');
+      li.className = 'item' + (resp.id === selecionadoId ? ' selecionado' : '');
+      li.innerHTML = `
+        <span class="badge-id">#${resp.id}</span>
+        <div class="conteudo"><span class="titulo"></span><span class="meta"></span></div>
+        <button class="ghost" title="GET /responsaveis/{id}/tarefas" data-acao="ver-tarefas" data-id="${resp.id}">📋</button>
+      `;
+      li.querySelector('.titulo').textContent = resp.nome;
+      li.querySelector('.meta').textContent = '✉️ ' + resp.email;
+      ul.appendChild(li);
+    });
+  }
+
+  function renderTarefasDoResponsavel(lista) {
+    const ul = document.getElementById('lista-tarefas-do-responsavel');
+    const titulo = document.getElementById('titulo-tarefas-do-responsavel');
+    const resp = responsaveis.find(r => r.id === selecionadoId);
+    titulo.textContent = resp ? `Tarefas de ${resp.nome}` : 'Tarefas do responsável';
+    ul.innerHTML = '';
+    if (!lista) {
+      ul.innerHTML = '<li class="empty">Não deu pra carregar -- confira o log.</li>';
+      return;
+    }
+    if (lista.length === 0) {
+      ul.innerHTML = '<li class="empty">Nenhuma tarefa vinculada a este responsável.</li>';
+      return;
+    }
+    lista.forEach(tarefa => {
+      const li = document.createElement('li');
+      li.className = 'item';
+      li.innerHTML = `<span class="badge-id">#${tarefa.id}</span><div class="conteudo"><span class="titulo"></span></div>`;
+      li.querySelector('.titulo').textContent = tarefa.titulo;
+      ul.appendChild(li);
+    });
+  }
+
+  function renderTarefas() {
+    const ul = document.getElementById('lista-tarefas');
+    ul.innerHTML = '';
+    if (tarefas.length === 0) {
+      ul.innerHTML = '<li class="empty">Nenhuma tarefa. Crie uma na página principal.</li>';
+      return;
+    }
+    const semResponsaveis = responsaveis.length === 0;
+
+    tarefas.forEach(tarefa => {
+      const li = document.createElement('li');
+      li.className = 'item tarefa' + (tarefa.concluida ? ' concluida' : '');
+      li.innerHTML = `
+        <div class="linha">
+          <span class="badge-id">#${tarefa.id}</span>
+          <div class="conteudo">
+            <span class="titulo"></span>
+            <span class="meta"></span>
+          </div>
+        </div>
+        <div class="linha"><span class="chip"></span></div>
+        <div class="vinculo" data-id="${tarefa.id}">
+          <select aria-label="Responsável para a tarefa ${tarefa.id}"></select>
+          <button class="primary" data-acao="vincular" data-id="${tarefa.id}">Vincular (PUT)</button>
+          <button class="ghost danger" data-acao="desvincular" data-id="${tarefa.id}">Desvincular (DELETE)</button>
+        </div>
+      `;
+      li.querySelector('.titulo').textContent = tarefa.titulo;
+      // "responsavel" é o campo de TEXTO antigo -- continua existindo.
+      li.querySelector('.meta').textContent = `campo texto "responsavel": ${tarefa.responsavel || '—'}`;
+
+      const chip = li.querySelector('.chip');
+      const vinculado = tarefa.responsavelVinculado;
+      if (vinculado) {
+        chip.textContent = `🔗 ${vinculado.nome} (${vinculado.email})`;
+      } else {
+        chip.classList.add('vazio');
+        chip.textContent = 'sem responsável vinculado';
+      }
+
+      const select = li.querySelector('select');
+      const vazio = document.createElement('option');
+      vazio.value = '';
+      vazio.textContent = semResponsaveis ? '(cadastre um responsável primeiro)' : 'Escolha um responsável…';
+      select.appendChild(vazio);
+      responsaveis.forEach(resp => {
+        const opt = document.createElement('option');
+        opt.value = resp.id;
+        opt.textContent = `${resp.nome} (#${resp.id})`;
+        if (vinculado && vinculado.id === resp.id) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      li.querySelector('[data-acao="desvincular"]').hidden = !vinculado;
+      ul.appendChild(li);
+    });
+    // setBusy() pode ter rodado antes do render -- reaplica aos controles novos.
+    if (semResponsaveis) ul.querySelectorAll('select, button[data-acao="vincular"]').forEach(el => el.disabled = true);
+  }
+
+  function aviso(id, texto) {
+    document.getElementById(id).textContent = texto || '';
+  }
+
+  // ---------------------------------------------------------------- carregamento
+
+  async function carregarResponsaveis() {
+    const lista = await listarResponsaveis();
+    responsaveis = lista || [];
+    aviso('aviso-responsaveis', lista ? '' :
+      '⚠️ GET /responsaveis não respondeu conforme o contrato. Implemente o endpoint e clique em 🔄.');
+    renderResponsaveis();
+  }
+
+  async function carregarTarefas() {
+    const lista = await listarTarefas();
+    tarefas = lista || [];
+    const semCampo = tarefas.length > 0 && !tarefas.every(t => 'responsavelVinculado' in t);
+    aviso('aviso-tarefas', semCampo ?
+      '⚠️ As tarefas ainda não têm o campo "responsavelVinculado" no JSON. Adicione o relacionamento @ManyToOne na entidade Tarefa.' : '');
+    renderTarefas();
+  }
+
+  // ---------------------------------------------------------------- eventos
+
+  document.getElementById('form-responsavel').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    if (busy) return;
+    const nome = document.getElementById('input-nome');
+    const email = document.getElementById('input-email');
+    const erro = document.getElementById('erro-responsavel');
+    erro.textContent = '';
+
+    setBusy(true);
+    const resultado = await criarResponsavel(nome.value, email.value);
+    setBusy(false);
+
+    if (resultado.erro) {
+      erro.textContent = resultado.erro;
+      renderTarefas();
+      return;
+    }
+    nome.value = '';
+    email.value = '';
+    responsaveis.push(resultado.responsavel);
+    responsaveis.sort((a, b) => a.nome.localeCompare(b.nome));
+    renderResponsaveis();
+    renderTarefas();
+  });
+
+  document.getElementById('lista-responsaveis').addEventListener('click', async (evento) => {
+    const botao = evento.target.closest('button[data-acao="ver-tarefas"]');
+    if (!botao || busy) return;
+    selecionadoId = Number(botao.dataset.id);
+    setBusy(true);
+    const lista = await listarTarefasDoResponsavel(selecionadoId);
+    setBusy(false);
+    renderResponsaveis();
+    renderTarefasDoResponsavel(lista);
+    renderTarefas();
+  });
+
+  document.getElementById('lista-tarefas').addEventListener('click', async (evento) => {
+    const botao = evento.target.closest('button[data-acao]');
+    if (!botao || busy) return;
+    const tarefaId = Number(botao.dataset.id);
+    const acao = botao.dataset.acao;
+
+    let atualizada = null;
+    if (acao === 'vincular') {
+      const select = botao.closest('.vinculo').querySelector('select');
+      const responsavelId = Number(select.value);
+      if (!responsavelId) return;
+      setBusy(true);
+      const resultado = await vincular(tarefaId, responsavelId);
+      setBusy(false);
+      if (resultado.tarefa) atualizada = resultado.tarefa;
+      else aviso('aviso-tarefas', '⚠️ ' + resultado.erro);
+    }
+    if (acao === 'desvincular') {
+      setBusy(true);
+      const ok = await desvincular(tarefaId);
+      setBusy(false);
+      const atual = tarefas.find(t => t.id === tarefaId);
+      if (ok && atual) atualizada = { ...atual, responsavelVinculado: null };
+    }
+
+    if (atualizada) {
+      aviso('aviso-tarefas', '');
+      const indice = tarefas.findIndex(t => t.id === tarefaId);
+      if (indice !== -1) tarefas[indice] = atualizada;
+    }
+    renderTarefas();
+  });
+
+  // Painel de teste de erros.
+  const idTeste = campo => Number(document.getElementById(campo).value);
+
+  document.getElementById('btn-teste-vincular').addEventListener('click', async () => {
+    if (busy || !idTeste('teste-tarefa') || !idTeste('teste-responsavel')) return;
+    setBusy(true);
+    const resultado = await vincular(idTeste('teste-tarefa'), idTeste('teste-responsavel'));
+    setBusy(false);
+    if (resultado.tarefa) {
+      const indice = tarefas.findIndex(t => t.id === resultado.tarefa.id);
+      if (indice !== -1) tarefas[indice] = resultado.tarefa;
+    }
+    renderTarefas();
+  });
+
+  document.getElementById('btn-teste-sem-id').addEventListener('click', async () => {
+    const tarefaId = idTeste('teste-tarefa') || (tarefas[0] && tarefas[0].id);
+    if (busy || !tarefaId) return;
+    setBusy(true);
+    await vincular(tarefaId, null, true);
+    setBusy(false);
+    renderTarefas();
+  });
+
+  document.getElementById('btn-teste-tarefas-resp').addEventListener('click', async () => {
+    if (busy || !idTeste('teste-responsavel')) return;
+    setBusy(true);
+    await listarTarefasDoResponsavel(idTeste('teste-responsavel'));
+    setBusy(false);
+    renderTarefas();
+  });
+
+  document.getElementById('btn-atualizar-responsaveis').addEventListener('click', async () => {
+    if (busy) return;
+    setBusy(true);
+    await carregarResponsaveis();
+    setBusy(false);
+    renderTarefas();
+  });
+
+  document.getElementById('btn-atualizar-tarefas').addEventListener('click', async () => {
+    if (busy) return;
+    setBusy(true);
+    await carregarTarefas();
+    setBusy(false);
+    renderTarefas();
+  });
+
+  document.getElementById('btn-limpar-log').addEventListener('click', () => {
+    logEl.innerHTML = '';
+  });
+
+  // ---------------------------------------------------------------- inicialização
+
+  (async function iniciar() {
+    renderContrato();
+    setBusy(true);
+    await carregarResponsaveis();
+    await carregarTarefas();
+    setBusy(false);
+    renderTarefas();
+  })();
+</script>
+</body>
+</html>

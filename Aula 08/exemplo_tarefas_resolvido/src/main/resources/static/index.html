@@ -84,6 +84,7 @@
     border: 1px solid #c7d2ee; font-size: 15px; font-family: inherit;
   }
   .add-form-row input[type=date] { flex: none; width: 160px; }
+  .add-form-row input[type=number] { flex: none; width: 110px; }
   input:disabled, button:disabled { opacity: .55; cursor: not-allowed; }
 
   button.primary {
@@ -122,6 +123,7 @@
   .edit-form .edit-input { flex: 2; min-width: 140px; }
   .edit-form .edit-responsavel { flex: 1; min-width: 100px; }
   .edit-form .edit-prazo { flex: none; width: 150px; }
+  .edit-form .edit-prioridade { flex: none; width: 70px; }
   .edit-erro { display: none; flex-basis: 100%; color: var(--red); font-size: 12px; margin-top: 4px; }
 
   .badge-id {
@@ -223,7 +225,9 @@
         <button class="ghost" id="btn-atualizar-lista">🔄 Atualizar (GET /tarefas)</button>
       </div>
 
-      <form class="add-form" id="form-add">
+      <!-- novalidate: quem valida (inclusive prioridade 1 a 5) é o @Valid da
+           API -- assim prioridade 0 ou 6 chega no servidor e volta 400. -->
+      <form class="add-form" id="form-add" novalidate>
         <div class="add-form-row">
           <label class="sr" for="input-titulo">Título da nova tarefa</label>
           <input type="text" id="input-titulo" placeholder="Título da nova tarefa (ex.: Estudar Spring Web)">
@@ -233,6 +237,8 @@
           <input type="text" id="input-responsavel" placeholder="Responsável (ex.: Ana)">
           <label class="sr" for="input-prazo">Data de prazo</label>
           <input type="date" id="input-prazo">
+          <label class="sr" for="input-prioridade">Prioridade (1 a 5)</label>
+          <input type="number" id="input-prioridade" min="1" max="5" value="3" title="Prioridade (1 a 5)" placeholder="Prior.">
           <button type="submit" class="primary" id="btn-add">Adicionar (POST)</button>
         </div>
       </form>
@@ -421,10 +427,11 @@
       // @NotNull), por isso os três aparecem aqui, não só o título.
       li.innerHTML = `
         <span class="badge-id">#${tarefa.id}</span>
-        <form class="edit-form" data-id="${tarefa.id}">
+        <form class="edit-form" data-id="${tarefa.id}" novalidate>
           <input type="text" class="edit-input" placeholder="Título">
           <input type="text" class="edit-responsavel" placeholder="Responsável">
           <input type="date" class="edit-prazo">
+          <input type="number" class="edit-prioridade" min="1" max="5" title="Prioridade (1 a 5)">
           <button type="submit" class="icon-btn" title="Salvar (PUT /{id})">💾</button>
           <button type="button" class="icon-btn danger" title="Cancelar" data-acao="cancelar-edicao" data-id="${tarefa.id}">✕</button>
           <div class="edit-erro"></div>
@@ -438,6 +445,7 @@
       // dataPrazo já vem da API como "yyyy-MM-dd" -- o mesmo formato que um
       // <input type="date"> espera no .value, sem nenhuma conversão.
       li.querySelector('.edit-prazo').value = tarefa.dataPrazo || '';
+      li.querySelector('.edit-prioridade').value = tarefa.prioridade ?? 3;
       return li;
     }
 
@@ -460,7 +468,7 @@
     // dentro do innerHTML, pra não abrir brecha de HTML/script injetado.
     li.querySelector('.titulo').textContent = tarefa.titulo;
     li.querySelector('.meta').textContent =
-      `👤 ${tarefa.responsavel || '—'}   ·   📅 Prazo: ${formatarData(tarefa.dataPrazo)}   ·   Cadastrada em ${formatarData(tarefa.dataCadastro)}`;
+      `👤 ${tarefa.responsavel || '—'}   ·   ⭐ Prioridade ${tarefa.prioridade ?? '--'}   ·   📅 Prazo: ${formatarData(tarefa.dataPrazo)}   ·   Cadastrada em ${formatarData(tarefa.dataCadastro)}`;
     // Devolve o <li> pronto pra quem chamou (renderLista) inserir na <ul>.
     return li;
   }
@@ -582,9 +590,9 @@
     await wait(150);
     log('  TarefaService.listarTodas() delega pro Repository', 'step', 'BACKEND', 'SERVICE');
     await wait(150);
-    log('  TarefaRepository.findAll() pede os dados ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    log('  TarefaRepository.findAllByOrderByDataPrazoAsc() pede os dados ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
     await wait(150);
-    log('  Hibernate gera SELECT * FROM tarefas', 'step', 'BACKEND', 'BANCO');
+    log('  Hibernate gera SELECT * FROM tarefas ORDER BY data_prazo ASC (Exercício 4)', 'step', 'BACKEND', 'BANCO');
     await wait(150);
     log('  PostgreSQL devolve as linhas da tabela tarefas', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
@@ -597,12 +605,15 @@
   }
 
   // POST /tarefas -- cria uma tarefa nova a partir dos dados do formulário.
-  async function criarTarefa(titulo, responsavel, dataPrazo) {
+  async function criarTarefa(titulo, responsavel, dataPrazo, prioridade) {
     const corpo = { titulo, responsavel };
     // Só entra no JSON se o campo estiver preenchido -- assim, se a data vier
     // vazia, quem barra é o @NotNull do TarefaDTO (400 limpo, com mensagem),
     // em vez do Jackson tentar converter "" em LocalDate e explodir antes disso.
     if (dataPrazo) corpo.dataPrazo = dataPrazo;
+    // Exercício 5: mesma ideia -- vazio fica de fora do JSON e o @NotNull do
+    // TarefaDTO responde 400; preenchido vai como número, não como texto.
+    if (prioridade !== '') corpo.prioridade = Number(prioridade);
 
     const resposta = await enviarRequisicao('POST', '/tarefas', corpo);
     if (!resposta) return null;
@@ -612,7 +623,7 @@
     await wait(150);
     log('  @RequestBody converte o JSON em TarefaDTO', 'step', 'BACKEND', 'DTO');
     await wait(150);
-    log('  @Valid confere @NotBlank (título, responsável) e @NotNull (prazo)', 'step', 'BACKEND', 'DTO');
+    log(`  @Valid confere @NotBlank (título, responsável), @NotNull/@FutureOrPresent (prazo) e @Min(1)/@Max(5) (prioridade = ${corpo.prioridade ?? 'ausente'})`, 'step', 'BACKEND', 'DTO');
     await wait(150);
 
     // status 400 só acontece se o @NotBlank do TarefaDTO realmente rejeitou o
@@ -629,11 +640,11 @@
 
     log('  TarefaService.criar(dto) monta uma Tarefa a partir do DTO', 'step', 'BACKEND', 'SERVICE');
     await wait(150);
-    log('  Tarefa (model) nasce com id=null, concluida=false e dataCadastro=hoje', 'step', 'BACKEND', 'MODEL');
+    log(`  Tarefa (model) nasce com id=null, concluida=false, dataCadastro=hoje e prioridade=${corpo.prioridade}`, 'step', 'BACKEND', 'MODEL');
     await wait(150);
-    log('  TarefaRepository.save(tarefa) encaminha a persistência ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    log(`  TarefaRepository.save(tarefa) encaminha a persistência (com prioridade=${corpo.prioridade}) ao Spring Data JPA`, 'step', 'BACKEND', 'REPOSITORY');
     await wait(150);
-    log('  Hibernate gera INSERT INTO tarefas (...)', 'step', 'BACKEND', 'BANCO');
+    log(`  Hibernate gera INSERT INTO tarefas (titulo, responsavel, data_prazo, prioridade, ...) VALUES (..., ${corpo.prioridade}, ...)`, 'step', 'BACKEND', 'BANCO');
     await wait(150);
     log('  PostgreSQL grava a linha e gera o id', 'ok-step', 'BACKEND', 'BANCO');
     await wait(150);
@@ -690,9 +701,12 @@
   // PUT /tarefas/{id} -- bônus, fora do CRUD oficial da Aula 08, mas atualiza
   // título, responsável e prazo de verdade no servidor (mesmo TarefaDTO e
   // mesma validação da criação -- dataCadastro e concluida não mudam aqui).
-  async function atualizarTarefa(id, titulo, responsavel, dataPrazo) {
+  async function atualizarTarefa(id, titulo, responsavel, dataPrazo, prioridade) {
     const corpo = { titulo, responsavel };
     if (dataPrazo) corpo.dataPrazo = dataPrazo;
+    // Exercício 5: mesma ideia -- vazio fica de fora do JSON e o @NotNull do
+    // TarefaDTO responde 400; preenchido vai como número, não como texto.
+    if (prioridade !== '') corpo.prioridade = Number(prioridade);
 
     const resposta = await enviarRequisicao('PUT', `/tarefas/${id}`, corpo);
     if (!resposta) return null;
@@ -702,7 +716,7 @@
     await wait(150);
     log('  @RequestBody converte o JSON em TarefaDTO', 'step', 'BACKEND', 'DTO');
     await wait(150);
-    log('  @Valid confere @NotBlank (título, responsável) e @NotNull (prazo)', 'step', 'BACKEND', 'DTO');
+    log(`  @Valid confere @NotBlank (título, responsável), @NotNull/@FutureOrPresent (prazo) e @Min(1)/@Max(5) (prioridade = ${corpo.prioridade ?? 'ausente'})`, 'step', 'BACKEND', 'DTO');
     await wait(150);
 
     // 400: @Valid rejeitou antes até de chamar o Service -- mesmo caminho de criarTarefa.
@@ -739,13 +753,13 @@
 
     // 200 OK: o corpo é a tarefa já com título, responsável e prazo trocados.
     const tarefa = await resposta.json();
-    log('  TarefaRepository.save(tarefa) encaminha o UPDATE ao Spring Data JPA', 'step', 'BACKEND', 'REPOSITORY');
+    log(`  Tarefa (model) tem titulo, responsavel, dataPrazo e prioridade (=${tarefa.prioridade}) alterados`, 'step', 'BACKEND', 'MODEL');
     await wait(150);
-    log('  Hibernate gera UPDATE tarefas SET ... WHERE id = ?', 'step', 'BACKEND', 'BANCO');
+    log(`  TarefaRepository.save(tarefa) encaminha o UPDATE (com prioridade=${tarefa.prioridade}) ao Spring Data JPA`, 'step', 'BACKEND', 'REPOSITORY');
+    await wait(150);
+    log(`  Hibernate gera UPDATE tarefas SET titulo = ?, responsavel = ?, data_prazo = ?, prioridade = ${tarefa.prioridade} WHERE id = ?`, 'step', 'BACKEND', 'BANCO');
     await wait(150);
     log('  PostgreSQL atualiza a linha', 'ok-step', 'BACKEND', 'BANCO');
-    await wait(120);
-    log('  Tarefa (model) tem titulo, responsavel e dataPrazo alterados', 'ok-step', 'BACKEND', 'MODEL');
     await wait(120);
     logResposta(resposta, 'ok', JSON.stringify(tarefa));
     return tarefa;
@@ -849,18 +863,19 @@
     const input = document.getElementById('input-titulo');
     const inputResp = document.getElementById('input-responsavel');
     const inputPrazo = document.getElementById('input-prazo');
+    const inputPrioridade = document.getElementById('input-prioridade');
     const erro = document.getElementById('erro-titulo');
     // Limpa a mensagem de erro de uma tentativa anterior.
     erro.textContent = '';
 
     // Trava a tela, dispara a criação de verdade na API e destrava no final.
     setBusy(true);
-    const criada = await criarTarefa(input.value, inputResp.value, inputPrazo.value);
+    const criada = await criarTarefa(input.value, inputResp.value, inputPrazo.value, inputPrioridade.value);
     setBusy(false);
 
     // criarTarefa devolve null quando a API recusou (400) -- mostra o erro e para.
     if (!criada) {
-      erro.textContent = 'Não deu pra criar -- confira o log (título, responsável e prazo são obrigatórios).';
+      erro.textContent = 'Não deu pra criar -- confira o log (título, responsável, prazo a partir de hoje e prioridade de 1 a 5).';
       return;
     }
 
@@ -868,6 +883,7 @@
     input.value = '';
     inputResp.value = '';
     inputPrazo.value = '';
+    inputPrioridade.value = '3';
     tarefas.push(criada);
     renderLista();
   });
@@ -934,12 +950,13 @@
     const input = form.querySelector('.edit-input');
     const inputResp = form.querySelector('.edit-responsavel');
     const inputPrazo = form.querySelector('.edit-prazo');
+    const inputPrioridade = form.querySelector('.edit-prioridade');
     const erro = form.querySelector('.edit-erro');
     // Esconde a mensagem de erro de uma tentativa anterior, se houver.
     erro.style.display = 'none';
 
     setBusy(true);
-    const atualizada = await atualizarTarefa(id, input.value, inputResp.value, inputPrazo.value);
+    const atualizada = await atualizarTarefa(id, input.value, inputResp.value, inputPrazo.value, inputPrioridade.value);
     setBusy(false);
 
     // atualizarTarefa devolve null tanto no 400 (título vazio) quanto no 404
