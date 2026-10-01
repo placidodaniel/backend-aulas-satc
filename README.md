@@ -2314,7 +2314,8 @@ public record TarefaRequestDTO(
         @NotBlank(message = "Título é obrigatório") String titulo,
         @NotBlank(message = "Responsável é obrigatório") String responsavel,
         @NotNull @FutureOrPresent LocalDate dataPrazo,
-        @NotNull @Min(1) @Max(5) Integer prioridade
+        @NotNull @Min(1) @Max(5) Integer prioridade,
+        Long responsavelId   // opcional: a tarefa já nasce vinculada
 ) { }
 ```
 
@@ -2339,13 +2340,17 @@ O **Controller** só conhece DTOs. O **Service** recebe DTO, usa o mapper e devo
 @Component
 public class TarefaMapper {
 
-    public Tarefa toEntity(TarefaRequestDTO dto) {                 // POST
-        return new Tarefa(null, dto.titulo(), dto.responsavel(), dto.dataPrazo(), dto.prioridade());
+    // O responsável chega PRONTO: quem busca pelo responsavelId é o Service.
+    public Tarefa toEntity(TarefaRequestDTO dto, Responsavel responsavel) {    // POST
+        Tarefa tarefa = new Tarefa(null, dto.titulo(), dto.responsavel(), dto.dataPrazo(), dto.prioridade());
+        tarefa.setResponsavelVinculado(responsavel);   // null = sem vínculo
+        return tarefa;
     }
 
-    public void updateEntity(Tarefa tarefa, TarefaRequestDTO dto) { // PUT
+    public void updateEntity(Tarefa tarefa, TarefaRequestDTO dto, Responsavel responsavel) { // PUT
         tarefa.setTitulo(dto.titulo());
         // ... responsavel, dataPrazo, prioridade
+        tarefa.setResponsavelVinculado(responsavel);   // PUT substitui tudo, inclusive o vínculo
     }
 
     public TarefaResponseDTO toResponse(Tarefa tarefa) {           // toda resposta
@@ -2357,12 +2362,22 @@ public class TarefaMapper {
 ```java
 // TarefaService: entra DTO, sai DTO
 public TarefaResponseDTO criar(TarefaRequestDTO dto) {
-    Tarefa salva = repository.save(mapper.toEntity(dto));
+    Responsavel responsavel = buscarResponsavel(dto.responsavelId());   // id → entidade (404 se não existir)
+    Tarefa salva = repository.save(mapper.toEntity(dto, responsavel));
     return mapper.toResponse(salva);
+}
+
+// O mapper não consulta o banco: transformar id em entidade é trabalho do Service.
+private Responsavel buscarResponsavel(Long responsavelId) {
+    if (responsavelId == null) {
+        return null;                                                      // sem vínculo
+    }
+    return responsavelRepository.findById(responsavelId)
+            .orElseThrow(() -> new ResponsavelNaoEncontradoException(responsavelId));
 }
 ```
 
-> 🧱 **O contrato não mudou.** O JSON de `/tarefas` é idêntico ao da Aula 8, e as páginas `index.html` e `responsaveis.html` não perceberam a troca. O que mudou foi **quem decide** esse JSON: antes, a entidade; agora, um DTO escrito para isso.
+> 🧱 **O contrato não mudou.** O JSON de `/tarefas` é idêntico ao da Aula 8, e as páginas `index.html` e `responsaveis.html` não perceberam a troca. O que mudou foi **quem decide** esse JSON: antes, a entidade; agora, um DTO escrito para isso. A única novidade é um campo **opcional** na entrada (`responsavelId`), e quem não o manda continua funcionando: é uma mudança compatível.
 
 #### Manual ou com biblioteca?
 
