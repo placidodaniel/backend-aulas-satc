@@ -1,0 +1,908 @@
+{
+  "info": {
+    "_postman_id": "b7c2d9e4-3f1a-4c8b-9e2d-5a6f7b8c9d01",
+    "name": "exemplo_tarefas — Aula 09",
+    "description": "Coleção da API de tarefas (Aula 09 — Backend, SATC 2026.1). Suba o banco e a API antes de testar:\n\n```\ncd \"Aula 09/exemplo_tarefas\"\ndocker compose up -d\n./mvnw spring-boot:run\n```\n\nA variável {{baseUrl}} já vem configurada para http://localhost:8080. Troque em Variables se estiver usando outra porta.\n\n**Swagger:** esta mesma API está documentada em http://localhost:8080/swagger-ui.html. Para gerar uma collection direto do contrato OpenAPI: Import → Link → http://localhost:8080/v3/api-docs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Swagger / OpenAPI",
+      "description": "O contrato gerado pelo springdoc a partir dos Controllers e DTOs.",
+      "item": [
+        {
+          "name": "Contrato OpenAPI (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            },
+            "description": "O documento OpenAPI que o Swagger UI desenha. Repare na seção components.schemas: no projeto base ainda aparecem as entidades Responsavel e Tarefa (Exercício 1)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tarefas",
+      "description": "CRUD de /tarefas. Entrada: TarefaRequestDTO. Saída: TarefaResponseDTO.",
+      "item": [
+        {
+          "name": "Listar tarefas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "200 com a lista de TarefaResponseDTO, prazo mais próximo primeiro."
+          }
+        },
+        {
+          "name": "Criar tarefa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "201 com o TarefaResponseDTO criado. Os campos id e concluida deste corpo NÃO existem no TarefaRequestDTO: o Jackson ignora, e a tarefa nasce com id gerado pelo banco e concluida=false.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Estudar DTO e Swagger\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-01\",\n  \"prioridade\": 4,\n  \"id\": 999,\n  \"concluida\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar tarefa por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "200 com o TarefaResponseDTO; 404 se o id não existir."
+          }
+        },
+        {
+          "name": "Atualizar tarefa (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "PUT substitui todos os campos editáveis: os quatro são obrigatórios, como no POST (TarefaRequestDTO).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Estudar DTO, Swagger e mapeamento\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-15\",\n  \"prioridade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Concluir / reabrir tarefa",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/concluir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "concluir"
+              ]
+            },
+            "description": "Inverte o campo concluida."
+          }
+        },
+        {
+          "name": "Buscar por responsável (texto)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/buscar?responsavel=Daniel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "responsavel",
+                  "value": "Daniel"
+                }
+              ]
+            },
+            "description": "200 com as tarefas cujo responsável (texto) é Daniel, sem diferenciar maiúsculas."
+          }
+        },
+        {
+          "name": "Tarefas atrasadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/atrasadas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "atrasadas"
+              ]
+            },
+            "description": "200 com as tarefas pendentes e com prazo antes de hoje."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Responsáveis e vínculo",
+      "description": "Contrato criado na Aula 08. No Exercício 1 o código muda (entidade → DTO), mas estas respostas não podem mudar.",
+      "item": [
+        {
+          "name": "Listar responsáveis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis"
+              ]
+            },
+            "description": "200 com [{id, nome, email}], ordenado por nome."
+          }
+        },
+        {
+          "name": "Criar responsável",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis"
+              ]
+            },
+            "description": "201 com {id, nome, email}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@satc.edu.br\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar tarefa já vinculada (responsavelId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "201: a tarefa já nasce vinculada. Entra só o id (\"responsavelId\": 1) e sai o objeto inteiro (\"responsavelVinculado\": {id, nome, email}). Id inexistente = 404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Revisar o contrato no Swagger\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-01\",\n  \"prioridade\": 3,\n  \"responsavelId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Tarefas de um responsável",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis/1/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis",
+                "1",
+                "tarefas"
+              ]
+            },
+            "description": "200 com as tarefas vinculadas, no mesmo formato do GET /tarefas; 404 se o responsável não existir."
+          }
+        },
+        {
+          "name": "Vincular responsável à tarefa",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "200 com a tarefa e o responsavelVinculado preenchido.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responsavelId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Desvincular responsável",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "204 sem corpo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Casos de erro (400 / 404)",
+      "description": "No projeto base, o 404 vem em texto puro e o 400 no JSON padrão do Spring. Depois do Exercício 5, os dois vêm no formato ErroDTO.",
+      "item": [
+        {
+          "name": "Criar tarefa com corpo vazio (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "400: os quatro campos do TarefaRequestDTO são obrigatórios.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar tarefa com prioridade 9 e prazo no passado (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "400: @Max(5) na prioridade e @FutureOrPresent no prazo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Teste\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2020-01-01\",\n  \"prioridade\": 9\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar id inexistente (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "999"
+              ]
+            },
+            "description": "404: Tarefa não encontrada: 999."
+          }
+        },
+        {
+          "name": "Criar responsável com e-mail inválido (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis"
+              ]
+            },
+            "description": "400: @Email.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana\",\n  \"email\": \"ana\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Vincular sem responsavelId (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "400: @NotNull no VinculoResponsavelDTO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Vincular responsável inexistente (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "404: Responsável não encontrado: 999.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responsavelId\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar tarefa com responsavelId inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "404: o TarefaService busca o responsável antes do INSERT. Nenhuma tarefa é gravada.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Teste\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-01\",\n  \"prioridade\": 3,\n  \"responsavelId\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exercícios da Aula 09",
+      "description": "Requests dos Exercícios 3, 4 e 5 (ver EXERCICIOS.md). No projeto base eles respondem 405/404 do próprio Spring: só funcionam depois que você implementar.",
+      "item": [
+        {
+          "name": "Ex. 3 — PATCH só o título",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "200: só o título muda; prazo, responsável e prioridade continuam iguais.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Título corrigido pelo PATCH\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ex. 3 — PATCH só a prioridade",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "200: só a prioridade muda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prioridade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ex. 3 — PATCH vazio",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "200: nada muda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ex. 3 — PATCH trocando o vínculo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "200: a tarefa passa a ser do responsável #1. Atenção: {\"responsavelId\": null} NÃO desvincula (null = não mexer); para isso, DELETE /tarefas/{id}/responsavel.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responsavelId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ex. 3 — PATCH inválido (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "400: título em branco e prioridade fora de 1 a 5 são barrados mesmo no PATCH.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"   \",\n  \"prioridade\": 9\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ex. 3 — PATCH id inexistente (404)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "999"
+              ]
+            },
+            "description": "404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ex. 4 — Detalhe do responsável",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis",
+                "1"
+              ]
+            },
+            "description": "200 com {id, nome, email, totalTarefas, tarefasPendentes, tarefas: [{id, titulo, concluida, dataPrazo}]}."
+          }
+        },
+        {
+          "name": "Ex. 4 — Detalhe de responsável inexistente (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis",
+                "999"
+              ]
+            },
+            "description": "404."
+          }
+        },
+        {
+          "name": "Ex. 5 — 404 no formato ErroDTO",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "999"
+              ]
+            },
+            "description": "404 com {status, erro, mensagem, caminho, timestamp, campos: []}."
+          }
+        },
+        {
+          "name": "Ex. 5 — 400 no formato ErroDTO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "400 com um item em \"campos\" para cada campo obrigatório que faltou.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ex. 5 (opcional) — JSON ilegível",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "400 em ErroDTO: \"amanhã\" não é uma data yyyy-MM-dd, e o Jackson não consegue nem montar o DTO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Teste\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"amanhã\",\n  \"prioridade\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Excluir tarefa",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tarefas/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "tarefas",
+            "1"
+          ]
+        },
+        "description": "204 sem corpo; 404 se o id não existir. Fica por último na coleção porque os outros requests usam a tarefa #1."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}

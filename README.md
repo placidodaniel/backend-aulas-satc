@@ -52,6 +52,15 @@
   - [Parte 3 — Migrations e Prática](#parte-3--migrations-e-prática)
   - [Exercícios](#exercícios-2)
   - [Glossário rápido](#glossário-rápido-3)
+- [Aula 9 — DTO, Mapeamento e Swagger](#aula-9--dto-mapeamento-e-swagger)
+  - [Materiais](#materiais-5)
+  - [Objetivo da aula](#objetivo-da-aula-5)
+  - [Parte 1 — DTO: o contrato da API](#parte-1--dto-o-contrato-da-api)
+  - [Parte 2 — Mapeamento DTO ↔ entidade](#parte-2--mapeamento-dto--entidade)
+  - [Parte 3 — Documentação com Swagger (OpenAPI)](#parte-3--documentação-com-swagger-openapi)
+  - [Parte 4 — Rodando o projeto](#parte-4--rodando-o-projeto)
+  - [Exercícios](#exercícios-3)
+  - [Glossário rápido](#glossário-rápido-4)
 
 ---
 
@@ -2238,3 +2247,245 @@ Reinicie a API e liste as tarefas de novo: **elas continuam lá**. Esse é o obj
 | **`ddl-auto`** | Define se o Hibernate cria, altera ou só valida as tabelas (`validate`). |
 
 **Próxima aula:** DTO e Mapeamento — separando de vez o contrato da API das entidades do banco.
+---
+
+## Aula 9 — DTO, Mapeamento e Swagger
+
+### Materiais
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula09-dto-mapeamento-swagger.pdf](<Aula 09/aula09-dto-mapeamento-swagger.pdf>) | DTO de entrada e de saída, records, mapeamento DTO ↔ entidade e documentação com Swagger/OpenAPI |
+| [exemplo_tarefas](<Aula 09/exemplo_tarefas>) | O projeto da Aula 8 com `TarefaRequestDTO`/`TarefaResponseDTO` (records), `TarefaMapper` e Swagger; o lado de responsáveis fica para os exercícios |
+| [README do exemplo](<Aula 09/exemplo_tarefas/README.md>) | Passo a passo para subir o banco (porta `5435`), rodar a API e abrir o Swagger |
+| [EXERCICIOS.md](<Aula 09/exemplo_tarefas/EXERCICIOS.md>) | Os 6 exercícios da aula e as instruções de entrega |
+| [static/contrato.html](<Aula 09/exemplo_tarefas/src/main/resources/static/contrato.html>) | Página que testa a API contra cada exercício e marca ✅ / ⏳ / ❌ (abra em `http://localhost:8080/contrato.html`) |
+| [Collection do Postman](<Aula 09/exemplo_tarefas/exemplo_tarefas.postman_collection.json>) | Todos os endpoints, os casos de erro e os requests dos exercícios |
+
+### Objetivo da aula
+
+Separar de vez o **contrato da API** (o JSON que entra e sai) das **entidades do banco**: cada lado ganha o seu DTO, a conversão entre os dois vira responsabilidade de um **mapper**, e o contrato passa a ser **documentado a partir do próprio código** com Swagger (OpenAPI).
+
+---
+
+### Parte 1 — DTO: o contrato da API
+
+#### O problema: a entidade como contrato
+
+Até a Aula 8, o `POST /tarefas` recebia um `TarefaDTO`, mas **devolvia a entidade** `Tarefa`, e o Jackson transformava em JSON tudo o que tivesse getter. Funciona, mas:
+
+| Risco | O que acontece |
+|---|---|
+| **Vazamento** | Um atributo novo na entidade (`senha`, `cpf`, um campo interno) aparece sozinho em toda resposta. |
+| **Acoplamento** | Renomear um atributo ou uma coluna quebra os clientes da API. |
+| **Mass assignment** | Se a entidade também fosse usada na **entrada**, o cliente poderia mandar `id`, `concluida` ou `dataCadastro` e forçar valores que só a API deveria decidir. |
+| **Loop e LAZY** | Relacionamentos de mão dupla (`Responsavel` ↔ `Tarefa`) fazem o Jackson entrar em loop; relacionamentos LAZY estouram fora da sessão do Hibernate. |
+
+**DTO** (*Data Transfer Object*) é um objeto feito só para carregar dados através de uma fronteira, aqui a fronteira HTTP. Ele não tem regra de negócio nem anotação de JPA. O DTO **é** o contrato.
+
+#### DTO de entrada x DTO de saída
+
+| | `TarefaRequestDTO` (entrada) | `TarefaResponseDTO` (saída) |
+|---|---|---|
+| Quem monta | O Jackson, a partir do JSON do corpo | O `TarefaMapper`, a partir da entidade |
+| Campos | `titulo`, `responsavel`, `dataPrazo`, `prioridade` e, opcional, `responsavelId` | Os quatro primeiros, mais `id`, `concluida`, `dataCadastro` e `responsavelVinculado` (objeto) |
+| Validação | `@NotBlank`, `@NotNull`, `@FutureOrPresent`, `@Min`/`@Max` | Nenhuma: quem gera é a própria API |
+| O que protege | O cliente não controla `id`, `concluida` nem `dataCadastro` | Só sai o que foi decidido que sai |
+
+> 🔗 **Entra um id, sai um objeto.** No cadastro, o vínculo com o responsável vai como `"responsavelId": 1`, porque o cliente só diz **qual** responsável; nome e e-mail já estão no banco. Na resposta, ele volta como `"responsavelVinculado": {"id": 1, "nome": "...", "email": "..."}`. Quem transforma o id em entidade é o **Service** (`ResponsavelRepository.findById`, 404 se não existir), porque o mapper não consulta o banco.
+
+Cada uso pode ter o seu DTO: nos exercícios aparecem o de **atualização parcial** (`TarefaPatchDTO`), o **resumo** (`TarefaResumoDTO`), o **composto** (`ResponsavelDetalheDTO`) e o de **erro** (`ErroDTO`).
+
+#### Records: o DTO do Java moderno
+
+Um `record` (Java 16+) é uma classe imutável feita só para carregar dados: o compilador gera o construtor, os acessores (`titulo()`, sem o `get`), `equals`, `hashCode` e `toString`. É exatamente o que um DTO precisa.
+
+```java
+// Aula 8: classe com atributos, getters e setters (~40 linhas)
+public class TarefaDTO {
+    @NotBlank private String titulo;
+    public String getTitulo() { return titulo; }
+    public void setTitulo(String titulo) { this.titulo = titulo; }
+    // ...
+}
+
+// Aula 9: record -- as validações vão direto em cada componente
+public record TarefaRequestDTO(
+        @NotBlank(message = "Título é obrigatório") String titulo,
+        @NotBlank(message = "Responsável é obrigatório") String responsavel,
+        @NotNull @FutureOrPresent LocalDate dataPrazo,
+        @NotNull @Min(1) @Max(5) Integer prioridade
+) { }
+```
+
+> 🔒 **Mass assignment na prática:** mande `{"titulo": "x", ..., "id": 999, "concluida": true}` no `POST`. A tarefa nasce com o `id` gerado pelo banco e `concluida: false`, porque esses campos não existem no `TarefaRequestDTO` e o Jackson simplesmente os ignora.
+
+---
+
+### Parte 2 — Mapeamento DTO ↔ entidade
+
+#### Onde a conversão acontece
+
+```text
+JSON ──Jackson──> TarefaRequestDTO ──TarefaMapper.toEntity()──> Tarefa ──save()──> PostgreSQL
+JSON <──Jackson── TarefaResponseDTO <──TarefaMapper.toResponse()── Tarefa <──find()── PostgreSQL
+```
+
+O **Controller** só conhece DTOs. O **Service** recebe DTO, usa o mapper e devolve DTO. A **entidade** vive do Service para baixo. Converter dentro do Service, e não no Controller, também prepara o terreno para relacionamentos LAZY: basta marcar o método do Service com `@Transactional` para a conversão rodar com a sessão do Hibernate aberta. No Controller isso não seria possível, porque com `open-in-view=false` a sessão já fechou quando o Service devolve.
+
+#### O mapper
+
+```java
+@Component
+public class TarefaMapper {
+
+    public Tarefa toEntity(TarefaRequestDTO dto) {                 // POST
+        return new Tarefa(null, dto.titulo(), dto.responsavel(), dto.dataPrazo(), dto.prioridade());
+    }
+
+    public void updateEntity(Tarefa tarefa, TarefaRequestDTO dto) { // PUT
+        tarefa.setTitulo(dto.titulo());
+        // ... responsavel, dataPrazo, prioridade
+    }
+
+    public TarefaResponseDTO toResponse(Tarefa tarefa) {           // toda resposta
+        return new TarefaResponseDTO(tarefa.getId(), tarefa.getTitulo(), /* ... */);
+    }
+}
+```
+
+```java
+// TarefaService: entra DTO, sai DTO
+public TarefaResponseDTO criar(TarefaRequestDTO dto) {
+    Tarefa salva = repository.save(mapper.toEntity(dto));
+    return mapper.toResponse(salva);
+}
+```
+
+> 🧱 **O contrato não mudou.** O JSON de `/tarefas` é idêntico ao da Aula 8, e as páginas `index.html` e `responsaveis.html` não perceberam a troca. O que mudou foi **quem decide** esse JSON: antes, a entidade; agora, um DTO escrito para isso.
+
+#### Manual ou com biblioteca?
+
+| Abordagem | Como funciona | Na disciplina |
+|---|---|---|
+| **Manual** | Uma classe `@Component` com um método por direção, campo a campo | **É o que usamos**: sem mágica, dá para ler e depurar |
+| **MapStruct** | Você escreve só a interface; o processador de anotações **gera** a implementação na compilação | Alternativa comum no mercado |
+| **ModelMapper** | Copia por reflexão, casando nomes em tempo de execução | Menos usado hoje: erros só aparecem rodando |
+
+```java
+// MapStruct: a implementação (ResponsavelMapperImpl) é gerada no build,
+// com o mesmo código que escreveríamos à mão.
+@Mapper(componentModel = "spring")
+public interface ResponsavelMapper {
+    ResponsavelResponseDTO toResponse(Responsavel responsavel);
+    Responsavel toEntity(ResponsavelRequestDTO dto);
+}
+```
+
+---
+
+### Parte 3 — Documentação com Swagger (OpenAPI)
+
+#### OpenAPI x Swagger
+
+- **OpenAPI** é a **especificação**: um formato padrão (JSON/YAML) que descreve rotas, parâmetros, corpos e respostas de uma API HTTP.
+- **Swagger** é a **família de ferramentas** em volta dela. A mais conhecida é o **Swagger UI**, a página que desenha o documento e deixa testar cada endpoint.
+- **springdoc-openapi** lê os Controllers e os DTOs do Spring na subida da aplicação, **gera** o documento OpenAPI e embute o Swagger UI.
+
+#### Uma dependência
+
+```xml
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.9.1</version>   <!-- linha 2.x = Spring Boot 3; a 3.x é para o Spring Boot 4 -->
+</dependency>
+```
+
+| Endereço | O que é |
+|---|---|
+| `http://localhost:8080/swagger-ui.html` | Swagger UI: documentação interativa com **Try it out** |
+| `http://localhost:8080/v3/api-docs` | O contrato OpenAPI em JSON: o Postman importa, geradores de código leem |
+
+#### Anotações
+
+O springdoc já documenta rotas, verbos, parâmetros e o formato dos DTOs **sem nenhuma anotação**. As anotações só completam o que ele não tem como adivinhar:
+
+| Anotação | Onde | Para quê |
+|---|---|---|
+| `@Tag` | Controller | Nome e descrição do grupo de endpoints |
+| `@Operation` | Método | Resumo (`summary`) e descrição do endpoint |
+| `@ApiResponse` | Método | Cada status possível e o formato do corpo (inclusive dos erros) |
+| `@Parameter` | Parâmetro | Descrição e exemplo de `@PathVariable`/`@RequestParam` |
+| `@Schema` | DTO / componente | Descrição e `example`, que é o valor que aparece no **Try it out** |
+
+```java
+@Operation(summary = "Cria uma tarefa")
+@ApiResponse(responseCode = "201", description = "Tarefa criada -- o corpo já traz o id gerado")
+@ApiResponse(responseCode = "400", description = "Corpo inválido", content = @Content)
+@PostMapping
+public ResponseEntity<TarefaResponseDTO> criar(@Valid @RequestBody TarefaRequestDTO dto) { ... }
+```
+
+> ⚠️ **O springdoc lê a assinatura, não o corpo do método.** Sem `@ApiResponse(responseCode = "201")`, ele documenta o `POST` como `200`, porque o `201` só existe dentro do método (`ResponseEntity.status(CREATED)`). E nada na assinatura diz que o método pode terminar em `404`.
+
+> 🔍 **As entidades aparecem no Swagger.** Na seção *Schemas* do Swagger UI está tudo o que entra e sai da API. No projeto da aula ainda aparecem `Responsavel` e `Tarefa`, porque o `ResponsavelController` continua devolvendo as entidades. O Exercício 1 tira as duas de lá.
+
+---
+
+### Parte 4 — Rodando o projeto
+
+Passo a passo completo (Windows/PowerShell) no [README do exemplo](<Aula 09/exemplo_tarefas/README.md>). Resumo:
+
+```bash
+cd "Aula 09/exemplo_tarefas"
+
+docker compose up -d          # PostgreSQL na porta 5435 (projeto Compose "aula09-tarefas")
+./mvnw spring-boot:run        # Windows: .\mvnw.cmd spring-boot:run
+```
+
+| Endereço | O que é |
+|---|---|
+| `http://localhost:8080/swagger-ui.html` | Swagger UI |
+| `http://localhost:8080/` | Cadastro de tarefas, com o vínculo ao responsável no próprio formulário (select 🔗), o teste de mass assignment e a camada **MAPPER** no log |
+| `http://localhost:8080/responsaveis.html` | Responsáveis e vínculo (contrato da Aula 8) |
+| `http://localhost:8080/contrato.html` | Contrato dos exercícios da Aula 9 |
+
+No topo das páginas, a barra **"Sua API"** lê o `/v3/api-docs` e marca ⏳/✅ para cada exercício. As páginas mudam de comportamento sozinhas conforme o aluno implementa: a edição passa a usar `PATCH`, o 📋 passa a usar o detalhe do responsável e os campos recusados ficam vermelhos.
+
+> 🐳 **Por que outra porta e um `name:` no Compose?** Sem `name:`, o Docker usa o nome da pasta (`exemplo_tarefas`), o mesmo da Aula 8, e as duas aulas dividiriam o **mesmo volume** de dados. Nenhuma migration nova nesta aula: DTO e mapper não mudam o banco.
+
+---
+
+### Exercícios
+
+Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`](<Aula 09/exemplo_tarefas/EXERCICIOS.md>). A página `contrato.html` confere cada item.
+
+1. **Responsável sem entidade no contrato**: `ResponsavelRequestDTO` (record), `ResponsavelMapper`, e o `TarefaMapper` reaproveitando o `ResponsavelMapper`. O JSON não pode mudar, e as entidades somem da seção *Schemas* do Swagger.
+2. **Campos calculados no DTO de saída**: `diasRestantes` e `atrasada` no `TarefaResponseDTO`, calculados no mapper, sem coluna nem migration.
+3. **Atualização parcial com PATCH**: `TarefaPatchDTO` com todos os campos opcionais (inclusive o `responsavelId`) e `applyPatch()` copiando só o que veio. Resolve o problema do Exercício 3.2 da Aula 8 e mostra o limite do "null = não mexer": o PATCH não consegue desvincular.
+4. **DTO composto**: `GET /responsaveis/{id}` com `ResponsavelDetalheDTO` e a lista de `TarefaResumoDTO`, sem o loop do Jackson.
+5. **Erro padronizado**: `ErroDTO` e `CampoErroDTO` para todo 400 e 404, no lugar do texto puro e do JSON padrão do Spring.
+6. **Swagger do `ResponsavelController`**: `@Tag`, `@Operation`, `@ApiResponse`, `@Schema(example)` e a collection do Postman gerada a partir de `/v3/api-docs`.
+
+---
+
+### Glossário rápido
+
+| Termo | Significado |
+|---|---|
+| **DTO** | *Data Transfer Object*: objeto que só carrega dados através de uma fronteira (aqui, o HTTP). É o contrato da API. |
+| **DTO de entrada (request)** | O que o cliente pode enviar; é onde fica a validação (`@Valid`). |
+| **DTO de saída (response)** | O que a API devolve; pode esconder campos da entidade ou ter campos calculados. |
+| **`record`** | Classe imutável do Java 16+ que gera construtor, acessores, `equals`, `hashCode` e `toString`. |
+| **Mapper** | Classe que converte DTO ↔ entidade (`toEntity`, `toResponse`, `updateEntity`). |
+| **Mass assignment** | Falha em que o cliente consegue alterar campos que não deveria (ex.: `id`) porque a API aceita o objeto inteiro. |
+| **MapStruct** | Biblioteca que gera a implementação de um mapper em tempo de compilação. |
+| **PATCH** | Verbo HTTP de atualização **parcial**: só os campos enviados mudam. O `PUT` substitui o recurso inteiro. |
+| **OpenAPI** | Especificação padrão para descrever APIs HTTP em JSON/YAML. |
+| **Swagger UI** | Página que desenha um documento OpenAPI e permite testar cada endpoint (**Try it out**). |
+| **springdoc-openapi** | Biblioteca que gera o documento OpenAPI a partir do código Spring e serve o Swagger UI. |
+| **`@Schema`** | Anotação do Swagger que descreve um DTO ou um campo e define o `example`. |
+| **`/v3/api-docs`** | Endereço do contrato OpenAPI em JSON gerado pelo springdoc. |
+
+**Próxima aula:** Avaliação N2a — Web Services, REST e Persistência de Dados.

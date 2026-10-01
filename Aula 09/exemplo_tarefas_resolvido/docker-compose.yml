@@ -1,0 +1,44 @@
+# Nome do projeto Compose. Sem ele, o Docker usa o nome da pasta
+# ("exemplo_tarefas_resolvido") -- o mesmo da Aula 08 -- e as duas aulas acabariam
+# dividindo o mesmo volume de dados (e o mesmo flyway_schema_history).
+name: aula09-tarefas-resolvido
+
+# Define os serviços que serão executados pelo Docker Compose.
+services:
+  # Declara o serviço do banco de dados da aplicação.
+  postgres:
+    # Usa uma imagem leve do PostgreSQL 16.
+    image: postgres:16-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: aula09-tarefas-resolvido-postgres
+    # Define as variáveis que o PostgreSQL lê na primeira inicialização.
+    environment:
+      # Cria o banco lógico usado pela aplicação.
+      POSTGRES_DB: tarefas
+      # Cria o usuário dono do banco.
+      POSTGRES_USER: tarefas
+      # Define a senha do usuário do banco.
+      POSTGRES_PASSWORD: tarefas
+    # Publica a porta interna do banco no computador host.
+    ports:
+      # Usa 5436 no host para não conflitar com o banco do projeto dos alunos (5435).
+      - "5436:5432"
+    # Guarda os dados fora do ciclo de vida do container.
+    volumes:
+      # Monta o volume nomeado no diretório padrão de dados do PostgreSQL.
+      - postgres_data:/var/lib/postgresql/data
+    # Verifica se o PostgreSQL está pronto para receber conexões.
+    healthcheck:
+      # Executa o comando oficial de verificação do PostgreSQL.
+      test: ["CMD-SHELL", "pg_isready -U tarefas -d tarefas"]
+      # Aguarda cinco segundos entre verificações.
+      interval: 5s
+      # Interrompe uma verificação que demorar mais que cinco segundos.
+      timeout: 5s
+      # Tenta cinco vezes antes de marcar o serviço como unhealthy.
+      retries: 5
+
+# Declara os volumes nomeados usados pelos serviços.
+volumes:
+  # Mantém os dados do PostgreSQL entre reinicializações.
+  postgres_data:
