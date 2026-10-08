@@ -13,13 +13,13 @@
 
 ## Objetivo
 
-Aprender a **planejar e organizar um backend antes de programar tudo**. Cada grupo recebe um tema, desenha o sistema, monta a estrutura completa do código e faz uma parte pequena funcionar. Não é para entregar um sistema pronto.
+Aprender a **planejar e organizar um backend antes de programar tudo**. Cada grupo recebe um tema, cria o problema que o sistema vai resolver, desenha o sistema, monta a estrutura completa do código e faz uma parte pequena funcionar. Não é para entregar um sistema pronto.
 
-É como construir uma casa: nesta etapa vocês entregam a planta, a estrutura de todos os cômodos e **um** cômodo pronto. O resto é construído nas próximas etapas, no mesmo repositório.
+**Um exemplo:** num sistema de biblioteca, com livros, leitores e empréstimos, o grupo desenharia as três entidades, criaria a tabela e as classes das três, e faria funcionar de verdade só o cadastro de livros: cadastrar, listar e buscar. Leitores e empréstimos ganham a lógica nas próximas etapas, no mesmo repositório. O exemplo completo, item por item, está em [Exemplo: como ficaria numa biblioteca](#exemplo-como-ficaria-numa-biblioteca).
 
 ## O tema
 
-Na Aula 10, cada grupo passa para o professor o nome dos três integrantes. Quando todos os grupos estiverem formados, o professor sorteia um dos temas abaixo para cada grupo. Dentro do tema sorteado, o grupo escolhe o problema que o sistema vai resolver; a coluna da direita traz ideias.
+Na Aula 10, cada grupo passa para o professor o nome dos três integrantes. Quando todos os grupos estiverem formados, o professor sorteia um dos temas abaixo para cada grupo. Dentro do tema sorteado, **o grupo cria o problema** que o sistema vai resolver: quem tem a dificuldade, qual é ela e o que o sistema muda. A coluna da direita só traz ideias para começar.
 
 | # | Tema | Ideias de problema |
 |---|---|---|
@@ -33,14 +33,14 @@ Na Aula 10, cada grupo passa para o professor o nome dos três integrantes. Quan
 | 8 | 🏙️ Cidades Inteligentes | Iluminação pública, trânsito, coleta de lixo, ocorrências urbanas |
 | 9 | 🛒 Varejo e E-commerce | Catálogo, pedidos, estoque, avaliações de produto |
 
-Cada tema sai para um grupo só. Se houver mais de 9 grupos, os temas voltam para o sorteio, e os grupos com o mesmo tema escolhem problemas diferentes. Tarefas e biblioteca não valem: são os exemplos usados na disciplina.
+Cada tema sai para um grupo só. Se houver mais de 9 grupos, os temas voltam para o sorteio, e os grupos com o mesmo tema criam problemas diferentes. Tarefas e biblioteca não valem: são os exemplos usados na disciplina.
 
 ## O que cada grupo deve entregar
 
 Um repositório público no GitHub, criado a partir do template desta aula (veja [Como começar pelo template](#como-começar-pelo-template)), com estas cinco coisas:
 
 1. **O desenho do sistema**, em três documentos da pasta `docs/`:
-   - `docs/01`: o problema, quem usa o sistema e no mínimo **3 regras de negócio**;
+   - `docs/01`: o problema que o grupo criou, quem usa o sistema e no mínimo **3 regras de negócio, criadas pelo grupo a partir desse problema**;
    - `docs/02`: no mínimo **3 entidades**, pelo menos **1 relacionamento** entre elas e o diagrama das tabelas;
    - `docs/03`: as rotas de todas as entidades, com o JSON de entrada e de saída.
 2. **A estrutura completa do código**, para **todas** as entidades:
@@ -58,7 +58,101 @@ Um repositório público no GitHub, criado a partir do template desta aula (veja
 
 > **Regra de negócio** é algo que o sistema precisa garantir ou impedir, além de "campo obrigatório". Exemplo: *um leitor não pode ter mais de 3 empréstimos em aberto*.
 >
+> **O grupo cria o problema e as regras de negócio.** Nada disso vem pronto. Primeiro, dentro do tema sorteado, o grupo cria o problema que o sistema vai resolver. Depois, olhando para esse problema, cria as regras: o que o sistema precisa garantir ou impedir. O problema e as regras da biblioteca, no exemplo abaixo, servem só para mostrar o formato.
+>
 > **Classe vazia** (que chamamos de *montada*) é a classe que já existe na pasta certa e está ligada às outras, mas ainda não tem a lógica. A [seção 6 de ARQUITETURA.md](ARQUITETURA.md#6-a-estrutura-montada) mostra um exemplo.
+
+## Exemplo: como ficaria numa biblioteca
+
+Para entender o que cada item pede, veja como ficaria a entrega de um sistema de biblioteca. É só um exemplo: biblioteca não pode ser tema.
+
+**O exemplo está pronto** na pasta [exemplo-biblioteca](exemplo-biblioteca): é o template preenchido do jeito que um grupo entregaria, com os documentos, todas as classes e a API de livros funcionando. Dá para subir e testar (banco na porta 5438). Use para comparar com o projeto de vocês, não para copiar.
+
+### 1. O desenho
+
+**`docs/01`: o problema e as regras.** O grupo da biblioteca criou este problema: "A biblioteca controla os empréstimos num caderno e não sabe quais livros estão emprestados, nem com quem." Quem usa o sistema é o bibliotecário. Olhando para esse problema, o grupo criou estas regras de negócio:
+
+- **R1:** um leitor não pode ter mais de 3 empréstimos em aberto;
+- **R2:** um livro emprestado só pode ser emprestado de novo depois da devolução;
+- **R3:** o prazo de devolução é de 14 dias; depois disso, o empréstimo fica atrasado.
+
+**`docs/02`: as entidades e como elas se ligam**, mais o diagrama das tabelas `livros`, `leitores` e `emprestimos`:
+
+| Entidade | Atributos | Relacionamento |
+|---|---|---|
+| Livro | título, ISBN, disponível | Aparece em vários empréstimos |
+| Leitor | nome, e-mail | Faz vários empréstimos |
+| Emprestimo | data de retirada, data de devolução | Pertence a um leitor e a um livro |
+
+**`docs/03`: as rotas das três entidades.** Todas são desenhadas, mesmo as que ainda não vão funcionar:
+
+| Rota | O que faz |
+|---|---|
+| `POST /livros`, `GET /livros`, `GET /livros/{id}` | Cadastrar, listar e buscar livros |
+| `POST /leitores`, `GET /leitores`, `GET /leitores/{id}` | Cadastrar, listar e buscar leitores |
+| `POST /emprestimos` | Registrar um empréstimo, aplicando R1 e R2 |
+| `PUT /emprestimos/{id}/devolver` | Registrar a devolução e liberar o livro |
+
+### 2. A estrutura
+
+As três entidades ganham todas as peças. Só as de Livro têm lógica; as de Leitor e Emprestimo ficam vazias:
+
+| Peça | Livro | Leitor | Emprestimo |
+|---|---|---|---|
+| Migration | `V1__criar_livros.sql`, pronta | `V2__criar_leitores.sql`, pronta | `V3__criar_emprestimos.sql`, pronta, com as chaves estrangeiras |
+| Entidade | `Livro`, pronta | `Leitor`, pronta | `Emprestimo`, pronta |
+| Repository | `LivroRepository`, pronto | `LeitorRepository`, pronto | `EmprestimoRepository`, pronto |
+| DTOs | `LivroRequestDTO` e `LivroResponseDTO`, prontos | `LeitorRequestDTO` e `LeitorResponseDTO`, prontos | `EmprestimoRequestDTO` e `EmprestimoResponseDTO`, prontos |
+| Mapper | `LivroMapper`, com lógica | `LeitorMapper`, vazio | `EmprestimoMapper`, vazio |
+| Service | `LivroService`, com lógica | `LeitorService`, vazio | `EmprestimoService`, vazio |
+| Controller | `LivroController`, com lógica | `LeitorController`, vazio | `EmprestimoController`, vazio |
+
+Essa tabela é o mapa da estrutura que vai no `docs/04`.
+
+Uma classe vazia já existe, já recebe o que vai usar e diz no comentário o que vai fazer. O `EmprestimoService`, por exemplo, fica assim:
+
+```java
+// CAMADA: Service
+// RESPONSABILIDADE: regras de negócio dos empréstimos.
+// REGRAS: R1 (no máximo 3 empréstimos em aberto por leitor),
+//         R2 (livro emprestado não pode ser emprestado de novo) e
+//         R3 (prazo de devolução de 14 dias).
+// ROTAS ATENDIDAS: POST /emprestimos e PUT /emprestimos/{id}/devolver.
+// SITUAÇÃO: montada. Implementação na próxima etapa.
+@Service
+public class EmprestimoService {
+
+    private final EmprestimoRepository repository;
+    private final EmprestimoMapper mapper;
+
+    public EmprestimoService(EmprestimoRepository repository, EmprestimoMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
+}
+```
+
+### 3. A API simples
+
+Só o livro funciona de verdade:
+
+| Requisição | Resposta |
+|---|---|
+| `POST /livros` com título e ISBN | `201`, com o livro e o id gerado pelo banco |
+| `POST /livros` sem título | `400`, dizendo que o título é obrigatório |
+| `GET /livros` | `200`, com a lista de livros |
+| `GET /livros/1` | `200`, com o livro |
+| `GET /livros/999` | `404`, dizendo que o livro não foi encontrado |
+
+`/leitores` e `/emprestimos` ainda não respondem: estão no desenho e com as classes criadas, esperando a próxima etapa.
+
+### 4. O README
+
+Abre com uma frase como "Sistema para a biblioteca controlar os empréstimos de livros: quem pegou, quando pegou e quando precisa devolver." Depois segue o modelo do template e conta a verdade sobre o estado do projeto: o cadastro de livros funciona; leitores e empréstimos estão com a estrutura pronta, mas ainda sem lógica.
+
+### 5. A autoavaliação
+
+Em `docs/05`, o grupo marca cada um dos 10 critérios da revisão do código e diz onde está a evidência. Por exemplo: "P3, migrations de todas as tabelas: ✅, `V1` a `V3` em `db/migration/`".
 
 ## Como começar pelo template
 
@@ -113,7 +207,7 @@ A linha `git update-index` deixa o `mvnw` executável para quem usa Linux ou Mac
 2. Quando todos os grupos estiverem formados, o professor sorteia os temas.
 3. Um integrante cria o repositório do grupo a partir do template, seguindo [Como começar pelo template](#como-começar-pelo-template), e adiciona os outros dois como colaboradores.
 4. Os três clonam o repositório do grupo e conferem que o projeto sobe: `docker compose up -d` e `./mvnw spring-boot:run`. O Swagger UI abre em `http://localhost:8080/swagger-ui.html`, ainda sem rotas.
-5. Comecem o desenho: `docs/01`, depois `docs/02`, depois `docs/03`.
+5. Comecem o desenho: criem o problema e as regras de negócio em `docs/01`, depois façam o `docs/02` e o `docs/03`.
 
 **Até o início da Aula 11**
 
@@ -169,6 +263,7 @@ Pode. A organização é a mesma: as mesmas camadas, PostgreSQL com Docker Compo
 | Arquivo | Para que serve |
 |---|---|
 | [template-projeto-final/](template-projeto-final) | O ponto de partida do repositório: um projeto que já sobe, os documentos e o README para preencher |
+| [exemplo-biblioteca/](exemplo-biblioteca) | O exemplo pronto: o template preenchido para uma biblioteca, do jeito que um grupo entregaria |
 | [ARQUITETURA.md](ARQUITETURA.md) | Como o código deve ser organizado, com exemplos |
 | [AVALIACAO.md](AVALIACAO.md) | Como a nota é definida |
 | [GRUPOS.md](GRUPOS.md) | Os grupos, os temas sorteados e a ordem de apresentação |

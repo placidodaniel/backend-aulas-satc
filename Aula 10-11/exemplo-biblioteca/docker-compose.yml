@@ -1,0 +1,43 @@
+# Nome do projeto Compose. Sem ele, o Docker usa o nome da pasta e dois projetos
+# com a mesma pasta acabariam dividindo o mesmo volume de dados.
+name: biblioteca
+
+# Define os serviços que serão executados pelo Docker Compose.
+services:
+  # Declara o serviço do banco de dados da aplicação.
+  postgres:
+    # Usa uma imagem leve do PostgreSQL 16, a mesma das Aulas 08 e 09.
+    image: postgres:16-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: biblioteca-postgres
+    # Define as variáveis que o PostgreSQL lê na primeira inicialização.
+    environment:
+      # Cria o banco lógico usado pela aplicação.
+      POSTGRES_DB: biblioteca
+      # Cria o usuário dono do banco.
+      POSTGRES_USER: biblioteca
+      # Define a senha do usuário do banco (valor local, só para desenvolvimento).
+      POSTGRES_PASSWORD: biblioteca
+    # Publica a porta interna do banco no computador host.
+    ports:
+      # Usa 5438 no host para não conflitar com o template (5437) nem com os bancos das Aulas 08 e 09.
+      - "5438:5432"
+    # Guarda os dados fora do ciclo de vida do container.
+    volumes:
+      # Monta o volume nomeado no diretório padrão de dados do PostgreSQL.
+      - postgres_data:/var/lib/postgresql/data
+    # Verifica se o PostgreSQL está pronto para receber conexões.
+    healthcheck:
+      # Executa o comando oficial de verificação do PostgreSQL.
+      test: ["CMD-SHELL", "pg_isready -U biblioteca -d biblioteca"]
+      # Aguarda cinco segundos entre verificações.
+      interval: 5s
+      # Interrompe uma verificação que demorar mais que cinco segundos.
+      timeout: 5s
+      # Tenta cinco vezes antes de marcar o serviço como unhealthy.
+      retries: 5
+
+# Declara os volumes nomeados usados pelos serviços.
+volumes:
+  # Mantém os dados do PostgreSQL entre reinicializações.
+  postgres_data:

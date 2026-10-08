@@ -42,11 +42,11 @@ Projeto Final da disciplina de Backend (Engenharia de Software, SATC). **Etapa 1
 
 ## O problema
 
-**Tema:** {{o tema sorteado e o problema escolhido dentro dele}}
+**Tema:** {{o tema sorteado}}
 
-{{Em 3 a 5 linhas: qual é o problema, quem sofre com ele hoje e o que o sistema muda.}}
+{{Em 3 a 5 linhas: o problema que o grupo criou, quem sofre com ele hoje e o que o sistema muda.}}
 
-As regras de negócio que o sistema precisa garantir:
+As regras de negócio que o grupo criou para esse problema:
 
 | # | Regra |
 |---|---|

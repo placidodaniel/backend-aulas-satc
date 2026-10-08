@@ -2523,6 +2523,7 @@ Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`]
 |---|---|
 | [Enunciado da etapa](<Aula 10-11/README.md>) | Os temas do sorteio, o que cada grupo entrega, os prazos e como é a apresentação |
 | [template-projeto-final](<Aula 10-11/template-projeto-final>) | O ponto de partida do repositório do grupo: um projeto que já sobe, os documentos e o README para preencher |
+| [exemplo-biblioteca](<Aula 10-11/exemplo-biblioteca>) | O exemplo pronto: o template preenchido para uma biblioteca, com a API de livros funcionando |
 | [ARQUITETURA.md](<Aula 10-11/ARQUITETURA.md>) | Como o projeto deve ser organizado, com exemplos |
 | [AVALIACAO.md](<Aula 10-11/AVALIACAO.md>) | Como a nota é definida, item por item |
 | [GRUPOS.md](<Aula 10-11/GRUPOS.md>) | Os grupos, os temas sorteados e a ordem de apresentação |
@@ -2538,7 +2539,7 @@ O objetivo é aprender a **planejar e organizar um backend antes de programar**.
 3. **Fazer um pedaço funcionar de verdade:** uma requisição que entra como JSON, passa por todas as camadas e chega ao banco.
 4. **Explicar o projeto por escrito:** um README que qualquer pessoa entende.
 
-É como construir uma casa: primeiro a planta, depois a estrutura de todos os cômodos, e só então o acabamento. Nesta etapa o grupo entrega a planta, a estrutura da casa inteira e um cômodo pronto.
+**Um exemplo:** num sistema de biblioteca, com livros, leitores e empréstimos, o grupo desenharia as três entidades, criaria a tabela e as classes das três, e faria funcionar de verdade só o cadastro de livros: cadastrar, listar e buscar. Leitores e empréstimos ganham a lógica nas próximas etapas, no mesmo repositório. O exemplo completo, item por item, está no [enunciado](<Aula 10-11/README.md#exemplo-como-ficaria-numa-biblioteca>).
 
 ---
 
@@ -2556,11 +2557,11 @@ A entrega é um repositório público no GitHub, até o início da Aula 11. Todo
 
 ### Parte 2: o que o grupo entrega
 
-Depois que todos os grupos estão formados, o professor sorteia um dos 9 temas da disciplina para cada grupo (sustentabilidade, logística, saúde, indústria, agronegócio, educação, entretenimento, cidades inteligentes e varejo). Dentro do tema sorteado, o grupo escolhe o problema que o sistema vai resolver. A lista completa, com ideias de problema, está no [enunciado](<Aula 10-11/README.md#o-tema>).
+Depois que todos os grupos estão formados, o professor sorteia um dos 9 temas da disciplina para cada grupo (sustentabilidade, logística, saúde, indústria, agronegócio, educação, entretenimento, cidades inteligentes e varejo). Dentro do tema sorteado, o grupo cria o problema que o sistema vai resolver e, a partir dele, cria as regras de negócio. A lista completa, com ideias de problema, está no [enunciado](<Aula 10-11/README.md#o-tema>).
 
 Depois, entrega um repositório público no GitHub com:
 
-1. **O desenho do sistema** em `docs/`: o problema e no mínimo 3 regras de negócio; no mínimo 3 entidades, 1 relacionamento e o diagrama das tabelas; as rotas de todas as entidades.
+1. **O desenho do sistema** em `docs/`: o problema criado pelo grupo e no mínimo 3 regras de negócio criadas a partir dele; no mínimo 3 entidades, 1 relacionamento e o diagrama das tabelas; as rotas de todas as entidades.
 2. **A estrutura completa do código**, para todas as entidades: migration, `@Entity`, Repository e DTOs; Mapper, Service e Controller criados mas ainda vazios, com um comentário no topo dizendo o que vão fazer.
 3. **Uma API simples funcionando** em uma entidade: `POST`, `GET` e `GET /{id}`, com os erros `400` e `404`.
 4. **O README do projeto**, completo e bem escrito.
@@ -2617,7 +2618,7 @@ Os critérios, os exemplos de pergunta e a ficha de correção estão em [AVALIA
 | Termo | Significado |
 |---|---|
 | **Desenho** | O planejamento do sistema antes do código: o problema, as entidades e as rotas. |
-| **Regra de negócio** | Algo que o sistema precisa garantir ou impedir, além de "campo obrigatório" (ex.: um leitor não pode ter mais de 3 empréstimos em aberto). Mora no Service. |
+| **Regra de negócio** | Algo que o sistema precisa garantir ou impedir, além de "campo obrigatório" (ex.: um leitor não pode ter mais de 3 empréstimos em aberto). Quem cria as regras é o grupo, a partir do problema que ele mesmo criou. Moram no Service. |
 | **Diagrama ER** | O desenho das tabelas, das colunas e das ligações entre uma tabela e outra. |
 | **Estrutura** | As tabelas e as classes de todas as entidades, criadas e no lugar certo. |
 | **Classe montada** | Classe que já existe na pasta certa, ligada às outras e com um comentário dizendo o que vai fazer, mas ainda sem a lógica. |

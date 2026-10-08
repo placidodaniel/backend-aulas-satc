@@ -4,9 +4,11 @@
 
 ## Tema
 
-{{O tema sorteado e o problema que o grupo escolheu dentro dele.}}
+{{O tema sorteado para o grupo.}}
 
 ## Problema
+
+O problema é criado pelo grupo, dentro do tema.
 
 {{Em 3 a 5 linhas: qual é o problema, quem sofre com ele hoje e o que o sistema muda.}}
 
@@ -25,7 +27,7 @@
 
 ## Regras de negócio
 
-No mínimo 3. São elas que vão morar no **Service**. O que só valida formato (`campo obrigatório`, `número positivo`) é validação do DTO, não regra de negócio.
+No mínimo 3, **criadas pelo grupo** a partir do problema acima: o que o sistema precisa garantir ou impedir. As do exemplo (biblioteca) só mostram o formato. São elas que vão morar no **Service**. O que só valida formato (`campo obrigatório`, `número positivo`) é validação do DTO, não regra de negócio.
 
 | # | Regra | Entidades envolvidas |
 |---|---|---|

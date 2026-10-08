@@ -14,7 +14,7 @@ Um exemplar do acervo que pode ser emprestado.
 |---|---|---|---|---|
 | `id` | `Long` | `id` | sim | Gerado pelo banco |
 | `titulo` | `String` | `titulo` | sim | Até 255 caracteres |
-| `isbn` | `String` | `isbn` | sim | Único |
+| `isbn` | `String` | `isbn` | sim | Até 20 caracteres. Não é único: exemplares do mesmo título repetem o ISBN |
 | `disponivel` | `boolean` | `disponivel` | sim | Nasce `true`; o cliente não controla |
 
 ### {{Entidade 2}}

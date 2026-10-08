@@ -5,7 +5,7 @@
 
 O desenho que todo projeto segue, qualquer que seja o tema. É a mesma arquitetura do `exemplo_tarefas` da [Aula 09](<../Aula 09/exemplo_tarefas_resolvido>), sem o domínio de tarefas: muda o que o sistema faz, não como ele é organizado.
 
-Os exemplos usam uma biblioteca (`Livro`, `Leitor`, `Emprestimo`) só para dar nome às coisas.
+Os exemplos usam uma biblioteca (`Livro`, `Leitor`, `Emprestimo`) só para dar nome às coisas. O projeto completo dessa biblioteca, pronto para subir, está em [exemplo-biblioteca](exemplo-biblioteca).
 
 ## Índice
 
