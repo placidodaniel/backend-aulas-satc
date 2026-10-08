@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- Declara que este arquivo é a configuração Maven do projeto. -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- spring-boot-starter-parent: dá versão gerenciada para todo dependency/plugin do
+         ecossistema Spring (não precisa mais escrever <version> neles) e configura o
+         maven-compiler-plugin a partir da property java.version, logo abaixo. -->
+    <parent>
+        <!-- Define o grupo que identifica o projeto Spring Boot pai. -->
+        <groupId>org.springframework.boot</groupId>
+        <!-- Importa as configurações e versões oficiais do Spring Boot. -->
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <!-- A mesma versão do Spring Boot usada nos exemplos das Aulas 08 e 09. -->
+        <version>3.5.16</version>
+    </parent>
+
+    <!-- TROQUE: identifica o grupo que criou o projeto. -->
+    <groupId>org.example</groupId>
+    <!-- TROQUE: nome do artefato gerado pelo Maven (minúsculo, com hífen). -->
+    <artifactId>projeto-final</artifactId>
+    <!-- Define a versão atual do projeto. -->
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <!-- Diz ao compilador qual versão da linguagem Java deve ser usada. -->
+        <java.version>25</java.version>
+        <!-- Faz o Maven tratar os arquivos de texto como UTF-8. -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Aula 07: Spring MVC + servidor Tomcat embutido: é o que permite @RestController/@GetMapping. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Adiciona Spring MVC, Jackson e Tomcat embutido. -->
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Aula 07: habilita @Valid e as anotações de validação (@NotBlank...) usadas nos DTOs de
+             entrada; sem esta dependência, o Spring ignora @Valid silenciosamente. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Habilita as anotações de validação usadas nos DTOs. -->
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Aula 08: reúne Spring Data JPA, JPA e Hibernate para persistência relacional. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Cria os repositórios JPA e configura o Hibernate automaticamente. -->
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Aula 08: driver JDBC que permite ao Java conversar com o PostgreSQL. -->
+        <dependency>
+            <!-- Grupo oficial do driver PostgreSQL. -->
+            <groupId>org.postgresql</groupId>
+            <!-- Dependência que implementa a conexão JDBC com o PostgreSQL. -->
+            <artifactId>postgresql</artifactId>
+            <!-- Só é necessário quando a aplicação está executando. -->
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Aula 08: motor principal do Flyway para controlar versões do banco. -->
+        <dependency>
+            <!-- Grupo que publica o Flyway. -->
+            <groupId>org.flywaydb</groupId>
+            <!-- Inclui a API e o executor das migrations. -->
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- Aula 08: extensão que permite ao Flyway entender recursos específicos do PostgreSQL. -->
+        <dependency>
+            <!-- Grupo que publica os módulos do Flyway. -->
+            <groupId>org.flywaydb</groupId>
+            <!-- Adiciona o suporte de banco PostgreSQL ao Flyway. -->
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- Aula 09, Swagger: o springdoc lê os Controllers e os DTOs na subida da
+             aplicação e gera o contrato OpenAPI (/v3/api-docs) e a página interativa
+             do Swagger UI (/swagger-ui.html). Não faz parte do ecossistema gerenciado
+             pelo starter-parent, por isso aqui a <version> é obrigatória: a linha 2.x
+             é a do Spring Boot 3 (a 3.x já é para o Spring Boot 4). -->
+        <dependency>
+            <!-- Grupo que publica o springdoc-openapi. -->
+            <groupId>org.springdoc</groupId>
+            <!-- Gera o OpenAPI a partir do Spring MVC e serve o Swagger UI. -->
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <!-- A mesma versão do exemplo da Aula 09. -->
+            <version>2.9.1</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Empacota a aplicação como jar executável (java -jar) e dá o goal
+                 "mvn spring-boot:run" para rodar a API direto pelo Maven. -->
+            <plugin>
+                <!-- Grupo dos plugins oficiais do Spring Boot. -->
+                <groupId>org.springframework.boot</groupId>
+                <!-- Plugin que executa e empacota a aplicação Spring Boot. -->
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
