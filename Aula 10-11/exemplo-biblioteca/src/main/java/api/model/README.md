@@ -1,6 +1,6 @@
 # model: as entidades (Aulas 03-04 e 08)
 
-Cada classe daqui representa uma tabela do banco. São as entidades de `docs/02-modelo-de-dominio.md`.
+Cada classe daqui representa uma tabela do banco. São as entidades de `docs/modelo-de-dominio.md`.
 
 **Nesta etapa:** crie a entidade de todas as tabelas, completa. A API só sobe se cada entidade bater com a sua migration.
 

@@ -9,7 +9,7 @@ import api.model.Leitor;
 
 // CAMADA: Repository
 // RESPONSABILIDADE: ler e gravar leitores na tabela leitores.
-// SITUAÇÃO: implementada. Ainda ninguém usa: o LeitorService está só montado.
+// SITUAÇÃO: implementada.
 // <Leitor, Long>: a entidade e o tipo do id. O Spring escreve a implementação.
 public interface LeitorRepository extends JpaRepository<Leitor, Long> {
 }

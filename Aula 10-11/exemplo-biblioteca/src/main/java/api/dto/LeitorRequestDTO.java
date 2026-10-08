@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 
 // CAMADA: DTO
 // RESPONSABILIDADE: o que o cliente envia para cadastrar um leitor.
-// SITUAÇÃO: implementada. Será usado por POST /leitores na próxima etapa.
+// SITUAÇÃO: implementada.
 // Descreve o DTO inteiro na seção "Schemas" do Swagger.
 @Schema(description = "Dados para cadastrar um leitor")
 public record LeitorRequestDTO(

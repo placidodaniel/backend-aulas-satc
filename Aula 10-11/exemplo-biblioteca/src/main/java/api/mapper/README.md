@@ -2,7 +2,7 @@
 
 O Mapper transforma o DTO que chegou em entidade, e a entidade em DTO para devolver.
 
-**Nesta etapa:** crie um Mapper para cada entidade. Só o da API simples precisa dos métodos `toEntity`, `toResponse` e `toResponseList`.
+**Nesta etapa:** crie um Mapper para cada entidade. Precisam ter métodos o da API simples (`toEntity`, `toResponse` e `toResponseList`) e os que as rotas das regras de negócio usam.
 
 | Método | O que converte | Usado em |
 |---|---|---|

@@ -4,7 +4,7 @@ Sistema para a biblioteca controlar os empréstimos de livros: quem pegou, quand
 
 Projeto Final da disciplina de Backend (Engenharia de Software, SATC). **Etapa 1: arquitetura do backend.**
 
-> **Este é o exemplo pronto da Etapa 1.** Mostra como fica um projeto entregue a partir do template: desenho completo, estrutura de todas as entidades montada, API simples funcionando e README preenchido. Biblioteca não é um dos temas do sorteio.
+> **Este é o exemplo pronto da Etapa 1.** Mostra como fica um projeto entregue a partir do template: o problema e as regras criados pelo grupo, a estrutura de todas as entidades, a API funcionando com as regras implementadas e o README preenchido. Biblioteca não é um dos temas do sorteio.
 
 ## Índice
 
@@ -20,25 +20,36 @@ Projeto Final da disciplina de Backend (Engenharia de Software, SATC). **Etapa 1
 
 ## Integrantes
 
-| Nome | O que fez nesta etapa |
+| Nome | GitHub |
 |---|---|
-| Integrante 1 | Problema, regras de negócio, modelo de domínio e migrations |
-| Integrante 2 | Entidades, repositories, DTOs e as classes montadas de Leitor e Emprestimo |
-| Integrante 3 | API simples de livros, Swagger, mapa da estrutura e README |
+| Integrante 1 | @integrante1 |
+| Integrante 2 | @integrante2 |
+| Integrante 3 | @integrante3 |
 
 ## O problema
 
+**Tema:** exemplo da disciplina, fora do sorteio.
+
 A biblioteca do bairro controla os empréstimos num caderno. Quando um leitor pede um livro, o bibliotecário folheia páginas para descobrir se o exemplar está na estante ou com alguém, e não tem como saber quem está atrasado. O sistema guarda o acervo, os leitores e cada empréstimo, e responde na hora se um livro está disponível e quais empréstimos passaram do prazo.
 
-As regras de negócio que o grupo criou para esse problema:
+**Quem usa o sistema:**
 
-| # | Regra |
+| Quem | O que faz no sistema |
 |---|---|
-| R1 | Um leitor não pode ter mais de 3 empréstimos em aberto |
-| R2 | Um livro emprestado só pode ser emprestado de novo depois da devolução |
-| R3 | O prazo de devolução é de 14 dias; depois disso, o empréstimo fica atrasado |
+| Bibliotecário | Cadastra livros e leitores, registra empréstimos e devoluções |
+| Leitor | Consulta os livros do acervo e se estão disponíveis |
 
-Quem usa o sistema e o que ficou fora do escopo estão em [docs/01-visao-geral.md](docs/01-visao-geral.md).
+**Regras de negócio.** O grupo criou estas três regras olhando para o problema do caderno: hoje ninguém controla quantos livros cada leitor tem, nem se um exemplar já saiu, nem os prazos.
+
+| # | Regra | Onde está no código | Rota que usa |
+|---|---|---|---|
+| R1 | Um leitor não pode ter mais de 3 empréstimos em aberto | `EmprestimoService.criar` | `POST /emprestimos` |
+| R2 | Um livro emprestado só pode ser emprestado de novo depois da devolução | `EmprestimoService.criar` | `POST /emprestimos` |
+| R3 | O prazo de devolução é de 14 dias; depois disso, o empréstimo fica atrasado | `EmprestimoService`, que calcula `dataLimite` e `atrasado` | `POST /emprestimos` e `PUT /emprestimos/{id}/devolver` |
+
+Quando R1 ou R2 barram um pedido, a API devolve `400` com a regra explicada na mensagem.
+
+**Fora do escopo:** multa por atraso, reserva de livros e tela de frontend.
 
 ## Tecnologias
 
@@ -52,35 +63,19 @@ Quem usa o sistema e o que ficou fora do escopo estão em [docs/01-visao-geral.m
 
 ## Arquitetura
 
-A API é organizada em camadas. Uma requisição entra pelo Controller, passa pelo Service e chega ao banco pelo Repository; a resposta faz o caminho de volta.
+A API é organizada em camadas. Uma requisição entra pelo Controller, passa pelo Service, que aplica as regras de negócio, e chega ao banco pelo Repository; a resposta faz o caminho de volta. O Mapper converte DTO em entidade e entidade em DTO.
 
-| Camada | Pasta | O que faz neste projeto |
-|---|---|---|
-| Controller | `controller/` | Recebe as requisições de `/livros` e devolve status e JSON |
-| Service | `service/` | Cadastra, lista e busca livros; vai aplicar as regras R1 a R3 |
-| Mapper | `mapper/` | Converte os DTOs de livro em entidade e a entidade em DTO |
-| Repository | `repository/` | Lê e grava livros, leitores e empréstimos no PostgreSQL |
-| Model | `model/` | `Livro`, `Leitor` e `Emprestimo`, uma por tabela |
-| DTO | `dto/` | O JSON que entra e o que sai de cada entidade |
+**Mapa da estrutura:**
 
-Onde está cada classe:
+| Entidade | Migration | Model | Repository | DTOs | Mapper | Service | Controller |
+|---|---|---|---|---|---|---|---|
+| Livro | `V1__criar_livros.sql`, pronta | `Livro`, pronta | `LivroRepository`, pronto | `LivroRequestDTO`, `LivroResponseDTO`, prontos | `LivroMapper`, implementado | `LivroService`, implementado | `LivroController`, implementado |
+| Leitor | `V2__criar_leitores.sql`, pronta | `Leitor`, pronta | `LeitorRepository`, pronto | `LeitorRequestDTO`, `LeitorResponseDTO`, prontos | `LeitorMapper`, implementado | `LeitorService`, em parte: só o cadastro | `LeitorController`, em parte: só o `POST` |
+| Emprestimo | `V3__criar_emprestimos.sql`, pronta | `Emprestimo`, pronta | `EmprestimoRepository`, pronto | `EmprestimoRequestDTO`, `EmprestimoResponseDTO`, prontos | `EmprestimoMapper`, implementado | `EmprestimoService`, implementado (R1, R2 e R3) | `EmprestimoController`, implementado |
 
-```text
-src/main/
-├── java/api/
-│   ├── controller/   LivroController, LeitorController, EmprestimoController, ApiExceptionHandler
-│   ├── service/      LivroService, LeitorService, EmprestimoService, LivroNaoEncontradoException
-│   ├── mapper/       LivroMapper, LeitorMapper, EmprestimoMapper
-│   ├── repository/   LivroRepository, LeitorRepository, EmprestimoRepository
-│   ├── model/        Livro, Leitor, Emprestimo
-│   ├── dto/          um RequestDTO e um ResponseDTO por entidade, ErroDTO, CampoErroDTO
-│   └── config/       OpenApiConfig
-└── resources/
-    ├── application.properties
-    └── db/migration/ V1__criar_livros.sql, V2__criar_leitores.sql, V3__criar_emprestimos.sql
-```
+Também fazem parte do projeto, vindas do template: `ApiExceptionHandler`, `ErroDTO`, `CampoErroDTO`, `RecursoNaoEncontradoException`, `RegraDeNegocioException` e `OpenApiConfig`. Cada entidade tem a sua exceção de "não encontrado": `LivroNaoEncontradoException`, `LeitorNaoEncontradoException` e `EmprestimoNaoEncontradoException`.
 
-As classes de Livro estão implementadas. As de Leitor e Emprestimo estão montadas: já existem e estão ligadas às outras, mas ainda não têm lógica. O mapa completo, classe por classe, e o caminho de uma requisição estão em [docs/04-arquitetura.md](docs/04-arquitetura.md).
+Do leitor, só o cadastro foi feito, porque é o que as regras precisam: sem leitor cadastrado, não há empréstimo. As consultas de leitores ficam para a próxima etapa.
 
 ## Entidades
 
@@ -90,70 +85,73 @@ As classes de Livro estão implementadas. As de Leitor e Emprestimo estão monta
 | Leitor | Uma pessoa cadastrada na biblioteca | Faz vários empréstimos |
 | Emprestimo | A retirada de um livro por um leitor, com a data de devolução | Pertence a um leitor e a um livro |
 
-Atributos, tipos e o diagrama ER estão em [docs/02-modelo-de-dominio.md](docs/02-modelo-de-dominio.md).
+Atributos, tipos e o diagrama das tabelas estão em [docs/modelo-de-dominio.md](docs/modelo-de-dominio.md).
 
 ## Rotas
 
 ### As que já funcionam
 
-| Verbo | Caminho | O que faz | Sucesso | Erro |
-|---|---|---|---|---|
-| `POST` | `/livros` | Cadastra um livro | `201` | `400` |
-| `GET` | `/livros` | Lista os livros | `200` | Nenhum |
-| `GET` | `/livros/{id}` | Busca um livro pelo id | `200` | `404` |
+| Verbo | Caminho | O que faz | Regra | Sucesso | Erros |
+|---|---|---|---|---|---|
+| `POST` | `/livros` | Cadastra um livro | Nenhuma | `201` | `400` |
+| `GET` | `/livros` | Lista os livros | Nenhuma | `200` | Nenhum |
+| `GET` | `/livros/{id}` | Busca um livro pelo id | Nenhuma | `200` | `404` |
+| `POST` | `/leitores` | Cadastra um leitor | Nenhuma | `201` | `400` |
+| `POST` | `/emprestimos` | Registra um empréstimo e tira o livro da estante | R1, R2 e R3 | `201` | `400`, `404` |
+| `PUT` | `/emprestimos/{id}/devolver` | Registra a devolução e devolve o livro à estante | R3 | `200` | `400`, `404` |
 
 Exemplo de requisição:
 
 ```http
-POST /livros
+POST /emprestimos
 Content-Type: application/json
 
 {
-  "titulo": "Dom Casmurro",
-  "isbn": "978-85-359-0277-5"
+  "leitorId": 1,
+  "livroId": 1
 }
 ```
 
-Resposta, `201 Created`:
+Resposta, `201 Created`. Entram os ids; leitor e livro voltam completos, e a data limite já vem calculada pela regra R3:
 
 ```json
 {
   "id": 1,
-  "titulo": "Dom Casmurro",
-  "isbn": "978-85-359-0277-5",
-  "disponivel": true
+  "leitor": { "id": 1, "nome": "Ana Souza", "email": "ana@exemplo.com" },
+  "livro": { "id": 1, "titulo": "Dom Casmurro", "isbn": "978-85-359-0277-5", "disponivel": false },
+  "dataRetirada": "2026-10-06",
+  "dataLimite": "2026-10-20",
+  "dataDevolucao": null,
+  "atrasado": false
 }
 ```
 
 ### Erros
 
-Todo erro sai no mesmo formato. Este é o `400` de um cadastro sem título:
+Todo erro sai no mesmo formato. Este é o `400` da regra R2, quando alguém tenta pegar um livro que já está emprestado:
 
 ```json
 {
   "status": 400,
   "erro": "Bad Request",
-  "mensagem": "Dados inválidos: confira a lista de campos",
-  "caminho": "/livros",
+  "mensagem": "R2: o livro 1 já está emprestado",
+  "caminho": "/emprestimos",
   "timestamp": "2026-10-06T19:30:00",
-  "campos": [
-    { "campo": "titulo", "mensagem": "Título é obrigatório" }
-  ]
+  "campos": []
 }
 ```
 
-Um id que não existe devolve `404`, com a mensagem `Livro não encontrado: 999` e `campos` vazio.
+Um campo inválido também devolve `400`, com a lista `campos` dizendo qual campo corrigir. Um livro, leitor ou empréstimo que não existe devolve `404`.
 
 ### As planejadas
 
-Estão desenhadas no contrato, com as classes já montadas, mas ainda não respondem.
+Estão no contrato, mas ainda não respondem.
 
-| Recurso | O que vai fazer | Regras envolvidas |
-|---|---|---|
-| `/leitores` | Cadastro e consulta de leitores | Nenhuma |
-| `/emprestimos` | Registrar empréstimo e devolução | R1, R2 e R3 |
+| Recurso | O que vai fazer |
+|---|---|
+| `GET /leitores` e `GET /leitores/{id}` | Listar e buscar leitores |
 
-O contrato completo, com todas as rotas e os DTOs, está em [docs/03-contrato-da-api.md](docs/03-contrato-da-api.md).
+O contrato completo, com todas as rotas e os DTOs, está em [docs/contrato-da-api.md](docs/contrato-da-api.md).
 
 ## Como executar
 
@@ -175,26 +173,24 @@ Com a API no ar:
 
 Para testar as rotas, use o Swagger UI ou o **Postman**. No Postman, importe todas as rotas de uma vez: **Import** → **Link** → `http://localhost:8080/v3/api-docs`.
 
+Para ver as regras funcionando: cadastre um livro e um leitor, faça um empréstimo e tente emprestar o mesmo livro de novo (R2). Depois cadastre mais livros e faça empréstimos para o mesmo leitor até o quarto ser barrado (R1).
+
 Para parar: `Ctrl+C` na API e `docker compose stop` no banco. Para apagar o banco e rodar as migrations do zero: `docker compose down -v` e suba de novo.
 
 ## Situação do projeto
 
 | Parte | Situação |
 |---|---|
-| Desenho | Completo, em `docs/01` a `docs/03` |
-| Estrutura | As 3 entidades têm migration, entidade, Repository e DTOs. Mapper, Service e Controller de Leitor e Emprestimo estão montados |
-| API | As 3 rotas de `/livros` funcionam |
+| Desenho | Completo: problema e regras neste README, modelo e contrato em `docs/` |
+| Estrutura | As 3 entidades têm migration, entidade, Repository, DTOs, Mapper, Service e Controller |
+| API e regras | Livros com as 3 rotas da API simples; cadastro de leitores; empréstimo e devolução com R1, R2 e R3 implementadas |
 
-**Ainda não funciona:** as rotas de `/leitores` e de `/emprestimos`, e as regras R1, R2 e R3, que estão escritas no cabeçalho do `EmprestimoService` e do `EmprestimoMapper`.
-
-**Fora do escopo:** multa por atraso, reserva de livros e tela de frontend.
+**Ainda não funciona:** `GET /leitores` e `GET /leitores/{id}`.
 
 ## Documentação
 
 | Documento | O que tem |
 |---|---|
-| [01. Visão geral](docs/01-visao-geral.md) | Problema, quem usa, regras de negócio |
-| [02. Modelo de domínio](docs/02-modelo-de-dominio.md) | Entidades, relacionamentos, diagrama ER, migrations |
-| [03. Contrato da API](docs/03-contrato-da-api.md) | Rotas, DTOs, exemplos de JSON, erros |
-| [04. Arquitetura](docs/04-arquitetura.md) | Mapa da estrutura, caminho de uma requisição, infraestrutura, decisões |
-| [05. Plano de trabalho](docs/05-plano-de-trabalho.md) | Quem fez o quê, autoavaliação e próximos passos |
+| [Modelo de domínio](docs/modelo-de-dominio.md) | Entidades, relacionamentos, diagrama das tabelas, migrations |
+| [Contrato da API](docs/contrato-da-api.md) | Todas as rotas, os DTOs, exemplos de JSON e erros |
+| [Autoavaliação](docs/autoavaliacao.md) | Os critérios da revisão do código, marcados pelo grupo |

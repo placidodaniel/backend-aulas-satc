@@ -31,8 +31,8 @@ public class OpenApiConfig {
                         .version("Etapa 1")
                         // O que a API faz e em que pé ela está (aceita Markdown).
                         .description("API para a biblioteca controlar os empréstimos de livros. "
-                                + "Nesta etapa, só o cadastro de livros responde; leitores e empréstimos "
-                                + "estão com a estrutura montada. Todo corpo de requisição e de resposta é um "
-                                + "**DTO** e todo erro 400/404 sai no formato `ErroDTO`."));
+                                + "Nesta etapa respondem o cadastro de livros, o cadastro de leitores e o "
+                                + "empréstimo e a devolução, com as regras R1, R2 e R3. Todo corpo de requisição "
+                                + "e de resposta é um **DTO** e todo erro 400/404 sai no formato `ErroDTO`."));
     }
 }

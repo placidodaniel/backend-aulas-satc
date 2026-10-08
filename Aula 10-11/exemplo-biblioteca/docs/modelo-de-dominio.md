@@ -1,4 +1,4 @@
-# 2. Modelo de domínio
+# Modelo de domínio
 
 ## Entidades
 

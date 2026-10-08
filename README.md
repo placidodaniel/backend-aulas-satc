@@ -138,9 +138,8 @@ O Backend recebe pedidos, aplica regras de negócio, conversa com o banco de dad
 | Código | Tipo | O que cobre |
 |---|---|---|
 | **N1** | Prova teórica | Arquitetura da Web, HTTP e Orientação a Objetos em Java |
-| **N2a** | Prova teórica | Web Services, REST e Persistência de Dados |
-| **N2b** | Projeto prático | Construção de uma API REST funcional |
-| **N3** | Projeto Final | Sistema completo, integrando os tópicos avançados |
+| **N2a e N2b** | Projeto Final, Etapa 1 (Aulas 10 e 11) | 5 pontos do projeto backend, pela revisão do código, e 5 pontos da avaliação na apresentação, com 3 perguntas. Quem faltar à apresentação recebe só os 5 do projeto |
+| **N3** | Projeto Final, etapa final | Sistema completo, integrando os tópicos avançados, em cima do repositório da Etapa 1 |
 
 #### Onde encontrar o material
 
@@ -2523,23 +2522,14 @@ Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`]
 |---|---|
 | [Enunciado da etapa](<Aula 10-11/README.md>) | Os temas do sorteio, o que cada grupo entrega, os prazos e como é a apresentação |
 | [template-projeto-final](<Aula 10-11/template-projeto-final>) | O ponto de partida do repositório do grupo: um projeto que já sobe, os documentos e o README para preencher |
-| [exemplo-biblioteca](<Aula 10-11/exemplo-biblioteca>) | O exemplo pronto: o template preenchido para uma biblioteca, com a API de livros funcionando |
-| [ARQUITETURA.md](<Aula 10-11/ARQUITETURA.md>) | Como o projeto deve ser organizado, com exemplos |
+| [exemplo-biblioteca](<Aula 10-11/exemplo-biblioteca>) | O exemplo pronto: o template preenchido para uma biblioteca, com as regras de negócio implementadas |
+| [ARQUITETURA.md](<Aula 10-11/ARQUITETURA.md>) | Como o código deve ser organizado, com exemplos |
 | [AVALIACAO.md](<Aula 10-11/AVALIACAO.md>) | Como a nota é definida, item por item |
 | [GRUPOS.md](<Aula 10-11/GRUPOS.md>) | Os grupos, os temas sorteados e a ordem de apresentação |
 
 ### Objetivo das aulas
 
-Até a Aula 9 trabalhamos em um projeto que já vinha organizado, o `exemplo_tarefas`. Agora cada grupo começa um projeto do zero, com um tema sorteado.
-
-O objetivo é aprender a **planejar e organizar um backend antes de programar**. Não é entregar um sistema cheio de funcionalidades. Ao final, o grupo terá mostrado que sabe:
-
-1. **Transformar um problema em um desenho:** quais dados o sistema guarda e quais rotas ele oferece.
-2. **Organizar o código em camadas:** cada classe no seu lugar, como vimos nas Aulas 7 a 9.
-3. **Fazer um pedaço funcionar de verdade:** uma requisição que entra como JSON, passa por todas as camadas e chega ao banco.
-4. **Explicar o projeto por escrito:** um README que qualquer pessoa entende.
-
-**Um exemplo:** num sistema de biblioteca, com livros, leitores e empréstimos, o grupo desenharia as três entidades, criaria a tabela e as classes das três, e faria funcionar de verdade só o cadastro de livros: cadastrar, listar e buscar. Leitores e empréstimos ganham a lógica nas próximas etapas, no mesmo repositório. O exemplo completo, item por item, está no [enunciado](<Aula 10-11/README.md#exemplo-como-ficaria-numa-biblioteca>).
+Até a Aula 9 trabalhamos em um projeto que já vinha organizado, o `exemplo_tarefas`. Agora cada grupo começa um projeto do zero, com um tema sorteado, e aprende a **planejar e organizar um backend antes de programar tudo**: cria o problema e as regras de negócio, desenha o sistema, monta a estrutura completa do código e faz funcionar uma API simples com as regras implementadas.
 
 ---
 
@@ -2547,27 +2537,17 @@ O objetivo é aprender a **planejar e organizar um backend antes de programar**.
 
 | Quando | O que acontece |
 |---|---|
-| **Aula 10**, em sala | Os grupos de 3 se formam e passam os nomes para o professor. Com todos os grupos formados, o professor sorteia os temas. Depois, cada grupo cria o repositório a partir do template e começa o desenho |
-| **Entre as aulas** | O grupo termina o desenho, cria a estrutura, faz a API simples e escreve o README |
-| **Aula 11**, em sala | Cada grupo apresenta em 10 minutos, com a participação dos três integrantes, e responde a 3 perguntas do professor |
+| **Aula 10**, em sala | Os grupos de 3 se formam e entregam o nome dos integrantes. Com todos os grupos formados, os temas são sorteados. Cada grupo cria o repositório a partir do template e começa o desenho |
+| **Entre as aulas** | O grupo monta a estrutura, faz a API e as regras funcionarem e escreve o README |
+| **Aula 11**, em sala | Cada grupo apresenta em 10 minutos, com a participação dos três integrantes, e responde a 3 perguntas |
 
-A entrega é um repositório público no GitHub, até o início da Aula 11. Todo grupo começa de uma cópia da pasta [template-projeto-final](<Aula 10-11/template-projeto-final>); os comandos estão no [enunciado](<Aula 10-11/README.md#como-começar-pelo-template>). A linguagem é livre; o recomendado é Java + Spring Boot. O passo a passo está no [enunciado da etapa](<Aula 10-11/README.md>).
+O passo a passo completo está no [enunciado](<Aula 10-11/README.md>).
 
 ---
 
 ### Parte 2: o que o grupo entrega
 
-Depois que todos os grupos estão formados, o professor sorteia um dos 9 temas da disciplina para cada grupo (sustentabilidade, logística, saúde, indústria, agronegócio, educação, entretenimento, cidades inteligentes e varejo). Dentro do tema sorteado, o grupo cria o problema que o sistema vai resolver e, a partir dele, cria as regras de negócio. A lista completa, com ideias de problema, está no [enunciado](<Aula 10-11/README.md#o-tema>).
-
-Depois, entrega um repositório público no GitHub com:
-
-1. **O desenho do sistema** em `docs/`: o problema criado pelo grupo e no mínimo 3 regras de negócio criadas a partir dele; no mínimo 3 entidades, 1 relacionamento e o diagrama das tabelas; as rotas de todas as entidades.
-2. **A estrutura completa do código**, para todas as entidades: migration, `@Entity`, Repository e DTOs; Mapper, Service e Controller criados mas ainda vazios, com um comentário no topo dizendo o que vão fazer.
-3. **Uma API simples funcionando** em uma entidade: `POST`, `GET` e `GET /{id}`, com os erros `400` e `404`.
-4. **O README do projeto**, completo e bem escrito.
-5. **A autoavaliação**, em `docs/05`.
-
-O frontend é opcional: as rotas podem ser testadas e mostradas pelo Postman ou pelo Swagger UI.
+Um repositório público no GitHub com o README do projeto (o problema, no mínimo 3 regras de negócio e o mapa da estrutura), o modelo de dados e o contrato da API em `docs/`, a estrutura completa de todas as entidades, a API simples funcionando e as regras de negócio implementadas. As regras precisam atender à necessidade do tema: isso é avaliado. A lista detalhada está no [enunciado](<Aula 10-11/README.md#o-que-cada-grupo-deve-entregar>).
 
 ---
 
@@ -2576,7 +2556,7 @@ O frontend é opcional: as rotas podem ser testadas e mostradas pelo Postman ou 
 A mesma organização do `exemplo_tarefas` da Aula 9, com outro tema:
 
 ```text
-Cliente (Swagger UI, Postman, frontend)
+Cliente (Postman, Swagger UI, frontend)
         │  HTTP + JSON
         ▼
 Controller ──DTO──> Service ──entidade──> Repository ──SQL──> PostgreSQL (Docker)
@@ -2584,32 +2564,17 @@ Controller ──DTO──> Service ──entidade──> Repository ──SQL�
                        └──DTO e entidade──> Mapper
 ```
 
-Três regras que todo projeto segue:
-
 1. **A entidade não sobe além do Service.** O Controller só enxerga DTO.
 2. **Regra de negócio mora no Service.** O Controller recebe e devolve; o Repository lê e grava.
 3. **O banco só muda por migration.** Nenhuma tabela é criada à mão.
 
-Para cada entidade, o grupo cria todas as peças. Tabela, entidade, Repository e DTOs já ficam prontos. Mapper, Service e Controller ficam **montados**: a classe existe na pasta certa, está ligada às outras e tem um comentário no topo dizendo o que vai fazer, mas ainda não tem a lógica. Só a entidade da API simples é implementada até o fim.
-
-Os exemplos e as convenções de nomes estão em [ARQUITETURA.md](<Aula 10-11/ARQUITETURA.md>).
+Detalhes em [ARQUITETURA.md](<Aula 10-11/ARQUITETURA.md>).
 
 ---
 
 ### Parte 4: como a nota é definida
 
-| Metade | Como o professor avalia | Pontos |
-|---|---|---|
-| **Projeto** | Revisão do código no repositório do GitHub | 5,0 |
-| **Apresentação** | 3 perguntas ao grupo, depois da apresentação | 5,0 |
-| **Total** | | **10,0** |
-
-**A nota é do grupo inteiro:** os três integrantes recebem a mesma nota, e ninguém é avaliado separadamente.
-
-- **Projeto:** o professor clona o repositório, sobe a API pelo README e confere 10 critérios de 0,5 ponto: a API sobe, as camadas, as migrations, as entidades, os DTOs, a estrutura montada e documentada, a API simples, os erros, o código igual ao desenho e o README.
-- **Apresentação:** depois de apresentar, o grupo responde a 3 perguntas, uma sobre o desenho (1,5), uma sobre a estrutura (1,5) e uma com a API rodando (2,0). A resposta vale inteira quando está correta e o grupo mostra no projeto onde aquilo está.
-
-Os critérios, os exemplos de pergunta e a ficha de correção estão em [AVALIACAO.md](<Aula 10-11/AVALIACAO.md>).
+Vale como **N2a e N2b**: 5 pontos do projeto backend, pela revisão do código, e 5 pontos da avaliação na apresentação, com 3 perguntas. A nota é do grupo; quem faltar à apresentação recebe só os 5 do projeto. Os critérios estão em [AVALIACAO.md](<Aula 10-11/AVALIACAO.md>).
 
 ---
 
@@ -2617,12 +2582,11 @@ Os critérios, os exemplos de pergunta e a ficha de correção estão em [AVALIA
 
 | Termo | Significado |
 |---|---|
-| **Desenho** | O planejamento do sistema antes do código: o problema, as entidades e as rotas. |
-| **Regra de negócio** | Algo que o sistema precisa garantir ou impedir, além de "campo obrigatório" (ex.: um leitor não pode ter mais de 3 empréstimos em aberto). Quem cria as regras é o grupo, a partir do problema que ele mesmo criou. Moram no Service. |
+| **Regra de negócio** | Algo que o sistema precisa garantir ou impedir, além de "campo obrigatório" (ex.: um leitor não pode ter mais de 3 empréstimos em aberto). Quem cria as regras é o grupo, a partir do problema que ele mesmo criou. Ficam implementadas no Service. |
 | **Diagrama ER** | O desenho das tabelas, das colunas e das ligações entre uma tabela e outra. |
-| **Estrutura** | As tabelas e as classes de todas as entidades, criadas e no lugar certo. |
+| **Mapa da estrutura** | A tabela do README com todas as classes do projeto, por entidade e por camada. |
 | **Classe montada** | Classe que já existe na pasta certa, ligada às outras e com um comentário dizendo o que vai fazer, mas ainda sem a lógica. |
 | **API simples** | As três rotas (`POST`, `GET`, `GET /{id}`) de uma entidade, funcionando de ponta a ponta. |
-| **Autoavaliação** | A lista de itens da nota, preenchida pelo próprio grupo antes da entrega. |
+| **Autoavaliação** | Os critérios da revisão do código, marcados pelo próprio grupo antes da entrega. |
 
 **Próxima aula:** Integração de Serviços.

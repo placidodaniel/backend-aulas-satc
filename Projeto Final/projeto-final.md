@@ -5,20 +5,20 @@
 **Contato:** daniel.placido@satc.edu.br
 **SATC 2026.2**
 
-Sistema completo, construído em Spring Boot, que integra um dos tópicos avançados das Aulas 13 a 17 através de uma carta-desafio sorteada — em vez de deixar o "requisito extra" solto e sem critério.
+Sistema completo, construído em Spring Boot, que integra um dos tópicos avançados das Aulas 12 a 16 através de uma carta-desafio sorteada — em vez de deixar o "requisito extra" solto e sem critério.
 
 | | |
 |---|---|
 | **Avaliação** | N3 |
-| **Equipes** | até 3 pessoas |
-| **Janela no cronograma** | Aulas 17 → 20 |
+| **Equipes** | As mesmas da Etapa 1 (3 pessoas) |
+| **Janela no cronograma** | Aulas 16 → 19 |
 
 ---
 
 ## Índice
 
 - [1. Onde isso entra no cronograma](#1-onde-isso-entra-no-cronograma)
-- [2. O exercício](#2-o-exercício)
+- [2. O Projeto](#2-o-projeto)
 - [3. Baralho de cartas-desafio](#3-baralho-de-cartas-desafio--uma-por-aula-avançada)
 - [4. Regra de nota das cartas](#4-regra-de-nota--igual-para-todas-as-cartas)
 - [5. Entregas](#5-entregas)
@@ -30,36 +30,26 @@ Sistema completo, construído em Spring Boot, que integra um dos tópicos avanç
 
 ## 1. Onde isso entra no cronograma
 
-O N2b (Aula 12) já força cada equipe a construir uma API REST funcional — CRUD, camadas, DTOs, persistência. O N3 pega essa mesma base e faz a equipe integrar **um** tópico avançado de verdade, sorteado, não escolhido.
+A [Etapa 1](<../Aula 10-11/README.md>) (Aulas 10 e 11, vale N2a e N2b) já fez cada equipe criar o problema e as regras de negócio, desenhar o sistema, montar a estrutura completa e fazer funcionar a API simples com as regras implementadas. O N3 pega essa mesma base, no mesmo repositório, e faz a equipe integrar **um** tópico avançado de verdade, sorteado, não escolhido.
 
 | Quando | O que acontece |
 |---|---|
-| Aulas 13–17 | Tópicos avançados são ensinados: Integração de Serviços, Observabilidade e Testes, MCP, Autenticação e Segurança, Infraestrutura — nessa ordem. |
-| Fim da Aula 17 | Sorteio da carta-desafio: um card por equipe, sem repetição na 1ª rodada. Registrado publicamente (planilha/quadro da turma). |
-| Aulas 18–19 | Desenvolvimento do Projeto Final: equipe evolui a API do N2b (ou uma nova, se preferir trocar de tema) integrando a carta sorteada. |
-| Aula 20 | Entrega e apresentação (N3): demonstração funcionando + README + carta-desafio implementada. |
+| Aulas 12–16 | Tópicos avançados são ensinados: Integração de Serviços, Observabilidade e Testes, MCP, Autenticação e Segurança, Infraestrutura — nessa ordem. |
+| Fim da Aula 16 | Sorteio da carta-desafio: um card por equipe, sem repetição na 1ª rodada. Registrado publicamente (planilha/quadro da turma). |
+| Aulas 17–18 | Desenvolvimento do Projeto Final: a equipe evolui o repositório da Etapa 1, com o mesmo tema, integrando a carta sorteada. |
+| Aula 19 | Entrega e apresentação (N3): demonstração funcionando + README + carta-desafio implementada. |
 
-> Ajustável: se preferir que o N3 seja um projeto novo (não uma evolução do N2b), a mecânica das cartas não muda — só o ponto de partida.
+> Ajustável: se preferir que o N3 seja um projeto novo (não uma evolução da Etapa 1), a mecânica das cartas não muda — só o ponto de partida.
 
 ---
 
 ## 2. O Projeto
 
-Equipe de até 3 pessoas desenvolve uma API RESTful em **Spring Boot** (Web + Data JPA). Antes de codificar, a equipe escolhe um **tema** de domínio e pelo menos uma **aplicação prática** — pode reaproveitar o tema do N2b ou escolher um novo.
+A equipe continua a API da Etapa 1, com o tema sorteado nas Aulas 10 e 11 e as regras de negócio que ela criou, e escolhe pelo menos uma **aplicação prática**. O recomendado é **Spring Boot** (Web + Data JPA); a equipe que usou outra linguagem na Etapa 1 precisa adaptar as ferramentas das cartas.
 
-### Temas — escolha um
+### Temas
 
-| Tema | Exemplos de domínio |
-|---|---|
-| 🌍 Sustentabilidade e Meio Ambiente | Monitoramento de resíduos, emissões, consumo de recursos, reciclagem |
-| 🚚 Logística e Cadeia de Suprimentos | Rastreamento de entregas, controle de estoque, rotas, frota |
-| 🏥 Saúde e Bem-Estar | Agendamento clínico, acompanhamento de pacientes, hábitos saudáveis |
-| 🏭 Indústria e Manufatura | Controle de produção, manutenção de equipamentos, controle de qualidade |
-| 🌾 Agronegócio | Manejo de plantio/colheita, controle de rebanho, insumos agrícolas |
-| 🎓 Educação e Aprendizagem | Cursos, matrículas, progresso de estudantes, avaliações |
-| 🎮 Entretenimento e Cultura | Eventos, ingressos, catálogo de conteúdo, avaliações de público |
-| 🏙️ Cidades Inteligentes | Iluminação pública, trânsito, coleta de lixo, ocorrências urbanas |
-| 🛒 Varejo e E-commerce | Catálogo, pedidos, estoque, avaliações de produto |
+O tema é o mesmo sorteado na Etapa 1. A lista e as regras do sorteio estão no [enunciado da Etapa 1](<../Aula 10-11/README.md#o-tema>).
 
 ### Aplicação — escolha pelo menos uma, além do tema
 
@@ -81,7 +71,8 @@ Equipe de até 3 pessoas desenvolve uma API RESTful em **Spring Boot** (Web + Da
 - [ ] Validação com Bean Validation (`@Valid`, `@NotBlank`, `@Positive`...), erros tratados via `@RestControllerAdvice`.
 - [ ] Paginação e ordenação no `GET` de listagem (`Pageable` do Spring Data).
 - [ ] Filtros de busca no `GET` de listagem (parâmetros opcionais).
-- [ ] Persistência real em **PostgreSQL** — até a Aula 17 vale rodar em **H2** ou Postgres local (Docker ainda não foi ensinado); a partir da Aula 17, a entrega final do N3 precisa subir o banco via `docker-compose.yml`.
+- [ ] Persistência real em **PostgreSQL**, subindo pelo `docker-compose.yml`, como desde a Etapa 1.
+- [ ] Documentação automatizada com **Swagger/OpenAPI** (`springdoc-openapi`), que também vem da Etapa 1.
 - [ ] Arquivo `.env` (ou `application.properties` equivalente) com as variáveis de conexão do banco (usuário, senha, URL) — commitado no repositório, fora do `.gitignore`. Sem credenciais de produção, só valores locais de desenvolvimento.
 - [ ] `README.md`: tema, integrantes, entidades, rotas com exemplo de requisição/resposta, erros HTTP, como rodar localmente.
 - [ ] Repositório público no GitHub, clonável, com todo o código e o `.env` já commitados e enviados (`git push`) — ninguém deve precisar de configuração extra fora do repositório.
@@ -91,7 +82,6 @@ Equipe de até 3 pessoas desenvolve uma API RESTful em **Spring Boot** (Web + Da
 ### Extras (fora da carta sorteada, pontuam à parte)
 
 - [ ] Implementar um **segundo** tópico avançado além do sorteado pela carta.
-- [ ] Documentação automatizada com **Swagger/OpenAPI** (`springdoc-openapi`).
 - [ ] Deploy real em ambiente de produção.
 
 ---
@@ -101,7 +91,7 @@ Equipe de até 3 pessoas desenvolve uma API RESTful em **Spring Boot** (Web + Da
 Cinco cartas, na mesma ordem em que os tópicos aparecem no cronograma. Cada uma usa exatamente a ferramenta que a Aula correspondente ensina — nada genérico.
 
 ### C1 — 🔗 Elo Externo
-**Origem:** Aula 13 — Integração de Serviços
+**Origem:** Aula 12: Integração de Serviços
 
 > "Como sistema, quero consumir um serviço externo de verdade, para agregar valor sem reconstruir o que já existe pronto."
 
@@ -112,7 +102,7 @@ Cinco cartas, na mesma ordem em que os tópicos aparecem no cronograma. Cada uma
 - Dado externo é combinado com dado próprio na resposta — não é um simples repasse
 
 ### C2 — 🔬 Caixa de Vidro
-**Origem:** Aula 14 — Observabilidade e Testes
+**Origem:** Aula 13: Observabilidade e Testes
 
 > "Como responsável pela operação, quero enxergar o que a aplicação está fazendo e confiar que ela não quebrou sem eu perceber."
 
@@ -123,7 +113,7 @@ Cinco cartas, na mesma ordem em que os tópicos aparecem no cronograma. Cada uma
 - Os testes rodam via `./mvnw test` sem intervenção manual
 
 ### C3 — 🤖 Segundo Cérebro
-**Origem:** Aula 15 — MCP + IA no Desenvolvimento
+**Origem:** Aula 14: MCP + IA no Desenvolvimento
 
 > "Como desenvolvedor, quero expor parte da minha API para um agente de IA operar, para automatizar tarefas do domínio."
 
@@ -134,7 +124,7 @@ Cinco cartas, na mesma ordem em que os tópicos aparecem no cronograma. Cada uma
 - Equipe demonstra (print, vídeo ou log) um agente de IA chamando a tool com sucesso
 
 ### C4 — 🔐 Guardião
-**Origem:** Aula 16 — Autenticação e Segurança
+**Origem:** Aula 15: Autenticação e Segurança
 
 > "Como responsável pelo sistema, quero que só usuários autenticados acessem rotas sensíveis, para proteger os dados do domínio."
 
@@ -145,7 +135,7 @@ Cinco cartas, na mesma ordem em que os tópicos aparecem no cronograma. Cada uma
 - Senhas são armazenadas com hash (ex.: BCrypt), nunca em texto puro
 
 ### C5 — 📦 Arca
-**Origem:** Aula 17 — Infraestrutura
+**Origem:** Aula 16: Infraestrutura
 
 > "Como responsável pelo deploy, quero empacotar a aplicação para que ela rode em qualquer máquina sem 'na minha máquina funciona'."
 
@@ -197,12 +187,12 @@ Nenhuma carta é julgada no "achismo": a nota depende de quantos dos 3 critério
 
 ## 5. Entregas
 
-O N2b já cobriu tema, arquitetura e a API básica — o N3 não repete essas etapas, só formaliza o plano da carta sorteada antes de começar a implementar.
+A Etapa 1 (N2a e N2b) já cobriu o tema, a arquitetura, a API simples e as regras de negócio. O N3 não repete essas etapas, só formaliza o plano da carta sorteada antes de começar a implementar.
 
 | Entrega | Quando | O que entregar |
 |---|---|---|
-| **Entrega 01 — Plano da Carta** | Início da Aula 18, logo após o sorteio | Documento curto (Markdown): carta sorteada, quais entidades/rotas serão afetadas, dependências novas a adicionar no `pom.xml`, maior dúvida ou risco identificado. |
-| **Entrega Final** | Aula 20 | Endereço do repositório público — API do N2b evoluída, carta-desafio implementada, `README.md` completo (checklist abaixo). |
+| **Entrega 01 — Plano da Carta** | Início da Aula 17, logo após o sorteio | Documento curto (Markdown): carta sorteada, quais entidades/rotas serão afetadas, dependências novas a adicionar no `pom.xml`, maior dúvida ou risco identificado. |
+| **Entrega Final** | Aula 19 | Endereço do repositório público: API da Etapa 1 evoluída, carta-desafio implementada, `README.md` completo (checklist abaixo). |
 
 ---
 

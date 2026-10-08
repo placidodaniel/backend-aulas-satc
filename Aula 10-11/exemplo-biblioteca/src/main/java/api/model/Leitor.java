@@ -17,8 +17,7 @@ import jakarta.persistence.Table;
 // CAMADA: Model
 // RESPONSABILIDADE: uma pessoa cadastrada que pode pegar livros emprestados,
 //                   gravada na tabela leitores (migration V2).
-// SITUAÇÃO: implementada. A entidade já está pronta; as rotas de leitores
-//           ficam para a próxima etapa.
+// SITUAÇÃO: implementada.
 // Diz ao JPA que esta classe será persistida no banco.
 @Entity
 // Liga a entidade à tabela leitores criada pela migration V2.

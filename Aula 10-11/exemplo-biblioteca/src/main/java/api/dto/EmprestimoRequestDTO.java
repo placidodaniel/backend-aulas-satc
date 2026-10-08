@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 // RESPONSABILIDADE: o que o cliente envia para registrar um empréstimo. Entram
 //                   só os ids: nome do leitor e título do livro já estão no banco.
 //                   A data de retirada não entra: quem decide é a API.
-// SITUAÇÃO: implementada. Será usado por POST /emprestimos na próxima etapa.
+// SITUAÇÃO: implementada.
 // Descreve o DTO inteiro na seção "Schemas" do Swagger.
 @Schema(description = "Dados para registrar um empréstimo")
 public record EmprestimoRequestDTO(

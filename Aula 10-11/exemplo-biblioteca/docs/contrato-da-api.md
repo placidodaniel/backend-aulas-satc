@@ -1,4 +1,4 @@
-# 3. Contrato da API
+# Contrato da API
 
 ## Convenções
 
@@ -12,7 +12,7 @@
 
 ## Rotas
 
-Coluna **Funciona**: `sim` para as rotas da API simples, que já respondem nesta etapa.
+Coluna **Funciona**: `sim` para as rotas que já respondem nesta etapa: as três da API simples (livros) e as que as regras de negócio usam.
 
 ### Livros
 
@@ -26,18 +26,18 @@ Coluna **Funciona**: `sim` para as rotas da API simples, que já respondem nesta
 
 | Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
 |---|---|---|---|---|---|---|---|
-| `POST` | `/leitores` | Cadastra um leitor | `LeitorRequestDTO` | `LeitorResponseDTO` | `201` | `400` | não |
+| `POST` | `/leitores` | Cadastra um leitor. Sem leitor não há empréstimo | `LeitorRequestDTO` | `LeitorResponseDTO` | `201` | `400` | sim |
 | `GET` | `/leitores` | Lista os leitores | Nenhuma | lista de `LeitorResponseDTO` | `200` | Nenhum | não |
 | `GET` | `/leitores/{id}` | Busca um leitor | Nenhuma | `LeitorResponseDTO` | `200` | `404` | não |
 
 ### Empréstimos
 
-As duas rotas nascem das regras de negócio de `01-visao-geral.md`.
+As duas rotas nascem das regras de negócio do README e já funcionam.
 
 | Verbo | Caminho | O que faz | Regra | Entrada | Saída | Sucesso | Erros | Funciona |
 |---|---|---|---|---|---|---|---|---|
-| `POST` | `/emprestimos` | Registra um empréstimo e tira o livro da estante | R1 e R2 | `EmprestimoRequestDTO` | `EmprestimoResponseDTO` | `201` | `400`, `404` | não |
-| `PUT` | `/emprestimos/{id}/devolver` | Registra a devolução e devolve o livro à estante | R3 | Nenhuma | `EmprestimoResponseDTO` | `200` | `404` | não |
+| `POST` | `/emprestimos` | Registra um empréstimo e tira o livro da estante | R1, R2 e R3 | `EmprestimoRequestDTO` | `EmprestimoResponseDTO` | `201` | `400`, `404` | sim |
+| `PUT` | `/emprestimos/{id}/devolver` | Registra a devolução e devolve o livro à estante | R3 | Nenhuma | `EmprestimoResponseDTO` | `200` | `400`, `404` | sim |
 
 ## DTOs
 
@@ -74,7 +74,7 @@ Resposta, `201 Created`:
 }
 ```
 
-### `POST /leitores` (próxima etapa)
+### `POST /leitores` (funciona)
 
 Requisição:
 
@@ -95,7 +95,7 @@ Resposta, `201 Created`:
 }
 ```
 
-### `POST /emprestimos` (próxima etapa)
+### `POST /emprestimos` (funciona)
 
 Entram só os ids; leitor e livro voltam completos.
 
@@ -139,8 +139,21 @@ Todo erro sai no mesmo formato. Este é o `404` de `GET /livros/999`:
 
 No `400` de validação, a lista `campos` traz um item por campo inválido: `{"campo": "titulo", "mensagem": "Título é obrigatório"}`.
 
+Quando uma regra de negócio barra o pedido, o `400` vem com a regra na `mensagem` e `campos` vazio. Este é o de `POST /emprestimos` com um livro que já está emprestado:
+
+```json
+{
+  "status": 400,
+  "erro": "Bad Request",
+  "mensagem": "R2: o livro 1 já está emprestado",
+  "caminho": "/emprestimos",
+  "timestamp": "2026-10-06T19:30:00",
+  "campos": []
+}
+```
+
 | Status | Quando acontece neste projeto |
 |---|---|
 | `400` | JSON ilegível ou campo inválido no DTO de entrada |
-| `400` | Na próxima etapa: regra R1 ou R2 violada, com a regra explicada na `mensagem` |
+| `400` | Regra R1 ou R2 violada, ou devolução de um empréstimo que já tinha sido devolvido. A `mensagem` explica a regra |
 | `404` | Id de livro, leitor ou empréstimo que não existe |

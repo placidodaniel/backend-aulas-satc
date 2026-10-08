@@ -26,8 +26,7 @@ import jakarta.persistence.Table;
 //                   emprestimos (migration V3). É aqui que estão os dois
 //                   relacionamentos do modelo: muitos empréstimos para um
 //                   leitor, e muitos empréstimos para um livro.
-// SITUAÇÃO: implementada. A entidade já está pronta; as regras e as rotas de
-//           empréstimos ficam para a próxima etapa.
+// SITUAÇÃO: implementada.
 // Diz ao JPA que esta classe será persistida no banco.
 @Entity
 // Liga a entidade à tabela emprestimos criada pela migration V3.
@@ -108,5 +107,17 @@ public class Emprestimo {
     public LocalDate getDataDevolucao() {
         // Retorna o valor guardado no atributo dataDevolucao.
         return dataDevolucao;
+    }
+
+    // Diz se o livro ainda não voltou.
+    public boolean estaEmAberto() {
+        // Em aberto = ainda sem data de devolução.
+        return dataDevolucao == null;
+    }
+
+    // Registra o dia em que o livro voltou. Quem chama é o EmprestimoService.
+    public void registrarDevolucao(LocalDate dia) {
+        // Guarda a data recebida.
+        this.dataDevolucao = dia;
     }
 }

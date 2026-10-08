@@ -1,6 +1,6 @@
-# 3. Contrato da API
+# Contrato da API
 
-> O contrato é o que o cliente da API enxerga: rotas, JSON e status. Desenhe as rotas de **todas** as entidades: nesta etapa só três delas precisam funcionar. As linhas marcadas com *(exemplo)* mostram o nível de detalhe esperado: apague e escreva as do grupo.
+> O contrato é o que o cliente da API enxerga: rotas, JSON e status. Desenhe as rotas de **todas** as entidades. Nesta etapa precisam funcionar as três da API simples e as que as regras de negócio usam. As linhas marcadas com *(exemplo)* mostram o nível de detalhe esperado: apague e escreva as do grupo.
 
 ## Convenções
 
@@ -14,7 +14,7 @@
 
 ## Rotas
 
-Coluna **Funciona**: `sim` para as rotas da API simples, que já respondem nesta etapa.
+Coluna **Funciona**: `sim` para as rotas que já respondem nesta etapa: as da API simples e as que as regras de negócio usam.
 
 ### Livros *(exemplo)*
 
@@ -40,11 +40,12 @@ Coluna **Funciona**: `sim` para as rotas da API simples, que já respondem nesta
 
 ### Rotas que não são CRUD
 
-As que nascem das regras de negócio de `01-visao-geral.md`.
+As que nascem das regras de negócio do README. Estas precisam funcionar nesta etapa.
 
 | Verbo | Caminho | O que faz | Regra | Sucesso | Erros |
 |---|---|---|---|---|---|
-| `PUT` *(exemplo)* | `/emprestimos/{id}/devolver` | Registra a devolução e libera o livro | R2 | `200` | `404` |
+| `POST` *(exemplo)* | `/emprestimos` | Registra um empréstimo e tira o livro da estante | R1 e R2 | `201` | `400`, `404` |
+| `PUT` *(exemplo)* | `/emprestimos/{id}/devolver` | Registra a devolução e libera o livro | R3 | `200` | `400`, `404` |
 | ... | ... | ... | ... | ... | ... |
 
 ## DTOs
@@ -104,4 +105,4 @@ No `400` de validação, a lista `campos` traz um item por campo inválido: `{"c
 |---|---|
 | `400` | JSON ilegível ou campo inválido no DTO de entrada |
 | `404` | Id que não existe |
-| {{status}} | {{ex.: regra R2 violada, porque o livro já está emprestado}} |
+| `400` | Regra de negócio violada: a `mensagem` diz qual regra barrou o pedido |

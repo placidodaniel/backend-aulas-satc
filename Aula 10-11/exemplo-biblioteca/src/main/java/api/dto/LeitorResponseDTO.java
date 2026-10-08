@@ -6,8 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 // CAMADA: DTO
 // RESPONSABILIDADE: o que a API devolve sobre um leitor.
-// SITUAÇÃO: implementada. Será usado pelas rotas de leitores e dentro do
-//           EmprestimoResponseDTO na próxima etapa.
+// SITUAÇÃO: implementada.
 // Descreve o DTO inteiro na seção "Schemas" do Swagger.
 @Schema(description = "Um leitor cadastrado")
 public record LeitorResponseDTO(

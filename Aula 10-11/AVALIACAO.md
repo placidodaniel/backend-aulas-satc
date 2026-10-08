@@ -3,15 +3,15 @@
 **Disciplina:** Backend (Engenharia de Software)
 **Professor:** Daniel Plácido
 
-A nota vai de 0 a 10 e é do grupo: os três integrantes recebem a mesma nota. Ela tem duas metades:
+A nota desta etapa vale como **N2a e N2b** da disciplina e vai de 0 a 10. Ela tem duas metades:
 
-| Metade | Como o professor avalia | Pontos |
+| Metade | Como será avaliada | Pontos |
 |---|---|---|
-| **Projeto** | Faz a revisão do código no repositório do GitHub | 5,0 |
-| **Apresentação** | Faz 3 perguntas ao grupo durante a apresentação | 5,0 |
+| **Projeto backend** | Revisão do código no repositório do GitHub | 5,0 |
+| **Avaliação na apresentação** | 3 perguntas ao grupo | 5,0 |
 | **Total** | | **10,0** |
 
-Ninguém é avaliado separadamente. A apresentação precisa da participação dos três integrantes, mas isso é uma regra da apresentação, não uma nota por pessoa.
+A nota do projeto é a mesma para os três integrantes. A da apresentação também, para quem estiver presente: **quem faltar à apresentação recebe só a nota do projeto**, até 5,0.
 
 ## Índice
 
@@ -25,7 +25,7 @@ Ninguém é avaliado separadamente. A apresentação precisa da participação d
 
 ## 1. Projeto: a revisão do código
 
-O professor clona o repositório, sobe a API seguindo o README e lê o código. Ele confere 10 pontos, e cada um vale 0,5:
+Na revisão, o repositório é clonado, a API sobe seguindo o README e o código é lido. São avaliados 10 critérios, e cada um vale 0,5:
 
 | Marca | Significado | Vale |
 |---|---|---|
@@ -35,18 +35,20 @@ O professor clona o repositório, sobe a API seguindo o README e lê o código. 
 
 Um critério que pede "todas as entidades" e cobre duas de três é parcial.
 
-| Critério | O que o professor procura no código |
+| Critério | O que será avaliado no código |
 |---|---|
 | **P1** Sobe pelo README | Seguindo os comandos do README, o banco e a API sobem sem erro |
 | **P2** Camadas | Cada classe está no pacote da sua camada (`controller`, `service`, `mapper`, `repository`, `model`, `dto`), com os nomes da convenção |
-| **P3** Migrations | As tabelas de todas as entidades são criadas por migrations, com as chaves estrangeiras. Nenhuma tabela é criada de outro jeito |
-| **P4** Entidades | Cada tabela tem a sua `@Entity`, com atributos `private` e os relacionamentos mapeados, batendo com a migration |
-| **P5** DTOs | Todas as entidades têm DTO de entrada, com as validações, e DTO de saída. Nenhuma entidade aparece no Controller nem no JSON |
-| **P6** Estrutura montada e documentada | Todas as entidades têm Repository, Mapper, Service e Controller, ligados pelo construtor, e toda classe tem o comentário no topo dizendo camada, responsabilidade e situação |
-| **P7** API simples | `POST`, `GET` e `GET /{id}` funcionam, e a requisição passa por Controller, Service, Mapper e Repository, sem regra de negócio no Controller |
-| **P8** Erros | Campo inválido devolve `400` com a lista `campos`; id que não existe devolve `404`. O Service lança uma exceção própria, filha de `RecursoNaoEncontradoException`, em vez de devolver `null` |
-| **P9** Código igual ao desenho | As entidades, as colunas e as rotas do código são as de `docs/02` e `docs/03`, e o mapa da estrutura em `docs/04` bate com as classes |
+| **P3** Banco e entidades | As migrations criam as tabelas de todas as entidades, com as chaves estrangeiras, e cada tabela tem a sua `@Entity` batendo com a migration. Nenhuma tabela é criada de outro jeito |
+| **P4** DTOs | Todas as entidades têm DTO de entrada, com as validações, e DTO de saída. Nenhuma entidade aparece no Controller nem no JSON |
+| **P5** Estrutura completa e documentada | Todas as entidades têm Repository, Mapper, Service e Controller, ligados pelo construtor; toda classe tem o comentário no topo; o mapa da estrutura no README bate com as classes |
+| **P6** API simples | `POST`, `GET` e `GET /{id}` de uma entidade funcionam passando por todas as camadas. Campo inválido devolve `400`; id que não existe devolve `404`, com uma exceção própria no Service |
+| **P7** Regras de negócio implementadas | As regras de negócio do README, no mínimo 3, estão **implementadas** no Service e funcionam pela API. Quando uma regra é violada, a API devolve `400` com uma mensagem que explica a regra. Regra só descrita, sem código, não conta |
+| **P8** Regras que atendem ao tema | As regras resolvem o problema que o grupo criou, dentro do tema sorteado: fazem sentido para quem usa o sistema. Regras genéricas, que serviriam para qualquer tema, ou copiadas do exemplo da biblioteca, não atendem |
+| **P9** Código igual ao desenho | As entidades, as colunas e as rotas do código são as de `docs/modelo-de-dominio.md` e `docs/contrato-da-api.md` |
 | **P10** README | O README tem todas as seções do template, explica o projeto para quem nunca o viu, diz o que funciona e o que não, e não tem sobra do template |
+
+As regras de negócio (P7 e P8) valem 1 ponto dos 5 do projeto: é onde fica claro se o projeto é do grupo. As duas serão avaliadas lendo o código e fazendo a API barrar uma regra.
 
 O que é uma estrutura montada, e o comentário que vai no topo de cada classe, estão na [seção 6 de ARQUITETURA.md](ARQUITETURA.md#6-a-estrutura-montada).
 
@@ -54,13 +56,13 @@ O que é uma estrutura montada, e o comentário que vai no topo de cada classe, 
 
 ## 2. Apresentação: as 3 perguntas
 
-O grupo apresenta o projeto em até 10 minutos, seguindo o roteiro do [enunciado](README.md#apresentação). Depois, o professor faz **3 perguntas**, uma sobre cada parte do projeto. As perguntas são para o grupo, e qualquer integrante pode responder.
+O grupo apresenta o projeto em até 10 minutos, seguindo o roteiro do [enunciado](README.md#apresentação). Depois, o grupo responde a **3 perguntas**, uma sobre cada parte do projeto. As perguntas são para o grupo, e qualquer integrante presente pode responder.
 
 | Pergunta | Sobre o quê | Vale |
 |---|---|---|
 | **1** | O desenho: o problema, as regras de negócio, as entidades e os relacionamentos | 1,5 |
 | **2** | A estrutura: as camadas e onde cada coisa mora no código | 1,5 |
-| **3** | A API funcionando: o grupo responde com a API rodando e mostra o caminho de uma requisição | 2,0 |
+| **3** | A API funcionando: o grupo responde com a API rodando, mostrando uma requisição ou uma regra de negócio | 2,0 |
 
 Cada resposta recebe uma de três marcas:
 
@@ -72,37 +74,37 @@ Cada resposta recebe uma de três marcas:
 
 ### Exemplos de pergunta
 
-O professor escolhe uma de cada grupo e adapta às entidades e às regras do projeto que está sendo apresentado.
+Para cada grupo sai uma pergunta de cada tipo, adaptada às entidades e às regras do projeto que está sendo apresentado.
 
 **Pergunta 1: o desenho**
 
-- Qual problema o sistema resolve, e qual regra de negócio é a mais importante?
+- Qual problema o sistema resolve, e por que esta regra de negócio é importante para ele?
 - Mostre no diagrama ER o relacionamento entre estas duas entidades. Em qual tabela fica a chave estrangeira?
 - Por que esta informação virou uma entidade, e não um atributo de outra?
 
 **Pergunta 2: a estrutura**
 
-- Em qual classe vai morar a regra R1? Por que não no Controller?
+- Em qual classe está a regra R1? Por que ela não está no Controller?
 - Por que o Controller não importa nenhuma classe de `model`?
-- O que falta implementar nesta classe montada, e onde isso está escrito?
 - Quem cria as tabelas quando a API sobe? O que acontece se alguém editar uma migration que já rodou?
+- Qual é a diferença entre o DTO de entrada e o de saída desta rota? Por que não são iguais?
 
 **Pergunta 3: a API funcionando**
 
 - Faça um `POST` e mostre, classe por classe, por onde a requisição passa.
+- Faça uma requisição que viole uma regra de negócio. Onde ela é barrada, e o que o cliente recebe?
 - Busque um id que não existe. Em qual classe nasce o `404`?
 - Mande um campo inválido. Quem barra a requisição, e onde está escrita essa validação?
-- Qual é a diferença entre o DTO de entrada e o de saída desta rota? Por que não são iguais?
 
 ---
 
 ## 3. Passo a passo da avaliação
 
-1. **Antes da entrega:** o grupo confere o próprio projeto com os 10 critérios da revisão e marca o resultado na autoavaliação de `docs/05-plano-de-trabalho.md`.
-2. **Início da Aula 11:** vale o que estiver na branch `main`. É esse código que o professor revisa.
+1. **Antes da entrega:** o grupo confere o próprio projeto com os 10 critérios e marca o resultado em `docs/autoavaliacao.md`.
+2. **Início da Aula 11:** vale o que estiver na branch `main`. É esse código que será revisado.
 3. **Na Aula 11:** o grupo apresenta em até 10 minutos e responde às 3 perguntas.
-4. **Revisão do código:** o professor clona o repositório, sobe a API pelo README e confere os 10 critérios, usando a autoavaliação como guia.
-5. **Nota:** projeto (revisão do código, até 5) + apresentação (3 perguntas, até 5).
+4. **Revisão do código:** o repositório é clonado, a API sobe pelo README e os 10 critérios são avaliados, com a autoavaliação como guia.
+5. **Nota:** projeto (até 5) + apresentação (até 5). Quem faltou à apresentação fica com a nota do projeto.
 
 ---
 
@@ -110,37 +112,37 @@ O professor escolhe uma de cada grupo e adapta às entidades e às regras do pro
 
 | Situação | O que acontece |
 |---|---|
-| A API não sobe seguindo o README | P1 fica zerado, e P7 e P8 valem no máximo parcial: o professor ainda lê o código, mas não consegue ver funcionando. Na apresentação, a pergunta 3 vale no máximo parcial |
+| Um integrante falta à apresentação | Recebe só a nota do projeto, até 5,0. Os outros dois apresentam e recebem a nota completa |
+| A API não sobe seguindo o README | P1 fica zerado, e P6 e P7 valem no máximo parcial: o código ainda é lido, mas não dá para ver funcionando. Na apresentação, a pergunta 3 vale no máximo parcial |
 | Commits feitos depois do início da Aula 11 | Não entram na revisão. Vale o que estava na branch `main` |
-| Um integrante não pode participar da apresentação | O grupo avisa o professor antes da Aula 11 |
-| Projeto em outra linguagem | Os mesmos critérios. Mudam os nomes das classes e das anotações |
 | O grupo fez um frontend | É opcional. A revisão é do backend, e as rotas podem ser mostradas pelo Postman ou pelo Swagger UI |
+| Projeto em outra linguagem | Os critérios citam nomes do Java e do Spring. Em outra linguagem, o grupo adapta: monta a mesma estrutura com as ferramentas equivalentes e explica no README onde cada critério aparece no projeto. Veja a seção "Outra linguagem" do [enunciado](README.md#outra-linguagem) |
 
 ---
 
 ## 5. Ficha de correção em branco
 
-Uma por grupo. As fichas preenchidas ficam com o professor: nota não vai para o repositório.
+Uma por grupo. As fichas preenchidas não vão para o repositório: a nota não é publicada.
 
 **Grupo:** ____ **Projeto:** ________________ **Repositório:** ________________
 
-**Projeto: revisão do código**
+**Projeto backend: revisão do código**
 
 | Critério | ✅ ◐ ❌ | Pontos |
 |---|---|---|
 | P1 Sobe pelo README | ☐ | ____ |
 | P2 Camadas | ☐ | ____ |
-| P3 Migrations | ☐ | ____ |
-| P4 Entidades | ☐ | ____ |
-| P5 DTOs | ☐ | ____ |
-| P6 Estrutura montada e documentada | ☐ | ____ |
-| P7 API simples | ☐ | ____ |
-| P8 Erros | ☐ | ____ |
+| P3 Banco e entidades | ☐ | ____ |
+| P4 DTOs | ☐ | ____ |
+| P5 Estrutura completa e documentada | ☐ | ____ |
+| P6 API simples | ☐ | ____ |
+| P7 Regras de negócio implementadas | ☐ | ____ |
+| P8 Regras que atendem ao tema | ☐ | ____ |
 | P9 Código igual ao desenho | ☐ | ____ |
 | P10 README | ☐ | ____ |
 | **Projeto** | | **____ / 5,0** |
 
-**Apresentação: 3 perguntas**
+**Avaliação na apresentação: 3 perguntas**
 
 | Pergunta | Qual foi | Completa · Parcial · Sem resposta | Pontos |
 |---|---|---|---|
@@ -149,6 +151,8 @@ Uma por grupo. As fichas preenchidas ficam com o professor: nota não vai para o
 | 3. A API funcionando | | ☐ | ____ / 2,0 |
 | **Apresentação** | | | **____ / 5,0** |
 
-**Os três integrantes participaram da apresentação:** ☐ sim ☐ não
-
-**Nota do grupo (projeto + apresentação):** ____ / 10,0
+| Integrante | Presente na apresentação | Nota (projeto + apresentação) |
+|---|---|---|
+| | ☐ sim ☐ não | ____ / 10,0 |
+| | ☐ sim ☐ não | ____ / 10,0 |
+| | ☐ sim ☐ não | ____ / 10,0 |

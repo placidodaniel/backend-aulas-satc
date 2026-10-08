@@ -1,6 +1,6 @@
 # api: o código do projeto
 
-**Objetivo desta pasta:** ter o projeto inteiro organizado em camadas. Todas as entidades com suas tabelas e classes criadas, e uma delas com três rotas funcionando.
+**Objetivo desta pasta:** ter o projeto inteiro organizado em camadas. Todas as entidades com suas tabelas e classes criadas, a API simples funcionando e as regras de negócio implementadas.
 
 ## As pastas
 
@@ -18,7 +18,7 @@ Uma pasta por camada. Cada uma tem um `README.md` explicando o que fazer ali.
 
 ## Passo a passo
 
-Para **cada** entidade de `docs/02-modelo-de-dominio.md`, nesta ordem:
+Para **cada** entidade de `docs/modelo-de-dominio.md`, nesta ordem:
 
 1. **Migration**, em `src/main/resources/db/migration`: a tabela, as colunas e as chaves estrangeiras.
 2. **Entidade**, em `model/`: os atributos e os relacionamentos, iguais aos da migration.
@@ -28,7 +28,12 @@ Para **cada** entidade de `docs/02-modelo-de-dominio.md`, nesta ordem:
 
 Suba a API depois de cada entidade (`./mvnw spring-boot:run`). Se a entidade não bater com a tabela, a API não sobe e o erro diz qual coluna está errada.
 
-Com todas as entidades criadas, escolha a mais simples e faça as três rotas: `POST`, `GET` e `GET /{id}`.
+Com todas as entidades criadas:
+
+1. Escolha a mais simples e faça as três rotas da API simples: `POST`, `GET` e `GET /{id}`.
+2. Implemente as regras de negócio do README no Service, com as rotas que elas precisam. Quando uma regra é violada, o Service lança `RegraDeNegocioException` e o cliente recebe `400` com a mensagem da regra.
+
+As classes que nenhuma rota usa ainda ficam montadas.
 
 ## O comentário no topo de cada classe
 
@@ -39,8 +44,8 @@ Toda classe que o grupo cria começa com um comentário dizendo o que ela é e o
 // RESPONSABILIDADE: regras de negócio dos empréstimos.
 // REGRAS: R1 (no máximo 3 empréstimos em aberto por leitor) e
 //         R2 (livro emprestado não pode ser emprestado de novo).
-// ROTAS ATENDIDAS: as de /emprestimos em docs/03-contrato-da-api.md.
-// SITUAÇÃO: montada. Implementação na próxima etapa.
+// ROTAS ATENDIDAS: as de /emprestimos em docs/contrato-da-api.md.
+// SITUAÇÃO: montada. A lógica entra quando a rota for implementada.
 @Service
 public class EmprestimoService {
 
@@ -58,8 +63,8 @@ public class EmprestimoService {
 |---|---|---|
 | `CAMADA` | Controller, Service, Mapper, Repository, Model ou DTO | Todas |
 | `RESPONSABILIDADE` | Uma frase: o que esta classe faz no projeto | Todas |
-| `REGRAS` | As regras de `docs/01-visao-geral.md` que ela aplica | Service |
-| `ROTAS ATENDIDAS` | As rotas de `docs/03-contrato-da-api.md` que ela atende | Controller e Service |
+| `REGRAS` | As regras do README que ela aplica | Service |
+| `ROTAS ATENDIDAS` | As rotas de `docs/contrato-da-api.md` que ela atende | Controller e Service |
 | `SITUAÇÃO` | `montada` ou `implementada` | Todas |
 
 A classe do exemplo está **montada**: existe, está ligada às outras e diz o que vai fazer, mas ainda não tem lógica. Quando ganhar os métodos, a linha `SITUAÇÃO` muda para `implementada`.

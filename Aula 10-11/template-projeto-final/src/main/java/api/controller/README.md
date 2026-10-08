@@ -2,7 +2,7 @@
 
 É aqui que a requisição HTTP chega. O Controller recebe o pedido, repassa para o Service e devolve a resposta.
 
-**Nesta etapa:** crie um Controller para cada entidade. Só o da API simples precisa ter rotas (`POST`, `GET` e `GET /{id}`). Os outros ficam montados: a classe criada, com o comentário no topo dizendo quais rotas vai atender.
+**Nesta etapa:** crie um Controller para cada entidade. Precisam ter rotas o da API simples (`POST`, `GET` e `GET /{id}`) e os que as regras de negócio usam. Os outros ficam montados: a classe criada, com o comentário no topo dizendo quais rotas vai atender.
 
 | Faz | Não faz |
 |---|---|

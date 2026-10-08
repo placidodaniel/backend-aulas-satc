@@ -1,4 +1,4 @@
-# 2. Modelo de domínio
+# Modelo de domínio
 
 > No mínimo **3 entidades** e pelo menos **um relacionamento**. As linhas marcadas com *(exemplo)* mostram o nível de detalhe esperado: apague e escreva as do grupo.
 

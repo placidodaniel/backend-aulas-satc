@@ -81,4 +81,17 @@ public class Livro {
         // Retorna o valor guardado no atributo disponivel.
         return disponivel;
     }
+
+    // Tira o exemplar da estante. Não existe setDisponivel: de fora, só dá para
+    // emprestar ou devolver (encapsulamento, Aulas 03-04). Quem chama é o EmprestimoService.
+    public void emprestar() {
+        // Marca o exemplar como emprestado.
+        this.disponivel = false;
+    }
+
+    // Põe o exemplar de volta na estante.
+    public void devolver() {
+        // Marca o exemplar como disponível de novo.
+        this.disponivel = true;
+    }
 }

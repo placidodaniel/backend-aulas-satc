@@ -31,15 +31,18 @@ import api.dto.CampoErroDTO;
 import api.dto.ErroDTO;
 // Importa a classe-mãe das exceções de "não encontrado".
 import api.service.RecursoNaoEncontradoException;
+// Importa a exceção das regras de negócio violadas.
+import api.service.RegraDeNegocioException;
 
 // Trata exceções de qualquer controller da API, num único lugar.
 //
 // Toda resposta de erro sai como ErroDTO (Aula 09, Exercício 5): esta classe
 // recebe uma exceção (mundo Java) e devolve um DTO (mundo do contrato).
 //
-// Erro novo do domínio (uma regra de negócio violada, por exemplo)? Crie a
-// exceção no pacote service e acrescente aqui um método @ExceptionHandler
-// para ela, escolhendo o status HTTP que o cliente deve receber.
+// Regra de negócio violada? O Service lança RegraDeNegocioException e o
+// cliente recebe 400 com a mensagem da regra. Precisa de outro erro do
+// domínio? Crie a exceção no pacote service e acrescente aqui um método
+// @ExceptionHandler para ela.
 //
 // Cuidado para não criar um @ExceptionHandler(Exception.class) "pega-tudo":
 // ele também capturaria os 404 e 405 que o próprio Spring gera para rotas que
@@ -54,6 +57,14 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErroDTO> tratarNaoEncontrado(RecursoNaoEncontradoException e, HttpServletRequest request) {
         // Sem erros de campo: a lista vai vazia, mas vai (o campo sempre existe).
         return responder(HttpStatus.NOT_FOUND, e.getMessage(), request, List.of());
+    }
+
+    // 400 de regra de negócio: o pedido veio no formato certo, mas o Service
+    // não pode aceitá-lo. A mensagem já vem pronta, explicando a regra.
+    @ExceptionHandler(RegraDeNegocioException.class)
+    public ResponseEntity<ErroDTO> tratarRegraDeNegocio(RegraDeNegocioException e, HttpServletRequest request) {
+        // Sem erros de campo: o problema não é um campo, é a regra.
+        return responder(HttpStatus.BAD_REQUEST, e.getMessage(), request, List.of());
     }
 
     // 400 de validação: o @Valid reprovou o DTO antes do Controller rodar.

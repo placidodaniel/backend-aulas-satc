@@ -117,15 +117,13 @@ Quando dá erro, a requisição não chega ao fim desse caminho. Nos três casos
 
 ```text
 projeto/
-├── README.md                    ← tema, integrantes, como executar
+├── README.md                    ← problema, regras de negócio, mapa da estrutura, como executar
 ├── docker-compose.yml           ← PostgreSQL
 ├── pom.xml                      ← dependências (Maven)
 ├── docs/                        ← O DESENHO
-│   ├── 01-visao-geral.md        ← tema, problema, regras de negócio
-│   ├── 02-modelo-de-dominio.md  ← entidades, relacionamentos, diagrama ER
-│   ├── 03-contrato-da-api.md    ← rotas, DTOs, exemplos de JSON, erros
-│   ├── 04-arquitetura.md        ← camadas e fluxo no projeto do grupo
-│   └── 05-plano-de-trabalho.md  ← quem fez o quê, o que falta
+│   ├── modelo-de-dominio.md     ← entidades, relacionamentos, diagrama ER
+│   ├── contrato-da-api.md       ← rotas, DTOs, exemplos de JSON, erros
+│   └── autoavaliacao.md         ← os critérios da revisão, marcados pelo grupo
 └── src/main/
     ├── java/api/                ← O CÓDIGO
     │   ├── Application.java
@@ -141,13 +139,13 @@ projeto/
         └── db/migration/        ← V1__..., V2__... (Flyway)
 ```
 
-O template já sobe (`docker compose up -d` e `./mvnw spring-boot:run`) e traz pronto o que não depende do tema: o formato de erro (`ErroDTO`, `CampoErroDTO`, `ApiExceptionHandler`), a exceção-mãe dos `404` e a configuração do Swagger. Cada pasta de camada tem um `README.md` dizendo o que mora ali. As classes do domínio são do grupo: é o assunto da próxima seção.
+O template já sobe (`docker compose up -d` e `./mvnw spring-boot:run`) e traz pronto o que não depende do tema: o formato de erro (`ErroDTO`, `CampoErroDTO`, `ApiExceptionHandler`), a exceção-mãe dos `404`, a exceção das regras de negócio violadas (`RegraDeNegocioException`, que vira `400`) e a configuração do Swagger. Cada pasta de camada tem um `README.md` dizendo o que mora ali. As classes do domínio são do grupo: é o assunto da próxima seção.
 
 ---
 
 ## 6. A estrutura montada
 
-Na Etapa 1 o grupo monta a estrutura de **todas** as entidades do modelo, mesmo das que ainda não têm rota funcionando. Montar é deixar cada peça no lugar, ligada às outras e documentada.
+Na Etapa 1 o grupo monta a estrutura de **todas** as entidades do modelo, mesmo das que ainda não têm rota funcionando. Montar é deixar cada peça no lugar, ligada às outras e documentada. Depois, implementa o que a API simples e as regras de negócio usam.
 
 ### O que cada entidade precisa ter
 
@@ -157,9 +155,9 @@ Na Etapa 1 o grupo monta a estrutura de **todas** as entidades do modelo, mesmo 
 | Entidade | `model/Leitor.java` | **Completa:** atributos, relacionamentos, construtores e getters |
 | Repository | `repository/LeitorRepository.java` | **Completo:** a interface que estende `JpaRepository` |
 | DTOs | `dto/LeitorRequestDTO.java` e `dto/LeitorResponseDTO.java` | **Completos:** os campos e as validações do contrato |
-| Mapper | `mapper/LeitorMapper.java` | **Montado** |
-| Service | `service/LeitorService.java` | **Montado** |
-| Controller | `controller/LeitorController.java` | **Montado** |
+| Mapper | `mapper/LeitorMapper.java` | **Montado**, ou implementado se alguma rota usar |
+| Service | `service/LeitorService.java` | **Montado**, ou implementado se a API simples ou alguma regra usar |
+| Controller | `controller/LeitorController.java` | **Montado**, ou implementado se alguma rota usar |
 
 As quatro primeiras peças são declarações: dizem como o dado é, não o que o sistema faz com ele. Por isso já nascem completas, e é o Hibernate quem confere, quando a API sobe, se cada entidade bate com a sua tabela (`ddl-auto=validate`).
 
@@ -177,8 +175,8 @@ Uma classe montada tem quatro coisas, e nenhum método de negócio:
 // RESPONSABILIDADE: regras de negócio dos empréstimos.
 // REGRAS: R1 (no máximo 3 empréstimos em aberto por leitor) e
 //         R2 (livro emprestado não pode ser emprestado de novo).
-// ROTAS ATENDIDAS: as de /emprestimos em docs/03-contrato-da-api.md.
-// SITUAÇÃO: montada. Implementação na próxima etapa.
+// ROTAS ATENDIDAS: as de /emprestimos em docs/contrato-da-api.md.
+// SITUAÇÃO: montada. A lógica entra quando a rota for implementada.
 @Service
 public class EmprestimoService {
 
@@ -207,6 +205,21 @@ Uma entidade, a mais simples do modelo (de preferência uma que não dependa de 
 | `GET /livros/{id}` | Busca um | `200` | `404` se o id não existir |
 
 São poucas rotas, mas atravessam todas as camadas: DTO de entrada com validação, Service, Mapper, Repository, banco, DTO de saída e os dois erros no formato único.
+
+### As regras de negócio
+
+As regras do README (no mínimo 3) precisam estar **implementadas** no Service, com as rotas que elas usam. Elas costumam envolver mais de uma entidade: na biblioteca, as regras de empréstimo precisam de `POST /emprestimos`, e um empréstimo precisa de um leitor cadastrado. Por isso, implemente só o que as regras pedem; o resto continua montado.
+
+Quando uma regra é violada, o Service lança `RegraDeNegocioException` com uma mensagem que explica a regra, e o `ApiExceptionHandler` devolve `400`:
+
+```java
+// R1: o leitor não pode passar de 3 empréstimos em aberto.
+if (repository.countByLeitorIdAndDataDevolucaoIsNull(leitor.getId()) >= 3) {
+    throw new RegraDeNegocioException("R1: o leitor já tem 3 empréstimos em aberto");
+}
+```
+
+O `EmprestimoService` do [exemplo-biblioteca](exemplo-biblioteca/src/main/java/api/service/EmprestimoService.java) tem as três regras implementadas.
 
 ---
 
@@ -240,7 +253,7 @@ Listagem sem resultado devolve `200` com lista vazia, não `404`.
 
 ## 8. Em outra linguagem
 
-A linguagem é livre; a arquitetura, não. Quem não usar Java + Spring Boot mantém `docs/`, `README.md` e `docker-compose.yml` do template e troca `pom.xml` e `src/` pelo equivalente, com **as mesmas pastas de camada**.
+A linguagem é livre; a arquitetura, não. Mas outra linguagem exige adaptação: o template, o exemplo e os critérios da revisão foram escritos para Java + Spring Boot. Quem não usar Java mantém `docs/`, `README.md` e `docker-compose.yml` do template e troca `pom.xml` e `src/` pelo equivalente, com **as mesmas pastas de camada**. No README, o grupo explica como o projeto atende cada critério da revisão, porque eles citam nomes do Java.
 
 | Na disciplina (Java) | O que procurar na sua linguagem | Exemplos |
 |---|---|---|
@@ -260,7 +273,7 @@ Os exemplos das próximas aulas continuam em Java + Spring Boot. Em outra lingua
 
 ## 9. Para onde o projeto cresce
 
-Nada disto entra na Etapa 1. Primeiro as classes montadas ganham implementação; depois, os tópicos das próximas aulas encaixam neste desenho sem desmontá-lo. Por isso vale a pena acertar as camadas agora.
+Nada disto entra na Etapa 1. Primeiro as classes que ficaram montadas ganham implementação; depois, os tópicos das próximas aulas encaixam neste desenho sem desmontá-lo. Por isso vale a pena acertar as camadas agora.
 
 | Tópico | Onde deve entrar | Encosta em qual camada |
 |---|---|---|

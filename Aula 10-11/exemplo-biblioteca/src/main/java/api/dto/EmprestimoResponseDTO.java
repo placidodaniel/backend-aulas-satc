@@ -10,9 +10,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 // CAMADA: DTO
 // RESPONSABILIDADE: o que a API devolve sobre um empréstimo. Entra um id, sai
 //                   um objeto: leitor e livro voltam completos. dataLimite e
-//                   atrasado não existem no banco: o mapper calcula a partir
-//                   da regra R3 (prazo de 14 dias).
-// SITUAÇÃO: implementada. Será usado pelas rotas de empréstimos na próxima etapa.
+//                   atrasado não existem no banco: o EmprestimoService calcula
+//                   pela regra R3 (prazo de 14 dias).
+// SITUAÇÃO: implementada.
 // Descreve o DTO inteiro na seção "Schemas" do Swagger.
 @Schema(description = "Um empréstimo")
 public record EmprestimoResponseDTO(
@@ -41,8 +41,8 @@ public record EmprestimoResponseDTO(
         @Schema(description = "Dia da devolução (vazio enquanto está em aberto)", example = "2026-10-15")
         LocalDate dataDevolucao,
 
-        // Verdadeiro quando passou da data limite e o livro ainda não voltou (R3).
-        @Schema(description = "Se o empréstimo está atrasado", example = "false")
+        // Verdadeiro quando o livro voltou, ou ainda não voltou, depois da data limite (R3).
+        @Schema(description = "Se o empréstimo passou do prazo", example = "false")
         boolean atrasado
 
 // O corpo do record fica vazio: tudo o que ele precisa, o compilador gera.
