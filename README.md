@@ -69,6 +69,16 @@
   - [Parte 3: a arquitetura de referência](#parte-3-a-arquitetura-de-referência)
   - [Parte 4: como a nota é definida](#parte-4-como-a-nota-é-definida)
   - [Glossário rápido](#glossário-rápido-5)
+- [Aula 12: Integração de Serviços](#aula-12-integração-de-serviços)
+  - [Materiais](#materiais-7)
+  - [Objetivo da aula](#objetivo-da-aula-6)
+  - [Parte 1: a nossa API como cliente](#parte-1-a-nossa-api-como-cliente)
+  - [Parte 2: o Open-Meteo e a rota /previsao](#parte-2-o-open-meteo-e-a-rota-previsao)
+  - [Parte 3: RestClient na prática](#parte-3-restclient-na-prática)
+  - [Parte 4: quando o outro lado falha](#parte-4-quando-o-outro-lado-falha)
+  - [Parte 5: rodando o projeto](#parte-5-rodando-o-projeto)
+  - [Exercícios](#exercícios-4)
+  - [Glossário rápido](#glossário-rápido-6)
 
 ---
 
@@ -2590,3 +2600,265 @@ Vale como **N2a e N2b**: 5 pontos do projeto backend, pela revisão do código, 
 | **Autoavaliação** | Os critérios da revisão do código, marcados pelo próprio grupo antes da entrega. |
 
 **Próxima aula:** Integração de Serviços.
+
+---
+
+## Aula 12: Integração de Serviços
+
+### Materiais
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula12-integracao-servicos.pdf](<Aula 12/aula12-integracao-servicos.pdf>) | A nossa API como cliente, o Open-Meteo, RestClient, 502/504 e os exercícios |
+| [exemplo_tarefas](<Aula 12/exemplo_tarefas>) | O gabarito da Aula 09 com a integração já funcionando: `OpenMeteoClient` (o `RestClient` apontado para o Open-Meteo), `PrevisaoService` com as regras, a rota `GET /previsao` e a previsão no cadastro de tarefas |
+| [README do exemplo](<Aula 12/exemplo_tarefas/README.md>) | Passo a passo para subir o banco (porta `5439`), rodar a API e ver a previsão |
+| [EXERCICIOS.md](<Aula 12/exemplo_tarefas/EXERCICIOS.md>) | Os 5 exercícios da aula e as instruções de entrega |
+| [static/contrato.html](<Aula 12/exemplo_tarefas/src/main/resources/static/contrato.html>) | Página que testa a API contra cada exercício e marca ✅ / ⏳ / ❌ (abra em `http://localhost:8080/contrato.html`) |
+| [Collection do Postman](<Aula 12/exemplo_tarefas/exemplo_tarefas.postman_collection.json>) | A rota da previsão, os casos de erro, os exercícios e chamadas direto ao Open-Meteo, para comparar |
+
+### Objetivo da aula
+
+Fazer a nossa API **consumir outra API**: no meio de uma requisição, buscar dados num serviço que não é nosso, traduzir para o nosso contrato e combinar com o que está no nosso banco. E, principalmente, aprender a lidar com o que pode dar errado do outro lado: o serviço fora do ar, lento, ou respondendo algo que não esperávamos.
+
+O exemplo é a **previsão do tempo no cadastro de tarefas**: ao escolher a data do prazo, a página pega a localização do navegador e pede à nossa API a previsão daquele dia. Quem consulta o [Open-Meteo](https://open-meteo.com) é a nossa API.
+
+---
+
+### Parte 1: a nossa API como cliente
+
+#### O que é integração de serviços
+
+Até a Aula 9, a nossa API só **respondia**: o cliente (navegador, Postman, Swagger UI) chamava, ela consultava o PostgreSQL e devolvia JSON. Agora ela também **pergunta**: no meio de uma requisição, ela faz outra requisição HTTP, para outro sistema, e usa a resposta.
+
+```text
+Navegador ──GET /previsao──> NOSSA API ──GET /v1/forecast──> Open-Meteo
+            (aqui ela é servidor)    (aqui ela é cliente)
+                                │
+                                └──SQL──> PostgreSQL (as tarefas, como antes)
+```
+
+A mesma API faz dois papéis: é **servidor** para o navegador e **cliente** para o Open-Meteo. Tudo o que vimos de HTTP (verbos, status, JSON, contrato) vale dos dois lados.
+
+Exemplos do dia a dia: a loja virtual que consulta o frete nos Correios, o cadastro que preenche o endereço pelo CEP, o pagamento que passa por uma operadora de cartão, e o app que mostra a previsão do tempo.
+
+#### O contrato dos outros
+
+Quando a API é nossa, o contrato é nosso: escolhemos os nomes, os campos, os status. Quando a API é dos outros, **o contrato é dado**: a gente lê, se adapta, e não tem como mudar. O Open-Meteo fala inglês, com `_` (`weather_code`, `temperature_2m_max`), manda uma **lista por medida** em vez de um objeto por dia, e diz o tempo com um número (`95` é trovoada).
+
+Por isso a integração fica **isolada** num pacote só, `client/`, e a tradução fica num mapper:
+
+| Pacote | Classe | O que faz |
+|---|---|---|
+| `client/` | `OpenMeteoClient` | O **único** lugar que sabe o endereço do Open-Meteo, o caminho (`/v1/forecast`), os parâmetros e que a requisição é feita com o `RestClient` |
+| `client/` | `OpenMeteoRespostaDTO` | O contrato do Open-Meteo, copiado do jeito que ele é. Não aparece no nosso Swagger |
+| `mapper/` | `PrevisaoMapper` | Traduz: o item `i` de cada lista vira um dia; `weather_code` vira `descricao` e `icone` |
+| `service/` | `PrevisaoService` | As regras (R1 a R3), antes de chamar o Open-Meteo |
+| `dto/` | `PrevisaoDTO` | O **nosso** contrato para a previsão de um dia, em português |
+
+Se a previsão passar a vir de outro serviço, só o pacote `client/` e o mapper mudam. O resto do projeto nem percebe. É o lugar previsto na [arquitetura do Projeto Final](<Aula 10-11/ARQUITETURA.md#9-para-onde-o-projeto-cresce>): "pacote novo para o cliente da API externa", encostado no Service.
+
+---
+
+### Parte 2: o Open-Meteo e a rota /previsao
+
+#### O Open-Meteo
+
+Um serviço de previsão do tempo **gratuito e sem cadastro**: não pede chave de acesso. Dá para abrir no navegador:
+
+<https://api.open-meteo.com/v1/forecast?latitude=-28.6775&longitude=-49.3697&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto>
+
+```json
+{
+  "latitude": -28.64675, "longitude": -49.36145, "timezone": "America/Sao_Paulo",
+  "daily": {
+    "time": ["2026-10-24", "2026-10-25"],
+    "weather_code": [95, 80],
+    "temperature_2m_max": [28.0, 18.3],
+    "temperature_2m_min": [17.0, 14.1]
+  }
+}
+```
+
+Repare no formato: o dia `2026-10-24` é o **item 0** de cada lista. A previsão cobre **16 dias** (hoje e mais 15), e com `start_date` e `end_date` dá para pedir só um dia, ou um período.
+
+#### A rota da nossa API
+
+`GET /previsao?latitude=-28.6775&longitude=-49.3697&data=2026-10-24` devolve a previsão daquele dia, já no nosso formato:
+
+```json
+{ "data": "2026-10-24", "descricao": "Trovoada", "icone": "⛈️", "temperaturaMinima": 17.0, "temperaturaMaxima": 28.0,
+  "chanceDeChuva": 75, "ventoMaximo": 15.9, "latitude": -28.64675, "longitude": -49.36145 }
+```
+
+E as regras (violar qualquer uma = `400`, e o Open-Meteo **nem é chamado**):
+
+| Regra | Por quê |
+|---|---|
+| **R1.** Latitude entre -90 e 90; longitude entre -180 e 180 | Fora disso não é um lugar do planeta |
+| **R2.** A previsão é para hoje em diante | Previsão é sobre o futuro |
+| **R3.** Só até 15 dias depois de hoje | O Open-Meteo prevê 16 dias, contando hoje |
+
+#### A localização vem do navegador
+
+Quem sabe onde a pessoa está é o **navegador** (`navigator.geolocation`, com GPS, Wi-Fi ou rede). Na primeira vez, ele pergunta se a página pode saber a localização; liberado, a página manda a latitude e a longitude para a nossa API, junto com a data. O backend nunca sabe "onde o usuário está": só recebe dois números. O navegador só libera a localização em `http://localhost` ou em HTTPS.
+
+---
+
+### Parte 3: RestClient na prática
+
+#### Qual cliente HTTP usar
+
+| Cliente | O que é | Na disciplina |
+|---|---|---|
+| **`RestClient`** | O cliente HTTP do Spring Framework 6.1+ (Spring Boot 3.2+). Escrita encadeada, síncrono | **É o que usamos.** Já vem no `spring-boot-starter-web`: nenhuma dependência nova |
+| `RestTemplate` | O cliente antigo do Spring. Ainda funciona e aparece muito em código existente | Está em manutenção: o Spring recomenda o `RestClient` para código novo |
+| `WebClient` | Cliente **reativo** (assíncrono), do Spring WebFlux | Precisa de outra dependência e de outro modelo de programação |
+| Interface HTTP (`@HttpExchange`) | Você escreve só a interface; o Spring gera a implementação | Parecido com o Spring Data JPA, mas para HTTP. Vale conhecer |
+
+#### Montando o cliente
+
+```java
+@Component
+public class OpenMeteoClient {
+
+    private final String url;
+    private final RestClient restClient;
+
+    // O Spring injeta o RestClient.Builder (já com os timeouts do application.properties)
+    // e o valor da linha previsao.url.
+    public OpenMeteoClient(RestClient.Builder builder, @Value("${previsao.url}") String url) {
+        this.url = url;
+        this.restClient = builder.baseUrl(url).build();   // "/v1/forecast" vira url + "/v1/forecast"
+    }
+}
+```
+
+#### Anatomia de uma chamada
+
+```java
+// GET /v1/forecast?latitude=...&longitude=...&daily=...&timezone=auto&start_date=...&end_date=...
+restClient.get()                                    // o verbo
+        .uri(uriBuilder -> uriBuilder               // o caminho e os parâmetros
+                .path("/v1/forecast")
+                .queryParam("latitude", latitude)   // cada queryParam vira "&nome=valor"
+                .queryParam("longitude", longitude)
+                .queryParam("daily", MEDIDAS_DIARIAS)
+                .queryParam("timezone", "auto")
+                .queryParam("start_date", inicio)   // LocalDate vira "2026-10-24"
+                .queryParam("end_date", fim)
+                .build())
+        .retrieve()                                 // envia e recebe
+        .body(OpenMeteoRespostaDTO.class);          // converte o JSON da resposta no record
+```
+
+#### Ler só o que precisa
+
+A resposta do Open-Meteo tem muito mais do que usamos (`generationtime_ms`, `elevation`, `daily_units`...). O `OpenMeteoRespostaDTO` declara só o que a nossa API usa, e o resto é ignorado (no Spring Boot, campo desconhecido no JSON não é erro). Se o Open-Meteo acrescentar um campo amanhã, nada quebra aqui.
+
+#### Timeouts: quanto tempo esperar
+
+```properties
+# src/main/resources/application.properties
+spring.http.client.connect-timeout=2s   # para conseguir conectar
+spring.http.client.read-timeout=5s      # para receber a resposta, depois de conectado
+```
+
+Sem essas linhas, uma chamada a um serviço travado pode esperar por minutos, ou para sempre, e a requisição de quem chamou a **nossa** API fica presa junto.
+
+---
+
+### Parte 4: quando o outro lado falha
+
+#### Cada falha, um status
+
+| O que aconteceu no Open-Meteo | O que o `RestClient` lança | O que a nossa API responde |
+|---|---|---|
+| Respondeu `400` ou `500` | `HttpClientErrorException` / `HttpServerErrorException` | **`502 Bad Gateway`** |
+| Está fora do ar, ou o endereço está errado | `ResourceAccessException` (causa: `ConnectException`) | **`502 Bad Gateway`** |
+| Demorou mais que o `read-timeout` | `ResourceAccessException` (causa: `HttpTimeoutException`) | `502`; no Exercício 3, **`504 Gateway Timeout`** |
+| Respondeu um JSON que não bate com o record | `RestClientException` | **`502 Bad Gateway`** |
+
+Por que `502`, e não `400` ou `500`? Não é `400`, porque quem chamou a nossa API não errou. Não é `500`, porque não é um bug nosso. O `502 Bad Gateway` diz exatamente o que aconteceu: "sou um intermediário, e quem estava atrás de mim falhou".
+
+#### Traduzir as exceções num lugar só
+
+O `OpenMeteoClient` passa toda chamada por um método `chamar()`, que troca qualquer exceção do `RestClient` por uma exceção nossa, a `PrevisaoIndisponivelException`. O Service e o `ApiExceptionHandler` não precisam saber que existe `RestClient`:
+
+```java
+private <T> T chamar(String operacao, Supplier<T> chamada) {
+    try {
+        return chamada.get();
+    } catch (RestClientException e) {
+        throw indisponivel(operacao, e);   // vira PrevisaoIndisponivelException → 502
+    }
+}
+```
+
+A mensagem do `ErroDTO` diz o que se tentou fazer e a pista do motivo: `"Não foi possível buscar a previsão do tempo: sem resposta válida de https://api.open-meteo.com (ConnectException)"`.
+
+#### As regras antes da chamada
+
+Coordenada fora do planeta ou data fora da janela são barradas pelo `PrevisaoService` **antes** de chamar o Open-Meteo: `400` com a mensagem da nossa regra, sem gastar uma requisição pela internet. O mesmo vale para parâmetro ausente ou em formato errado (`data=amanha`), que agora também sai no formato `ErroDTO`.
+
+#### Dado de fora não é confiável
+
+Mesmo respondendo `200`, o outro sistema pode mandar menos do que esperamos: um código de tempo que a nossa tabela não conhece vira "Código do tempo 42", em vez de quebrar; a chance de chuva pode vir `null`; e uma resposta sem o dia pedido vira `502`.
+
+> ⚠️ **Timeout quer dizer "não sei".** Quando o outro serviço demora e a nossa API desiste, o pedido pode ter chegado lá e dado certo depois. Numa consulta como a previsão, tanto faz; num pedido que grava alguma coisa, faz toda a diferença.
+
+---
+
+### Parte 5: rodando o projeto
+
+Passo a passo completo (Windows/PowerShell) no [README do exemplo](<Aula 12/exemplo_tarefas/README.md>). Resumo:
+
+```bash
+cd "Aula 12/exemplo_tarefas"
+
+docker compose up -d          # PostgreSQL na porta 5439 (projeto Compose "aula12-tarefas")
+./mvnw spring-boot:run        # Windows: .\mvnw.cmd spring-boot:run
+```
+
+| Endereço | O que é |
+|---|---|
+| `http://localhost:8080/` | Cadastro de tarefas: escolha a data do prazo, permita a localização, e a previsão aparece embaixo do campo. O log mostra a chamada ao Open-Meteo |
+| `http://localhost:8080/contrato.html` | Contrato dos exercícios da Aula 12 |
+| `http://localhost:8080/swagger-ui.html` | Swagger UI: a rota nova está no grupo **Previsão do tempo** |
+
+> 🌐 **Precisa de internet.** A API sobe sem internet (a primeira chamada ao Open-Meteo só acontece quando alguém pede uma previsão), mas a previsão não. Nenhuma migration nova: a previsão não é guardada no banco.
+
+---
+
+### Exercícios
+
+Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`](<Aula 12/exemplo_tarefas/EXERCICIOS.md>). A página `contrato.html` confere cada item.
+
+1. **O tempo de agora**: `GET /previsao/agora`, com o parâmetro `current` do Open-Meteo e um formato de resposta diferente.
+2. **Previsão para o prazo da tarefa**: `GET /tarefas/{id}/previsao`, juntando a tarefa (nosso banco) com a previsão (Open-Meteo); sem previsão para o prazo, a tarefa vem com um aviso.
+3. **Tempo esgotado vira 504**: uma exceção filha da `PrevisaoIndisponivelException`, testada com `read-timeout=1ms`.
+4. **Cache de 30 minutos**: a mesma pergunta não vai de novo ao Open-Meteo; a resposta diz de onde veio (`origem`).
+5. **Tarefas em dias de chuva**: `GET /tarefas/chuvosas`, com **uma** chamada ao Open-Meteo para os 16 dias, e não uma por tarefa.
+
+---
+
+### Glossário rápido
+
+| Termo | Significado |
+|---|---|
+| **Integração de serviços** | Um sistema usando outro sistema pela rede, através da API dele. |
+| **API externa** | Uma API que não é nossa: o contrato é dela, e a gente se adapta. |
+| **Cliente HTTP** | O código que faz requisições HTTP. Aqui, o `RestClient` dentro do `OpenMeteoClient`. |
+| **`RestClient`** | Cliente HTTP do Spring (6.1+), com escrita encadeada: `get()`, `uri()`, `retrieve()`, `body()`. |
+| **`baseUrl`** | O começo de endereço comum a todas as chamadas; cada chamada só informa o caminho (`/v1/forecast`). |
+| **`queryParam`** | Um parâmetro da query string (`?latitude=...`), montado pelo `UriBuilder` já codificado. |
+| **Open-Meteo** | Serviço gratuito de previsão do tempo, sem cadastro nem chave de acesso. |
+| **Código WMO** | O número com que o Open-Meteo diz como está o tempo (0 = céu limpo, 61 = chuva fraca, 95 = trovoada). |
+| **Geolocalização** | A localização que o navegador informa à página (`navigator.geolocation`), com permissão do usuário. |
+| **Timeout** | Tempo máximo de espera. `connect-timeout` para conectar, `read-timeout` para a resposta chegar. |
+| **502 Bad Gateway** | "Sou intermediário, e o serviço que eu chamei falhou." |
+| **504 Gateway Timeout** | "Sou intermediário, e o serviço que eu chamei não respondeu a tempo." |
+| **Fallback** | Uma resposta alternativa quando uma parte falha ou não existe, em vez de falhar o pedido inteiro. |
+| **Cache** | Guardar uma resposta por um tempo e responder com ela, sem perguntar de novo. |
+| **`@Value`** | Anotação que injeta um valor do `application.properties` (aqui, o `previsao.url`). |
+
+**Próxima aula:** Observabilidade e Testes.

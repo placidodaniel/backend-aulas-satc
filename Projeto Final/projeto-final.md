@@ -95,7 +95,7 @@ Cinco cartas, na mesma ordem em que os tópicos aparecem no cronograma. Cada uma
 
 > "Como sistema, quero consumir um serviço externo de verdade, para agregar valor sem reconstruir o que já existe pronto."
 
-**Requisito:** consumir uma API pública real via `RestTemplate` ou `WebClient`.
+**Requisito:** consumir uma API pública real via `RestClient` (o cliente usado na Aula 12), `RestTemplate` ou `WebClient`.
 
 - Pelo menos uma rota consome dados de uma API externa real (clima, câmbio, geocodificação, etc.)
 - Falha do serviço externo é tratada (timeout, erro, fallback) sem derrubar a aplicação
