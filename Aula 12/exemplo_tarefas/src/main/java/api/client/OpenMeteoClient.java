@@ -52,7 +52,7 @@ public class OpenMeteoClient {
     //     deixa configurado com os timeouts (spring.http.client.*) e com o
     //     mesmo Jackson que a nossa API usa para ler e escrever JSON;
     //   - @Value("${previsao.url}"): o valor da linha previsao.url do application.properties.
-    public OpenMeteoClient(RestClientOpenMeteoClient.Builder builder, @Value("${previsao.url}") String url) {
+    public OpenMeteoClient(RestClient.Builder builder, @Value("${previsao.url}") String url) {
         // Guarda o endereço para as mensagens.
         this.url = url;
         // baseUrl: o caminho usado abaixo ("/v1/forecast") é somado a este endereço.
