@@ -32,6 +32,54 @@ Navegador ──GET /previsao──> NOSSA API ──GET /v1/forecast──> Ope
 
 Este projeto é o `exemplo_tarefas_resolvido` da Aula 09, com a integração já funcionando. Os enunciados estão em [`EXERCICIOS.md`](EXERCICIOS.md).
 
+
+## RabbitMQ: mensageria e teste de carga
+
+Além do Open-Meteo, a API agora **publica eventos** no [RabbitMQ](https://www.rabbitmq.com): ao criar, concluir, reabrir ou remover uma tarefa, o `TarefaService` chama o `TarefaEventoPublisher`, que manda um JSON para a exchange `tarefas.eventos` (routing key `tarefa.criada`, `tarefa.concluida`...). A fila `tarefas.notificacoes` recebe tudo que casa com `tarefa.*`, e o `TarefaEventoListener` consome e registra no log. Se o broker estiver fora do ar, a tarefa é salva do mesmo jeito (só um aviso no log).
+
+```text
+Service ──> Publisher ──> [exchange tarefas.eventos] ──tarefa.*──> [fila tarefas.notificacoes] ──> Listener
+```
+
+| O quê | Onde |
+|---|---|
+| Exchange, fila, binding e conversor JSON | `config/RabbitConfig.java` |
+| Publicar / consumir | `messaging/TarefaEventoPublisher.java`, `messaging/TarefaEventoListener.java` |
+| O evento | `dto/TarefaEventoDTO.java` |
+| Broker (AMQP `5672`, painel `15672`, usuário/senha `tarefas`) | `docker-compose.yml`, serviço `rabbitmq` |
+
+Painel: <http://localhost:15672>.
+
+### Teste de carga na fila
+
+Usa o [RabbitMQ PerfTest](https://perftest.rabbitmq.com) (serviço `perftest`, perfil `carga` do Compose), publicando o evento de [`carga/evento.json`](carga/evento.json) na fila `tarefas.notificacoes`.
+
+Sem script: é só o `docker compose`. Os parâmetros vão em variáveis de ambiente (todas opcionais):
+
+| Variável | Padrão | O que é |
+|---|---|---|
+| `CARGA_TAXA` | `200` | Mensagens por segundo, **por produtor** (`0` = o mais rápido possível) |
+| `CARGA_SEGUNDOS` | `30` | Duração do teste |
+| `CARGA_PRODUTORES` | `1` | Quantos produtores publicando |
+| `CARGA_CONSUMIDORES` | `0` | `0` = quem consome é a API (o listener) |
+
+```powershell
+# Windows (PowerShell): 2 produtores x 500 msg/s por 30 s
+$env:CARGA_TAXA=500; $env:CARGA_SEGUNDOS=30; $env:CARGA_PRODUTORES=2
+docker compose --profile carga run --rm perftest
+```
+
+```bash
+# Linux / Mac
+CARGA_TAXA=500 CARGA_SEGUNDOS=30 CARGA_PRODUTORES=2 docker compose --profile carga run --rm perftest
+```
+
+A exchange, a fila e o binding já são criados quando o RabbitMQ sobe (`carga/definitions.json`), então o teste funciona com a API desligada. Para ver quantas mensagens sobraram: painel do RabbitMQ (aba *Queues*) ou `docker compose exec rabbitmq rabbitmqctl list_queues name messages consumers`.
+
+Com `CARGA_CONSUMIDORES=0` e a API **desligada**, as mensagens se acumulam (backlog): suba a API e acompanhe no painel a fila esvaziando enquanto o listener consome. Com a API ligada você vê o log `[NOTIFICAÇÃO]` por mensagem. Para limpar a fila: `docker compose exec rabbitmq rabbitmqctl purge_queue tarefas.notificacoes`.
+
+Referência numa máquina local (2 produtores, 500 msg/s cada, 10s): ~1.050 msg/s publicados, 10.009 mensagens na fila ao final.
+
 ## O que é novo nesta aula
 
 | O quê | Onde |
@@ -46,7 +94,7 @@ Este projeto é o `exemplo_tarefas_resolvido` da Aula 09, com a integração já
 | **Endereço e timeouts** do Open-Meteo | `application.properties` (`previsao.url`, `spring.http.client.*`) |
 | **A previsão na tela**, embaixo do campo de data | `static/index.html` |
 
-Nenhuma dependência nova no `pom.xml` (o `RestClient` já vem no `spring-boot-starter-web`) e nenhuma migration nova (a previsão não é guardada no banco).
+O `RestClient` já vem no `spring-boot-starter-web` e a previsão não é guardada no banco (nenhuma migration nova). A única dependência acrescentada ao `pom.xml` é o `spring-boot-starter-amqp`, do RabbitMQ (seção abaixo).
 
 ### A rota nova
 

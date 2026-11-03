@@ -39,7 +39,79 @@ services:
       # Tenta cinco vezes antes de marcar o serviço como unhealthy.
       retries: 5
 
+  # Declara o serviço do broker de mensagens (Aula 12: mensageria).
+  rabbitmq:
+    # Imagem oficial com o painel de administração (management) já incluído.
+    image: rabbitmq:3.13-management-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: aula12-tarefas-resolvido-rabbitmq
+    # Usuário e senha do broker (só para desenvolvimento).
+    environment:
+      RABBITMQ_DEFAULT_USER: tarefas
+      RABBITMQ_DEFAULT_PASS: tarefas
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+    ports:
+      # 5672 = protocolo AMQP, o que a aplicação usa para publicar e consumir.
+      - "5672:5672"
+      # 15672 = painel web: http://localhost:15672 (usuário/senha: tarefas).
+      - "15672:15672"
+    # Ao subir, o RabbitMQ já cria a exchange, a fila e o binding descritos em
+    # carga/definitions.json (os mesmos do RabbitConfig). Assim o teste de carga
+    # funciona mesmo com a API desligada, sem script nenhum.
+    # O ERL_ARGS manda o plugin de administração carregar o arquivo de definições.
+    # Guarda filas e mensagens entre reinicializações.
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./carga/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Teste de carga da fila (Aula 12). Só roda com: docker compose --profile carga run --rm perftest
+  # (veja o README: parâmetros por variável de ambiente). Publica eventos JSON na exchange, que roteia para tarefas.notificacoes.
+  perftest:
+    image: pivotalrabbitmq/perf-test:latest
+    profiles: ["carga"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./carga/evento.json:/carga/evento.json:ro
+    # --predeclared: usa a exchange/fila que a API já declarou (RabbitConfig), sem recriar.
+    # --body*: manda o JSON do evento, com content-type que o listener da API entende.
+    # --rate: msg/s por produtor (0 = sem limite). --consumers 0: a API é quem consome.
+    command:
+      - --uri
+      - amqp://tarefas:tarefas@rabbitmq:5672
+      - --predeclared
+      - --exchange
+      - tarefas.eventos
+      - --type
+      - topic
+      - --routing-key
+      - tarefa.criada
+      - --queue
+      - tarefas.notificacoes
+      - --body
+      - /carga/evento.json
+      - --body-content-type
+      - application/json
+      - --producers
+      - ${CARGA_PRODUTORES:-1}
+      - --consumers
+      - ${CARGA_CONSUMIDORES:-0}
+      - --rate
+      - ${CARGA_TAXA:-200}
+      - --time
+      - ${CARGA_SEGUNDOS:-30}
+      - --flag
+      - persistent
+
 # Declara os volumes nomeados usados pelos serviços.
 volumes:
   # Mantém os dados do PostgreSQL entre reinicializações.
   postgres_data:
+  # Mantém filas e mensagens do RabbitMQ entre reinicializações.
+  rabbitmq_data:

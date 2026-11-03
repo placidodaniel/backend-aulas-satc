@@ -109,6 +109,13 @@
             <!-- Mantém o JUnit fora do artefato de produção. -->
             <scope>test</scope>
         </dependency>
+        <!-- spring-boot-starter-amqp: o cliente do RabbitMQ (Spring AMQP). Traz o RabbitTemplate,
+             para PUBLICAR mensagens, e o @RabbitListener, para CONSUMIR. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

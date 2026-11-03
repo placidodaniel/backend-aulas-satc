@@ -19,6 +19,7 @@ import api.dto.TarefaRequestDTO;
 import api.dto.TarefaResponseDTO;
 // Importa o mapper que traduz DTO <-> entidade.
 import api.mapper.TarefaMapper;
+import api.messaging.TarefaEventoPublisher;
 // Importa as entidades persistidas.
 import api.model.Responsavel;
 import api.model.Tarefa;
@@ -55,18 +56,21 @@ public class TarefaService {
 
     // Aula 12, Exercícios 2 e 5: a previsão do tempo para os prazos.
     private final PrevisaoService previsaoService;
+    // Publica os eventos no RabbitMQ (Aula 12).
+    private final TarefaEventoPublisher eventos;
 
     // Aula 12, Exercício 5: chance de chuva a partir da qual o dia conta como "de chuva".
     public static final int CHANCE_DE_CHUVA = 60;
 
     // Recebe as dependências que o Spring injeta automaticamente.
     public TarefaService(TarefaRepository repository, ResponsavelRepository responsavelRepository, TarefaMapper mapper,
-                         PrevisaoService previsaoService) {
+                         PrevisaoService previsaoService, TarefaEventoPublisher eventos) {
         // Guarda as dependências recebidas nos atributos da classe.
         this.repository = repository;
         this.responsavelRepository = responsavelRepository;
         this.mapper = mapper;
         this.previsaoService = previsaoService;
+        this.eventos = eventos;
     }
 
     // Aula 12, Exercício 2: a tarefa com a previsão do tempo para o prazo dela.
@@ -142,6 +146,7 @@ public class TarefaService {
         Tarefa tarefa = mapper.toEntity(dto, responsavel);
         // 3. O INSERT acontece aqui (com responsavel_id); a entidade volta com id.
         Tarefa salva = repository.save(tarefa);
+        eventos.publicar("criada", salva);
         // 4. Entidade → DTO de saída (o vínculo sai como objeto {id, nome, email}).
         return mapper.toResponse(salva);
     }
@@ -160,7 +165,9 @@ public class TarefaService {
             throw new TarefaNaoEncontradaException(id);
         }
         // Executa o DELETE gerado pelo Spring Data JPA.
+        String titulo = repository.findById(id).map(Tarefa::getTitulo).orElse(null);
         repository.deleteById(id);
+        eventos.publicar("removida", id, titulo);
     }
 
     // Atualiza título, responsável, prazo, prioridade e vínculo de uma tarefa
@@ -191,8 +198,12 @@ public class TarefaService {
         Tarefa tarefa = buscarEntidade(id);
         // Inverte o valor atual do booleano.
         tarefa.setConcluida(!tarefa.isConcluida());
-        // Persiste o novo estado e devolve como DTO.
-        return mapper.toResponse(repository.save(tarefa));
+        // Persiste o novo estado.
+        Tarefa salva = repository.save(tarefa);
+        // Avisa o RabbitMQ: concluída ou reaberta.
+        eventos.publicar(salva.isConcluida() ? "concluida" : "reaberta", salva);
+        // Devolve como DTO.
+        return mapper.toResponse(salva);
     }
 
     // Liga a tarefa a um responsável cadastrado. Busca os dois lados antes --

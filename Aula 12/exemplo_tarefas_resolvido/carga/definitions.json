@@ -1,0 +1,53 @@
+{
+  "users": [
+    {
+      "name": "tarefas",
+      "password": "tarefas",
+      "tags": "administrator"
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "tarefas",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "tarefas.eventos",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "tarefas.notificacoes",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "tarefas.eventos",
+      "vhost": "/",
+      "destination": "tarefas.notificacoes",
+      "destination_type": "queue",
+      "routing_key": "tarefa.*",
+      "arguments": {}
+    }
+  ]
+}

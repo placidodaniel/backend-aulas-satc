@@ -79,6 +79,11 @@
   - [Parte 5: rodando o projeto](#parte-5-rodando-o-projeto)
   - [Exercícios](#exercícios-4)
   - [Glossário rápido](#glossário-rápido-6)
+- [Aula 13: Observabilidade e Testes](#aula-13-observabilidade-e-testes)
+  - [Materiais](#materiais-8)
+  - [Parte 1: testes unitários e E2E](#parte-1-testes-unitários-e-e2e)
+  - [Parte 2: observabilidade com Prometheus e Grafana](#parte-2-observabilidade-com-prometheus-e-grafana)
+  - [Parte 3: rodando o projeto](#parte-3-rodando-o-projeto)
 
 ---
 
@@ -2829,6 +2834,24 @@ docker compose up -d          # PostgreSQL na porta 5439 (projeto Compose "aula1
 
 ---
 
+### Extra: mensageria com RabbitMQ
+
+O gabarito ([exemplo_tarefas_resolvido](<Aula 12/exemplo_tarefas_resolvido>)) também **publica eventos** no [RabbitMQ](https://www.rabbitmq.com): ao criar, concluir, reabrir ou remover uma tarefa, o `TarefaService` avisa o `TarefaEventoPublisher`, que manda um JSON para a exchange `tarefas.eventos`. A fila `tarefas.notificacoes` recebe tudo que casa com `tarefa.*`, e o `TarefaEventoListener` consome. Se o broker cair, a tarefa é salva do mesmo jeito.
+
+```text
+Service ──> Publisher ──> [exchange tarefas.eventos] ──tarefa.*──> [fila tarefas.notificacoes] ──> Listener
+```
+
+Painel do RabbitMQ em `http://localhost:15672` (usuário/senha `tarefas`). O README do gabarito traz o detalhe e o **teste de carga na fila** (RabbitMQ PerfTest):
+
+```bash
+cd "Aula 12/exemplo_tarefas_resolvido"
+CARGA_TAXA=500 CARGA_SEGUNDOS=30 CARGA_PRODUTORES=2 docker compose --profile carga run --rm perftest
+# PowerShell: $env:CARGA_TAXA=500; $env:CARGA_PRODUTORES=2; docker compose --profile carga run --rm perftest
+```
+
+---
+
 ### Exercícios
 
 Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`](<Aula 12/exemplo_tarefas/EXERCICIOS.md>). A página `contrato.html` confere cada item.
@@ -2861,4 +2884,76 @@ Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`]
 | **Cache** | Guardar uma resposta por um tempo e responder com ela, sem perguntar de novo. |
 | **`@Value`** | Anotação que injeta um valor do `application.properties` (aqui, o `previsao.url`). |
 
-**Próxima aula:** Observabilidade e Testes.
+**Próxima aula:** [Observabilidade e Testes](#aula-13-observabilidade-e-testes).
+
+---
+
+## Aula 13: Observabilidade e Testes
+
+### Materiais
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula13-observabilidade-testes.pdf](<Aula 13/aula13-observabilidade-testes.pdf>) | Testes unitários e E2E, observabilidade (métricas, logs e traces), Actuator, Prometheus e Grafana, e a demonstração (35 slides; o `.pptx` está na mesma pasta) |
+| [exemplo_tarefas_resolvido](<Aula 13/exemplo_tarefas_resolvido>) | O gabarito da Aula 12 (Open-Meteo + RabbitMQ) com **44 testes** (unitários e E2E) e **observabilidade** (Actuator, Prometheus e Grafana no Docker Compose) |
+| [README do exemplo](<Aula 13/exemplo_tarefas_resolvido/README.md>) | Como rodar os testes, subir a stack e ler o dashboard |
+| [src/test](<Aula 13/exemplo_tarefas_resolvido/src/test/java/api>) | Os testes, comentados |
+| [observabilidade/](<Aula 13/exemplo_tarefas_resolvido/observabilidade>) | Configuração do Prometheus e do Grafana (datasource e dashboard provisionados) |
+
+### Objetivo da aula
+
+Responder duas perguntas que toda API em produção precisa responder: **"como eu sei que isto funciona?"** (testes) e **"como eu sei o que está acontecendo agora?"** (observabilidade).
+
+---
+
+### Parte 1: testes unitários e E2E
+
+```bash
+cd "Aula 13/exemplo_tarefas_resolvido"
+./mvnw test
+```
+
+| Tipo | O que sobe | Exemplo no projeto |
+|---|---|---|
+| **Unitário** | Só a classe; dependências viram *mocks* (Mockito) | `PrevisaoServiceTest`: regras R1 a R3 e cache, com o `OpenMeteoClient` falso |
+| **Cliente HTTP** | O client contra um servidor falso | `OpenMeteoClientTest` com `MockRestServiceServer`: sem internet |
+| **E2E** | A aplicação inteira + PostgreSQL e RabbitMQ **reais** (Testcontainers) | `TarefaApiE2ETest`: cria pela API HTTP, confere no banco, e vê o evento passar pelo RabbitMQ |
+
+Boas práticas que o projeto mostra: muitos unitários e poucos E2E (pirâmide de testes); só **mockar o que não é nosso** (o Open-Meteo), não o banco nem o broker; `Awaitility` para esperar o que é assíncrono, em vez de `Thread.sleep`; e testar até o erro (`400`, `404`, `502`, `504`). Os testes ainda acharam um bug real: concluir uma tarefa não publicava o evento.
+
+---
+
+### Parte 2: observabilidade com Prometheus e Grafana
+
+```text
+API :8080 ──/actuator/prometheus──> Prometheus :9090 ──> Grafana :3000
+```
+
+| Sinal | Pergunta | No projeto |
+|---|---|---|
+| **Métricas** | Quanto? Está piorando? | Micrometer + Prometheus + Grafana (dashboard pronto) |
+| **Logs** | O que aconteceu *naquela* requisição? | `requisicaoId` em toda linha, e o cabeçalho `X-Request-Id` |
+| **Traces** | Por onde a requisição passou? | Próximo passo (OpenTelemetry) |
+
+Além das métricas automáticas (HTTP, JVM, pool do banco), o projeto cria as **suas**: eventos publicados/consumidos no RabbitMQ, chamadas ao Open-Meteo (quantas, quanto demoram, quantas falham) e acertos/erros do cache. O dashboard organiza tudo nos **quatro sinais de ouro**: tráfego, latência, erros e saturação.
+
+---
+
+### Parte 3: rodando o projeto
+
+```bash
+cd "Aula 13/exemplo_tarefas_resolvido"
+docker compose up -d          # PostgreSQL :5441, RabbitMQ :5673, Prometheus :9090, Grafana :3000
+./mvnw spring-boot:run
+CARGA_TAXA=300 CARGA_PRODUTORES=2 docker compose --profile carga run --rm perftest   # carga na fila; acompanhe no Grafana
+```
+
+| Endereço | O que é |
+|---|---|
+| `http://localhost:8080/actuator/health` | Saúde da aplicação, do banco e do RabbitMQ |
+| `http://localhost:8080/actuator/prometheus` | As métricas, em texto |
+| `http://localhost:9090` | Prometheus (*Status → Targets* deve mostrar **UP**) |
+| `http://localhost:3000` | Grafana: pasta **Aula 13**, dashboard **Exemplo Tarefas: visão geral** |
+| `http://localhost:15673` | Painel do RabbitMQ |
+
+> ⚠️ O Grafana está com acesso anônimo de administrador e o `/actuator` aberto: configuração **só de aula**.

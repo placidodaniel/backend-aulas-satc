@@ -1,0 +1,155 @@
+# Nome do projeto Compose. Sem ele, o Docker usa o nome da pasta
+# ("exemplo_tarefas_resolvido") -- o mesmo das Aulas 08 e 09 -- e as aulas
+# acabariam dividindo o mesmo volume de dados (e o mesmo flyway_schema_history).
+name: aula13-tarefas
+
+# Define os serviços que serão executados pelo Docker Compose.
+services:
+  # Declara o serviço do banco de dados da aplicação.
+  postgres:
+    # Usa uma imagem leve do PostgreSQL 16.
+    image: postgres:16-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: aula13-tarefas-postgres
+    # Define as variáveis que o PostgreSQL lê na primeira inicialização.
+    environment:
+      # Cria o banco lógico usado pela aplicação.
+      POSTGRES_DB: tarefas
+      # Cria o usuário dono do banco.
+      POSTGRES_USER: tarefas
+      # Define a senha do usuário do banco.
+      POSTGRES_PASSWORD: tarefas
+    # Publica a porta interna do banco no computador host.
+    ports:
+      # Usa 5441 no host para não conflitar com o banco do projeto dos alunos
+      # (5439) nem com os das aulas anteriores (5433 a 5440).
+      - "5441:5432"
+    # Guarda os dados fora do ciclo de vida do container.
+    volumes:
+      # Monta o volume nomeado no diretório padrão de dados do PostgreSQL.
+      - postgres_data:/var/lib/postgresql/data
+    # Verifica se o PostgreSQL está pronto para receber conexões.
+    healthcheck:
+      # Executa o comando oficial de verificação do PostgreSQL.
+      test: ["CMD-SHELL", "pg_isready -U tarefas -d tarefas"]
+      # Aguarda cinco segundos entre verificações.
+      interval: 5s
+      # Interrompe uma verificação que demorar mais que cinco segundos.
+      timeout: 5s
+      # Tenta cinco vezes antes de marcar o serviço como unhealthy.
+      retries: 5
+
+  # Declara o serviço do broker de mensagens (mensageria, desde a Aula 12).
+  rabbitmq:
+    # Imagem oficial com o painel de administração (management) já incluído.
+    image: rabbitmq:3.13-management-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: aula13-tarefas-rabbitmq
+    # Usuário e senha do broker (só para desenvolvimento).
+    environment:
+      RABBITMQ_DEFAULT_USER: tarefas
+      RABBITMQ_DEFAULT_PASS: tarefas
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+    ports:
+      # 5673 no host (5672 dentro do container) = protocolo AMQP, o que a aplicação usa para publicar e consumir.
+      - "5673:5672"
+      # 15673 no host = painel web: http://localhost:15673 (usuário/senha: tarefas).
+      - "15673:15672"
+    # Ao subir, o RabbitMQ já cria a exchange, a fila e o binding descritos em
+    # carga/definitions.json (os mesmos do RabbitConfig). Assim o teste de carga
+    # funciona mesmo com a API desligada, sem script nenhum.
+    # O ERL_ARGS manda o plugin de administração carregar o arquivo de definições.
+    # Guarda filas e mensagens entre reinicializações.
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./carga/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Teste de carga da fila (Aula 12). Só roda com: docker compose --profile carga run --rm perftest
+  # (veja o README: parâmetros por variável de ambiente). Publica eventos JSON na exchange, que roteia para tarefas.notificacoes.
+  perftest:
+    image: pivotalrabbitmq/perf-test:latest
+    profiles: ["carga"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./carga/evento.json:/carga/evento.json:ro
+    # --predeclared: usa a exchange/fila que a API já declarou (RabbitConfig), sem recriar.
+    # --body*: manda o JSON do evento, com content-type que o listener da API entende.
+    # --rate: msg/s por produtor (0 = sem limite). --consumers 0: a API é quem consome.
+    command:
+      - --uri
+      - amqp://tarefas:tarefas@rabbitmq:5672
+      - --predeclared
+      - --exchange
+      - tarefas.eventos
+      - --type
+      - topic
+      - --routing-key
+      - tarefa.criada
+      - --queue
+      - tarefas.notificacoes
+      - --body
+      - /carga/evento.json
+      - --body-content-type
+      - application/json
+      - --producers
+      - ${CARGA_PRODUTORES:-1}
+      - --consumers
+      - ${CARGA_CONSUMIDORES:-0}
+      - --rate
+      - ${CARGA_TAXA:-200}
+      - --time
+      - ${CARGA_SEGUNDOS:-30}
+      - --flag
+      - persistent
+
+  # ------------------------------------------------------------ Observabilidade (Aula 13)
+  # Prometheus: de tempos em tempos (scrape) pede as métricas da API em /actuator/prometheus
+  # e guarda como série temporal. Painel: http://localhost:9090
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: aula13-tarefas-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observabilidade/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    # A API roda NO HOST (./mvnw spring-boot:run), e o Prometheus roda num container:
+    # host.docker.internal aponta para o host (no Linux precisa deste host-gateway).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Grafana: desenha os gráficos a partir do Prometheus. Datasource e dashboard já vêm
+  # provisionados. Painel: http://localhost:3000 (usuário/senha: admin/admin)
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: aula13-tarefas-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      # Abre sem tela de login (é um ambiente de aula; nunca faça isso em produção).
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./observabilidade/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observabilidade/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+# Declara os volumes nomeados usados pelos serviços.
+volumes:
+  # Mantém os dados do PostgreSQL entre reinicializações.
+  postgres_data:
+  # Mantém filas e mensagens do RabbitMQ entre reinicializações.
+  rabbitmq_data:
+  # Mantém o histórico de métricas do Prometheus.
+  prometheus_data:
+  # Mantém as configurações do Grafana.
+  grafana_data:
