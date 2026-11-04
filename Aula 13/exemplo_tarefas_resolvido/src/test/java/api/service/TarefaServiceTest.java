@@ -24,6 +24,7 @@ import api.messaging.TarefaEventoPublisher;
 import api.model.Tarefa;
 import api.repository.ResponsavelRepository;
 import api.repository.TarefaRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 // Teste unitário do TarefaService: repositórios e publisher são mocks; o mapper é o de verdade
 // (é uma classe pura, sem dependência externa, então não vale a pena fingir).
@@ -34,15 +35,17 @@ class TarefaServiceTest {
     private TarefaEventoPublisher eventos;
     private PrevisaoService previsaoService;
     private TarefaService service;
+    private SimpleMeterRegistry metricas;
 
     @BeforeEach
     void preparar() {
+        metricas = new SimpleMeterRegistry();
         repository = mock(TarefaRepository.class);
         responsavelRepository = mock(ResponsavelRepository.class);
         eventos = mock(TarefaEventoPublisher.class);
         previsaoService = mock(PrevisaoService.class);
         service = new TarefaService(repository, responsavelRepository, new TarefaMapper(new ResponsavelMapper()),
-                previsaoService, eventos);
+                previsaoService, eventos, metricas);
     }
 
     private Tarefa tarefa(long id) {
@@ -60,6 +63,7 @@ class TarefaServiceTest {
         assertThat(criada.id()).isEqualTo(7L);
         assertThat(criada.concluida()).isFalse();
         verify(eventos).publicar(eq("criada"), any(Tarefa.class));
+        assertThat(metricas.counter("tarefas.operacoes", "operacao", "criar").count()).isEqualTo(1.0);
     }
 
     @Test
@@ -83,6 +87,7 @@ class TarefaServiceTest {
 
         assertThat(service.alternarConcluida(1L).concluida()).isTrue();
         verify(eventos).publicar("concluida", t);
+        assertThat(metricas.counter("tarefas.operacoes", "operacao", "concluir").count()).isEqualTo(1.0);
     }
 
     @Test
@@ -95,6 +100,7 @@ class TarefaServiceTest {
 
         assertThat(service.alternarConcluida(1L).concluida()).isFalse();
         verify(eventos).publicar("reaberta", t);
+        assertThat(metricas.counter("tarefas.operacoes", "operacao", "reabrir").count()).isEqualTo(1.0);
     }
 
     @Test

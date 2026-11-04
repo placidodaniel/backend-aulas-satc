@@ -2625,7 +2625,7 @@ Vale como **N2a e N2b**: 5 pontos do projeto backend, pela revisão do código, 
 
 Fazer a nossa API **consumir outra API**: no meio de uma requisição, buscar dados num serviço que não é nosso, traduzir para o nosso contrato e combinar com o que está no nosso banco. E, principalmente, aprender a lidar com o que pode dar errado do outro lado: o serviço fora do ar, lento, ou respondendo algo que não esperávamos.
 
-O exemplo é a **previsão do tempo no cadastro de tarefas**: ao escolher a data do prazo, a página pega a localização do navegador e pede à nossa API a previsão daquele dia. Quem consulta o [Open-Meteo](https://open-meteo.com) é a nossa API.
+O exemplo é a **previsão do tempo no cadastro de tarefas**: ao escolher a data do prazo, a página usa a localização fixa de Criciúma/SC e pede à nossa API a previsão daquele dia. Quem consulta o [Open-Meteo](https://open-meteo.com) é a nossa API.
 
 ---
 
@@ -2703,9 +2703,9 @@ E as regras (violar qualquer uma = `400`, e o Open-Meteo **nem é chamado**):
 | **R2.** A previsão é para hoje em diante | Previsão é sobre o futuro |
 | **R3.** Só até 15 dias depois de hoje | O Open-Meteo prevê 16 dias, contando hoje |
 
-#### A localização vem do navegador
+#### A localização é fixa: Criciúma/SC
 
-Quem sabe onde a pessoa está é o **navegador** (`navigator.geolocation`, com GPS, Wi-Fi ou rede). Na primeira vez, ele pergunta se a página pode saber a localização; liberado, a página manda a latitude e a longitude para a nossa API, junto com a data. O backend nunca sabe "onde o usuário está": só recebe dois números. O navegador só libera a localização em `http://localhost` ou em HTTPS.
+A previsão depende de um lugar, e em muitos sistemas quem sabe onde a pessoa está é o **navegador** (`navigator.geolocation`, com GPS, Wi-Fi ou rede). Aqui **não usamos isso**: ele pede a permissão da pessoa, só funciona em `http://localhost` ou HTTPS, e **não funciona nos computadores do laboratório**. A página usa uma localização **fixa**, a da SATC em Criciúma (`latitude=-28.6775`, `longitude=-49.3697`), numa constante `LOCALIZACAO` do `index.html`. O princípio não muda: o backend nunca sabe "onde o usuário está", só recebe dois números. Para usar outra cidade, troque esses dois números.
 
 ---
 
@@ -2826,7 +2826,7 @@ docker compose up -d          # PostgreSQL na porta 5439 (projeto Compose "aula1
 
 | Endereço | O que é |
 |---|---|
-| `http://localhost:8080/` | Cadastro de tarefas: escolha a data do prazo, permita a localização, e a previsão aparece embaixo do campo. O log mostra a chamada ao Open-Meteo |
+| `http://localhost:8080/` | Cadastro de tarefas: escolha a data do prazo e a previsão aparece embaixo do campo. O log mostra a chamada ao Open-Meteo |
 | `http://localhost:8080/contrato.html` | Contrato dos exercícios da Aula 12 |
 | `http://localhost:8080/swagger-ui.html` | Swagger UI: a rota nova está no grupo **Previsão do tempo** |
 
@@ -2876,7 +2876,7 @@ Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`]
 | **`queryParam`** | Um parâmetro da query string (`?latitude=...`), montado pelo `UriBuilder` já codificado. |
 | **Open-Meteo** | Serviço gratuito de previsão do tempo, sem cadastro nem chave de acesso. |
 | **Código WMO** | O número com que o Open-Meteo diz como está o tempo (0 = céu limpo, 61 = chuva fraca, 95 = trovoada). |
-| **Geolocalização** | A localização que o navegador informa à página (`navigator.geolocation`), com permissão do usuário. |
+| **Geolocalização** | A localização que o navegador informa à página (`navigator.geolocation`), com permissão da pessoa. Nesta disciplina a localização é fixa (Criciúma/SC), porque no laboratório ela não funciona. |
 | **Timeout** | Tempo máximo de espera. `connect-timeout` para conectar, `read-timeout` para a resposta chegar. |
 | **502 Bad Gateway** | "Sou intermediário, e o serviço que eu chamei falhou." |
 | **504 Gateway Timeout** | "Sou intermediário, e o serviço que eu chamei não respondeu a tempo." |
@@ -2894,8 +2894,8 @@ Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`]
 
 | Arquivo | Conteúdo |
 |---|---|
-| [aula13-observabilidade-testes.pdf](<Aula 13/aula13-observabilidade-testes.pdf>) | Testes unitários e E2E, observabilidade (métricas, logs e traces), Actuator, Prometheus e Grafana, e a demonstração (35 slides; o `.pptx` está na mesma pasta) |
-| [exemplo_tarefas_resolvido](<Aula 13/exemplo_tarefas_resolvido>) | O gabarito da Aula 12 (Open-Meteo + RabbitMQ) com **44 testes** (unitários e E2E) e **observabilidade** (Actuator, Prometheus e Grafana no Docker Compose) |
+| [aula13-observabilidade-testes.pdf](<Aula 13/aula13-observabilidade-testes.pdf>) | Testes unitários e E2E, observabilidade (métricas, logs e traces), Actuator, Prometheus e Grafana, e a demonstração (42 slides; o `.pptx` está na mesma pasta) |
+| [exemplo_tarefas_resolvido](<Aula 13/exemplo_tarefas_resolvido>) | O gabarito da Aula 12 (Open-Meteo + RabbitMQ) com **45 testes** (unitários e E2E) e **observabilidade** (Actuator, Prometheus e Grafana no Docker Compose) |
 | [README do exemplo](<Aula 13/exemplo_tarefas_resolvido/README.md>) | Como rodar os testes, subir a stack e ler o dashboard |
 | [src/test](<Aula 13/exemplo_tarefas_resolvido/src/test/java/api>) | Os testes, comentados |
 | [observabilidade/](<Aula 13/exemplo_tarefas_resolvido/observabilidade>) | Configuração do Prometheus e do Grafana (datasource e dashboard provisionados) |
@@ -2910,7 +2910,7 @@ Responder duas perguntas que toda API em produção precisa responder: **"como e
 
 ```bash
 cd "Aula 13/exemplo_tarefas_resolvido"
-./mvnw test
+docker compose --profile testes run --rm testes   # sem script: o Maven roda num container
 ```
 
 | Tipo | O que sobe | Exemplo no projeto |
@@ -2918,6 +2918,8 @@ cd "Aula 13/exemplo_tarefas_resolvido"
 | **Unitário** | Só a classe; dependências viram *mocks* (Mockito) | `PrevisaoServiceTest`: regras R1 a R3 e cache, com o `OpenMeteoClient` falso |
 | **Cliente HTTP** | O client contra um servidor falso | `OpenMeteoClientTest` com `MockRestServiceServer`: sem internet |
 | **E2E** | A aplicação inteira + PostgreSQL e RabbitMQ **reais** (Testcontainers) | `TarefaApiE2ETest`: cria pela API HTTP, confere no banco, e vê o evento passar pelo RabbitMQ |
+
+E tem também **testes de tela com o Playwright**: um navegador de verdade abre o cadastro de tarefas, digita e clica. Para mostrar em aula, sem instalar nada: `docker compose --profile ui up playwright` e abra `http://localhost:8081` (a interface do Playwright mostra a tela de cada passo).
 
 Boas práticas que o projeto mostra: muitos unitários e poucos E2E (pirâmide de testes); só **mockar o que não é nosso** (o Open-Meteo), não o banco nem o broker; `Awaitility` para esperar o que é assíncrono, em vez de `Thread.sleep`; e testar até o erro (`400`, `404`, `502`, `504`). Os testes ainda acharam um bug real: concluir uma tarefa não publicava o evento.
 
@@ -2944,7 +2946,7 @@ Além das métricas automáticas (HTTP, JVM, pool do banco), o projeto cria as *
 ```bash
 cd "Aula 13/exemplo_tarefas_resolvido"
 docker compose up -d          # PostgreSQL :5441, RabbitMQ :5673, Prometheus :9090, Grafana :3000
-./mvnw spring-boot:run
+docker compose --profile app up -d api   # a API, em container
 CARGA_TAXA=300 CARGA_PRODUTORES=2 docker compose --profile carga run --rm perftest   # carga na fila; acompanhe no Grafana
 ```
 

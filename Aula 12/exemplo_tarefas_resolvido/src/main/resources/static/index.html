@@ -318,7 +318,7 @@
           <button type="submit" class="primary" id="btn-add">Adicionar (POST)</button>
         </div>
         <!-- Aula 12: ao escolher a data do prazo, a previsão do tempo daquele
-             dia aparece aqui. A localização vem do navegador; quem consulta o
+             dia aparece aqui. A localização é fixa (Criciúma/SC); quem consulta o
              Open-Meteo é a NOSSA API (GET /previsao). -->
         <div class="previsao" id="previsao" hidden></div>
         <!-- Aula 09: manda junto campos que só a API deveria decidir. Com o
@@ -1641,37 +1641,16 @@
     document.getElementById('btn-chuvosas').hidden = !API.a12ex5;
   }
 
-  // A localização do navegador, guardada depois da primeira vez.
-  let localizacao = null;
+  // Localização FIXA: Criciúma/SC (SATC). Antes a página pedia a localização ao navegador
+  // (navigator.geolocation), mas isso não funciona nos computadores do laboratório: exige a
+  // permissão da pessoa e um contexto seguro (http://localhost ou HTTPS). O backend só recebe
+  // latitude e longitude; trocar de cidade é trocar estes dois números.
+  const LOCALIZACAO = { nome: 'Criciúma/SC', latitude: -28.6775, longitude: -49.3697 };
 
-  // Pede a localização ao navegador. Quem sabe onde a pessoa está é o
-  // NAVEGADOR (GPS, Wi-Fi, rede); o backend só recebe latitude e longitude.
-  // Na primeira vez, o navegador pergunta se a página pode saber a localização.
-  // Funciona em http://localhost e em HTTPS (não funciona em http://IP).
+  // Continua devolvendo uma Promise: é assim que os chamadores (previsão da data, da tarefa e
+  // "dias de chuva") esperam receber a localização. Agora a resposta é imediata e nunca falha.
   function pegarLocalizacao() {
-    if (localizacao) return Promise.resolve(localizacao);
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('este navegador não informa a localização'));
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        posicao => {
-          // 4 casas decimais (uns 11 metros): mais que isso não muda a previsão.
-          localizacao = {
-            latitude: Number(posicao.coords.latitude.toFixed(4)),
-            longitude: Number(posicao.coords.longitude.toFixed(4)),
-          };
-          resolve(localizacao);
-        },
-        erro => reject(new Error({
-          1: 'o acesso à localização não foi permitido',
-          2: 'o navegador não conseguiu descobrir a localização',
-          3: 'o navegador demorou demais para descobrir a localização',
-        }[erro.code] || erro.message)),
-        // Aceita uma posição de até 10 minutos atrás: não precisa do GPS a cada data.
-        { timeout: 10000, maximumAge: 10 * 60 * 1000 });
-    });
+    return Promise.resolve(LOCALIZACAO);
   }
 
   // Preenche a caixa da previsão: ícone, linha principal e linha de detalhe.
@@ -1713,14 +1692,14 @@
   // chegar, a resposta antiga é ignorada e não apaga a nova.
   let pedidoPrevisao = 0;
 
-  // A data do prazo mudou: localização do navegador → GET /previsao → caixa.
+  // A data do prazo mudou: localização fixa (Criciúma) → GET /previsao → caixa.
   async function mostrarPrevisao(data) {
     const meu = ++pedidoPrevisao;
     if (!data) {
       document.getElementById('previsao').hidden = true;
       return;
     }
-    caixaPrevisao('carregando', '📍', 'Pegando a sua localização no navegador...', '');
+    caixaPrevisao('carregando', '📍', `Usando a localização fixa: ${LOCALIZACAO.nome}...`, '');
     let loc;
     try {
       loc = await pegarLocalizacao();
@@ -1743,7 +1722,7 @@
     }
     const p = r.json;
     const textos = caixaPrevisao('', p.icone, `${formatarData(p.data)}: ${textoPrevisao(p)}`,
-      `Na sua localização (${p.latitude.toFixed(2)}, ${p.longitude.toFixed(2)}), pelo Open-Meteo`
+      `Em ${LOCALIZACAO.nome} (${p.latitude.toFixed(2)}, ${p.longitude.toFixed(2)}), pelo Open-Meteo`
       + (p.origem === 'cache' ? '  ·  veio do cache da API (Exercício 4)' : ''));
     // Exercício 1: com GET /previsao/agora, a caixa também mostra o tempo de agora.
     if (API.a12ex1) {

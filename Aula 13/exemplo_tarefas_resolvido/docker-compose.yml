@@ -143,6 +143,114 @@ services:
     depends_on:
       - prometheus
 
+  # ------------------------------------------------------------ Sem script (Aula 13)
+  # Nos computadores do laboratório (Windows, travados) não dá para rodar ./mvnw nem .cmd.
+  # Estes dois serviços rodam o Maven DENTRO de um container, só com o docker compose.
+  # Não sobem com "docker compose up": só quando pedidos pelo perfil (profiles).
+
+  # Testes unitários + E2E:   docker compose --profile testes run --rm testes
+  # Só os unitários:          docker compose --profile testes run --rm testes mvn -B -ntp test "-Dtest=!*E2ETest"
+  testes:
+    image: maven:3.9-eclipse-temurin-25
+    profiles: ["testes"]
+    working_dir: /app
+    volumes:
+      # O projeto inteiro, para o Maven enxergar o código e gravar o target/.
+      - .:/app
+      # Guarda as dependências baixadas: só a primeira execução demora.
+      - maven_repo:/root/.m2
+      # Os testes E2E (Testcontainers) criam PostgreSQL e RabbitMQ pelo Docker do computador.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Os containers do Testcontainers ficam no Docker do computador, não dentro deste:
+      # é por este endereço que o teste os alcança.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: mvn -B -ntp test
+
+  # A API (em vez de ./mvnw spring-boot:run):   docker compose --profile app up api
+  # Sobe o PostgreSQL e o RabbitMQ junto (depends_on) e fica na porta 8080.
+  api:
+    image: maven:3.9-eclipse-temurin-25
+    # "app": só a API. "ui": a API junto com o Playwright (veja os serviços abaixo).
+    profiles: ["app", "ui"]
+    working_dir: /app
+    volumes:
+      - .:/app
+      - maven_repo:/root/.m2
+    ports:
+      - "8080:8080"
+    environment:
+      # Dentro do Compose, os serviços se chamam pelo nome (postgres, rabbitmq) e pela porta
+      # INTERNA do container (5432 e 5672), não pelas portas publicadas no computador.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tarefas
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    # Pronta quando o /actuator/health responde. O Maven compila antes de subir: dê tempo.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 20s
+    command: mvn -B -ntp spring-boot:run
+
+  # ------------------------------------------------------------ Testes de tela (Playwright)
+  # Abre um navegador de verdade (Chromium, dentro do container) e testa o cadastro de tarefas.
+  # Como o computador do laboratório não deixa rodar scripts nem instalar nada, o Playwright
+  # roda num container e mostra a INTERFACE dele numa página web:
+  #
+  #   docker compose --profile ui up playwright      e abra  http://localhost:8081
+  #
+  # Lá você escolhe o teste, vê o navegador clicando e digitando (com a tela de cada passo)
+  # e pode rodar de novo ao vivo. A API sobe junto (depends_on).
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: ["ui"]
+    working_dir: /work
+    # init + ipc: recomendados pela Microsoft para o Chromium em container.
+    init: true
+    ipc: host
+    volumes:
+      - ./playwright:/work
+      # node_modules fica num volume: mais rápido e sem problema de permissão no Windows.
+      - playwright_node_modules:/work/node_modules
+    environment:
+      # Dentro do Compose, a API se chama "api".
+      BASE_URL: http://api:8080
+    ports:
+      - "8081:8081"
+    depends_on:
+      api:
+        condition: service_healthy
+    # --ui-host/--ui-port: serve a interface do Playwright em http://localhost:8081
+    command: sh -c "npm install --no-audit --no-fund && npx playwright test --ui-host=0.0.0.0 --ui-port=8081"
+
+  # Mesmos testes, sem interface: roda tudo e imprime o resultado no terminal.
+  #   docker compose --profile ui run --rm playwright-run
+  playwright-run:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: ["ui"]
+    working_dir: /work
+    init: true
+    ipc: host
+    volumes:
+      - ./playwright:/work
+      - playwright_node_modules:/work/node_modules
+    environment:
+      # Dentro do Compose, a API se chama "api".
+      BASE_URL: http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    command: sh -c "npm install --no-audit --no-fund && npx playwright test"
+
 # Declara os volumes nomeados usados pelos serviços.
 volumes:
   # Mantém os dados do PostgreSQL entre reinicializações.
@@ -153,3 +261,7 @@ volumes:
   prometheus_data:
   # Mantém as configurações do Grafana.
   grafana_data:
+  # Dependências do Maven baixadas pelos serviços "testes" e "api".
+  maven_repo:
+  # Dependências do Playwright (node_modules) dos serviços "playwright" e "playwright-run".
+  playwright_node_modules:

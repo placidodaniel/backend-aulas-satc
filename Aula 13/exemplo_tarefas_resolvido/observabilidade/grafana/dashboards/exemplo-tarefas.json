@@ -303,6 +303,175 @@
           "refId": "B"
         }
       ]
+    },
+    {
+      "id": 9,
+      "title": "Operações de tarefa (negócio)",
+      "description": "Quantas vezes cada operação de tarefa deu certo: criar, atualizar, concluir, reabrir, remover, vincular...",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (operacao) (rate(tarefas_operacoes_total{application=\"exemplo-tarefas\"}[1m]))",
+          "legendFormat": "{{operacao}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Erros por rota (4xx e 5xx)",
+      "description": "Qual rota está errando, e com qual status.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (method, uri, status) (rate(http_server_requests_seconds_count{application=\"exemplo-tarefas\",status=~\"4..|5..\",uri!~\"/actuator.*\"}[1m]))",
+          "legendFormat": "{{method}} {{uri}} ({{status}})",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Todas as rotas da API (últimos 15 min)",
+      "description": "Uma linha por método + rota: total de requisições, p95 e erros. Toda rota nova aparece aqui sozinha.",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 11
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95 (s)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Requisições",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "instant": true,
+          "format": "table",
+          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{application=\"exemplo-tarefas\",uri!~\"/actuator.*\"}[$__range]))"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "instant": true,
+          "format": "table",
+          "expr": "histogram_quantile(0.95, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{application=\"exemplo-tarefas\",uri!~\"/actuator.*\"}[$__range])))"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "C",
+          "instant": true,
+          "format": "table",
+          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{application=\"exemplo-tarefas\",status=~\"4..|5..\",uri!~\"/actuator.*\"}[$__range]))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "method": "Método",
+              "uri": "Rota",
+              "Value #A": "Requisições",
+              "Value #B": "p95 (s)",
+              "Value #C": "Erros"
+            }
+          }
+        }
+      ]
     }
   ]
 }

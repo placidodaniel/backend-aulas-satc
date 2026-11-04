@@ -22,7 +22,7 @@
 
 Até a Aula 9, a nossa API só **respondia**: alguém chamava, ela consultava o PostgreSQL e devolvia JSON. Nesta aula ela também **pergunta**: no meio de uma requisição, chama outra API pela internet e usa a resposta.
 
-A outra API é o [Open-Meteo](https://open-meteo.com), um serviço gratuito de previsão do tempo. No cadastro de tarefas, ao escolher a data do prazo, a página pega a localização do navegador e pede à **nossa API** a previsão daquele dia. Quem consulta o Open-Meteo é a nossa API, não o navegador.
+A outra API é o [Open-Meteo](https://open-meteo.com), um serviço gratuito de previsão do tempo. No cadastro de tarefas, ao escolher a data do prazo, a página usa a localização fixa de **Criciúma/SC** e pede à **nossa API** a previsão daquele dia. Quem consulta o Open-Meteo é a nossa API, não o navegador.
 
 ```text
 Navegador ──GET /previsao──> NOSSA API ──GET /v1/forecast──> Open-Meteo
@@ -150,9 +150,9 @@ A API sobe mesmo sem internet: a primeira chamada ao Open-Meteo só acontece qua
 
 ## 3. Ver a previsão no cadastro
 
-Abra <http://localhost:8080/> e escolha uma data no campo do prazo. Na primeira vez, o navegador pergunta se a página pode saber a sua localização: **permita**. A previsão daquele dia aparece logo abaixo do campo, e o log da direita mostra o caminho todo: Controller, Service, a chamada ao Open-Meteo e o Mapper.
+Abra <http://localhost:8080/> e escolha uma data no campo do prazo. A previsão daquele dia aparece logo abaixo do campo, e o log da direita mostra o caminho todo: Controller, Service, a chamada ao Open-Meteo e o Mapper.
 
-> 📍 **A localização vem do navegador**, e o navegador só libera em `http://localhost` ou em HTTPS. Abrindo a página por `http://192.168.x.x:8080`, ele recusa. Se o acesso tiver sido negado, libere no ícone ao lado do endereço e escolha a data de novo.
+> 📍 **A localização é fixa (Criciúma/SC).** A página não pede mais a localização ao navegador (`navigator.geolocation`): isso exige a permissão da pessoa e um contexto seguro (`http://localhost` ou HTTPS), e não funciona nos computadores do laboratório. As coordenadas (`-28.6775, -49.3697`, a SATC) ficam na constante `LOCALIZACAO` do `index.html`; para usar outra cidade, troque esses dois números.
 
 | Endereço | Para que serve |
 |---|---|

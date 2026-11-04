@@ -1,0 +1,12 @@
+{
+  "name": "exemplo-tarefas-playwright",
+  "private": true,
+  "description": "Testes de tela (E2E no navegador) do cadastro de tarefas, com Playwright",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

@@ -20,6 +20,7 @@ import api.dto.TarefaResponseDTO;
 // Importa o mapper que traduz DTO <-> entidade.
 import api.mapper.TarefaMapper;
 import api.messaging.TarefaEventoPublisher;
+import io.micrometer.core.instrument.MeterRegistry;
 // Importa as entidades persistidas.
 import api.model.Responsavel;
 import api.model.Tarefa;
@@ -58,19 +59,23 @@ public class TarefaService {
     private final PrevisaoService previsaoService;
     // Publica os eventos no RabbitMQ (Aula 12).
     private final TarefaEventoPublisher eventos;
+    // Aula 13: conta cada operação de negócio concluída com sucesso (tarefas.operacoes).
+    private final MeterRegistry metricas;
 
     // Aula 12, Exercício 5: chance de chuva a partir da qual o dia conta como "de chuva".
     public static final int CHANCE_DE_CHUVA = 60;
 
     // Recebe as dependências que o Spring injeta automaticamente.
     public TarefaService(TarefaRepository repository, ResponsavelRepository responsavelRepository, TarefaMapper mapper,
-                         PrevisaoService previsaoService, TarefaEventoPublisher eventos) {
+                         PrevisaoService previsaoService, TarefaEventoPublisher eventos,
+                         MeterRegistry metricas) {
         // Guarda as dependências recebidas nos atributos da classe.
         this.repository = repository;
         this.responsavelRepository = responsavelRepository;
         this.mapper = mapper;
         this.previsaoService = previsaoService;
         this.eventos = eventos;
+        this.metricas = metricas;
     }
 
     // Aula 12, Exercício 2: a tarefa com a previsão do tempo para o prazo dela.
@@ -147,6 +152,7 @@ public class TarefaService {
         // 3. O INSERT acontece aqui (com responsavel_id); a entidade volta com id.
         Tarefa salva = repository.save(tarefa);
         eventos.publicar("criada", salva);
+        contar("criar");
         // 4. Entidade → DTO de saída (o vínculo sai como objeto {id, nome, email}).
         return mapper.toResponse(salva);
     }
@@ -168,6 +174,7 @@ public class TarefaService {
         String titulo = repository.findById(id).map(Tarefa::getTitulo).orElse(null);
         repository.deleteById(id);
         eventos.publicar("removida", id, titulo);
+        contar("remover");
     }
 
     // Atualiza título, responsável, prazo, prioridade e vínculo de uma tarefa
@@ -178,7 +185,9 @@ public class TarefaService {
         // O mapper copia os campos editáveis do DTO -- e o responsável já resolvido.
         mapper.updateEntity(tarefa, dto, buscarResponsavel(dto.responsavelId()));
         // Persiste (UPDATE) e devolve a versão atualizada como DTO.
-        return mapper.toResponse(repository.save(tarefa));
+        Tarefa salva = repository.save(tarefa);
+        contar("atualizar");
+        return mapper.toResponse(salva);
     }
 
     // Exercício 3 -- PATCH: altera só os campos que vieram no JSON.
@@ -189,7 +198,9 @@ public class TarefaService {
         // Se veio responsavelId, o Service resolve antes (404 se não existir).
         mapper.applyPatch(tarefa, dto, buscarResponsavel(dto.responsavelId()));
         // O Hibernate gera o UPDATE; a resposta é a tarefa inteira, já alterada.
-        return mapper.toResponse(repository.save(tarefa));
+        Tarefa salva = repository.save(tarefa);
+        contar("atualizar_parcial");
+        return mapper.toResponse(salva);
     }
 
     // Bônus -- alterna o campo concluida entre true e false.
@@ -202,6 +213,7 @@ public class TarefaService {
         Tarefa salva = repository.save(tarefa);
         // Avisa o RabbitMQ: concluída ou reaberta.
         eventos.publicar(salva.isConcluida() ? "concluida" : "reaberta", salva);
+        contar(salva.isConcluida() ? "concluir" : "reabrir");
         // Devolve como DTO.
         return mapper.toResponse(salva);
     }
@@ -216,7 +228,9 @@ public class TarefaService {
         // pelo @NotNull do VinculoResponsavelDTO; inexistente = 404.
         tarefa.setResponsavelVinculado(buscarResponsavel(responsavelId));
         // O Hibernate gera UPDATE tarefas SET responsavel_id = ? WHERE id = ?
-        return mapper.toResponse(repository.save(tarefa));
+        Tarefa salva = repository.save(tarefa);
+        contar("vincular_responsavel");
+        return mapper.toResponse(salva);
     }
 
     // Remove o vínculo -- responsavel_id volta a ser NULL.
@@ -227,6 +241,12 @@ public class TarefaService {
         tarefa.setResponsavelVinculado(null);
         // Persiste a alteração.
         repository.save(tarefa);
+        contar("desvincular_responsavel");
+    }
+
+    // Aula 13: tarefas.operacoes{operacao=...}: quantas vezes cada operação de negócio deu certo.
+    private void contar(String operacao) {
+        metricas.counter("tarefas.operacoes", "operacao", operacao).increment();
     }
 
     // Busca INTERNA: devolve a entidade, para os métodos acima alterarem e
