@@ -2894,7 +2894,7 @@ Enunciados completos, dicas de código e resultado esperado em [`EXERCICIOS.md`]
 
 | Arquivo | Conteúdo |
 |---|---|
-| [aula13-observabilidade-testes.pdf](<Aula 13/aula13-observabilidade-testes.pdf>) | Testes unitários e E2E, observabilidade (métricas, logs e traces), Actuator, Prometheus e Grafana, e a demonstração (42 slides; o `.pptx` está na mesma pasta) |
+| [aula13-observabilidade-testes.pdf](<Aula 13/aula13-observabilidade-testes.pdf>) | Testes unitários e E2E, observabilidade (métricas, logs e traces), Actuator, Prometheus e Grafana, e a demonstração (43 slides; o `.pptx` está na mesma pasta) |
 | [exemplo_tarefas_resolvido](<Aula 13/exemplo_tarefas_resolvido>) | O gabarito da Aula 12 (Open-Meteo + RabbitMQ) com **45 testes** (unitários e E2E) e **observabilidade** (Actuator, Prometheus e Grafana no Docker Compose) |
 | [README do exemplo](<Aula 13/exemplo_tarefas_resolvido/README.md>) | Como rodar os testes, subir a stack e ler o dashboard |
 | [src/test](<Aula 13/exemplo_tarefas_resolvido/src/test/java/api>) | Os testes, comentados |

@@ -52,7 +52,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 // 5. O Controller chama TarefaService.criar(dto), passando o DTO já validado.
 // 6. O Service pede ao TarefaMapper: toEntity(dto) monta uma Tarefa nova
 //    (entidade), ainda sem id.
-// 7. O Service pede para o TarefaRepository salvar; o Hibernate faz o INSERT,
+// 7. O Service pede para o TarefaRepository salv   ar; o Hibernate faz o INSERT,
 //    o PostgreSQL gera o id e a entidade volta preenchida.
 // 8. O Service pede ao TarefaMapper: toResponse(tarefa) monta o
 //    TarefaResponseDTO. A entidade para aqui -- não sobe para o Controller.

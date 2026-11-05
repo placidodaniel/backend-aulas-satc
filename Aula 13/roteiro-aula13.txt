@@ -1,0 +1,266 @@
+ROTEIRO DA AULA 13 - OBSERVABILIDADE E TESTES
+Passo a passo para simular todos os testes e links para abrir durante a aula.
+
+Funciona no Windows (PowerShell), Linux e Mac: so precisa do Docker.
+Nenhum passo usa script (.sh ou .cmd).
+Todos os comandos abaixo sao digitados DENTRO da pasta:
+
+    Aula 13/exemplo_tarefas_resolvido
+
+
+======================================================================
+0. ANTES DE COMECAR
+======================================================================
+
+0.1  Abra o Docker Desktop e espere ficar "running".
+
+0.2  Entre na pasta do projeto:
+
+         cd "Aula 13/exemplo_tarefas_resolvido"
+
+0.3  Pare qualquer outra API que esteja na porta 8080
+     (a Aula 12 na IDE, outro container etc.). So uma API pode usar a 8080.
+     Para ver quem esta usando:
+
+         Linux/Mac:   ss -ltnp | grep 8080
+         PowerShell:  netstat -ano | findstr :8080
+
+     Se for um container antigo da Aula 13:
+
+         docker compose --profile app down
+
+
+======================================================================
+1. TESTES AUTOMATIZADOS DE CODIGO (JUnit)  - 45 testes
+======================================================================
+
+1.1  Todos (31 unitarios + 14 E2E). A primeira vez demora, porque baixa
+     as dependencias do Maven e as imagens do Postgres e do RabbitMQ:
+
+         docker compose --profile testes run --rm testes
+
+     Resultado esperado no fim:  Tests run: 45, Failures: 0, Errors: 0
+     BUILD SUCCESS
+
+1.2  So os unitarios (rapidos, sem banco nem RabbitMQ):
+
+         PowerShell:
+         docker compose --profile testes run --rm testes mvn -B -ntp test "-Dtest=!*E2ETest"
+
+         bash (Linux/Mac):
+         docker compose --profile testes run --rm testes mvn -B -ntp test '-Dtest=!*E2ETest'
+
+1.3  So os E2E (API com PostgreSQL e RabbitMQ de verdade, via Testcontainers):
+
+         docker compose --profile testes run --rm testes mvn -B -ntp test "-Dtest=*E2ETest"
+
+     Tambem da para rodar pela IDE: botao direito em src/test/java ->
+     Run All Tests.
+
+
+======================================================================
+2. SUBIR A STACK (API + banco + RabbitMQ + Prometheus + Grafana)
+======================================================================
+
+2.1  Suba tudo, inclusive a API (sem script):
+
+         docker compose --profile app up -d
+
+2.2  Confira que tudo ficou de pe:
+
+         docker compose --profile app ps
+
+     Esperado: postgres e rabbitmq "healthy", api "healthy" (a API pode
+     levar ate 1 minuto na primeira vez, porque o Maven compila dentro
+     do container).
+
+2.3  Confira se a API esta viva e se o Prometheus consegue le-la:
+
+         http://localhost:8080/actuator/health          -> "status":"UP"
+         http://localhost:9090/targets                  -> exemplo-tarefas  UP
+
+     Se o alvo aparecer "DOWN", a API da 8080 nao e a da Aula 13
+     (ou ainda esta subindo). Espere 10 segundos e recarregue.
+
+     Alternativa: rodar a API pela IDE (classe Application do projeto
+     da Aula 13) em vez de "--profile app". Neste caso suba so o resto:
+
+         docker compose up -d
+
+
+======================================================================
+3. TESTE DE TELA NO NAVEGADOR (Playwright, modo UI)
+======================================================================
+
+3.1  Suba o Playwright em modo UI (ele sobe a API sozinho se precisar):
+
+         docker compose --profile ui up playwright
+
+3.2  Abra no navegador (precisa ser "localhost"):
+
+         http://localhost:8081
+
+3.3  Clique no botao de play (triangulo) no topo da lista de testes
+     para rodar os 6 testes. Mostre:
+       - a tela da aplicacao mudando passo a passo;
+       - passar o mouse na linha do tempo para ver antes/depois de cada acao;
+       - as abas Network e Console (chamadas POST /tarefas, GET /previsao).
+
+3.4  Para encerrar: Ctrl+C no terminal.
+
+3.5  Versao sem tela (so o resultado no terminal):
+
+         docker compose --profile ui run --rm playwright-run
+
+     Esperado: 6 passed.
+
+
+======================================================================
+4. VER A TELA DA APLICACAO FUNCIONANDO
+======================================================================
+
+     http://localhost:8080                     tela de tarefas
+     http://localhost:8080/swagger-ui.html     documentacao interativa da API
+
+     A localizacao usada na previsao e fixa: Criciuma/SC.
+     (latitude -28.6775, longitude -49.3697)
+
+
+======================================================================
+5. OBSERVABILIDADE: ABRIR O GRAFANA ANTES DA CARGA
+======================================================================
+
+5.1  Abra o dashboard:
+
+         http://localhost:3000
+         Menu Dashboards -> pasta "Aula 13" -> "Exemplo Tarefas: visao geral"
+
+     Nao pede login.
+
+5.2  No canto superior direito, deixe:
+         periodo:        Last 5 minutes
+         atualizacao:    5s
+
+     (Em periodos longos como "Last 2 days" os graficos parecem vazios
+     porque o Prometheus so guarda o que aconteceu desde que subiu.)
+
+5.3  Outros links de apoio:
+
+         http://localhost:9090                       Prometheus (consultas PromQL)
+         http://localhost:9090/targets               alvo da API: deve estar UP
+         http://localhost:8080/actuator/prometheus   metricas em texto
+         http://localhost:15673                      RabbitMQ (usuario: tarefas / senha: tarefas)
+
+
+======================================================================
+6. TESTE DE CARGA COMPLETO (alimenta TODOS os graficos)
+======================================================================
+
+     Com a API na 8080 e o Grafana aberto (passo 5), rode:
+
+         docker compose --profile carga up --attach carga-http --attach perftest carga-http perftest
+
+     Dura 60 segundos. Liga duas cargas ao mesmo tempo:
+       - k6: chama todas as rotas HTTP, inclusive erros 400 e 404 de proposito;
+       - PerfTest: enche a fila do RabbitMQ.
+
+     Resultado esperado no terminal:
+       k6:        checks 100.00%   (cerca de 250 requisicoes por segundo)
+       PerfTest:  sending rate avg ~300 msg/s
+
+     Mais pesado (PowerShell):
+
+         $env:CARGA_VUS=10; $env:CARGA_TAXA=500; $env:CARGA_SEGUNDOS=60
+         docker compose --profile carga up --attach carga-http --attach perftest carga-http perftest
+
+     Mais pesado (bash):
+
+         CARGA_VUS=10 CARGA_TAXA=500 CARGA_SEGUNDOS=60 docker compose --profile carga up --attach carga-http --attach perftest carga-http perftest
+
+     Variaveis (todas opcionais):
+         CARGA_VUS        usuarios virtuais do k6 (HTTP)          padrao 5
+         CARGA_SEGUNDOS   duracao das duas cargas                  padrao 60
+         CARGA_TAXA       mensagens/s por produtor (fila)         padrao 200
+         CARGA_PRODUTORES produtores da fila                      padrao 1
+         CARGA_URL        endereco da API                         padrao http://host.docker.internal:8080
+
+6.1  So a carga HTTP:
+
+         docker compose --profile carga run --rm carga-http
+
+6.2  So a carga da fila do RabbitMQ:
+
+         docker compose --profile carga run --rm perftest
+
+     Atencao: esta nao gera requisicoes HTTP. O painel "Requisicoes por
+     segundo" fica em zero; quem sobe e o painel "RabbitMQ: eventos
+     publicados x consumidos" (linha de consumidos).
+
+6.3  O que olhar no Grafana durante a carga:
+       - Requisicoes por segundo, Latencia p95, Todas as rotas  -> as 19 rotas
+       - Erros 4xx e 5xx, Erros por rota                        -> os 400 e 404 provocados
+       - Chamadas ao Open-Meteo, Cache hit x miss               -> rotas de previsao
+       - RabbitMQ publicados x consumidos                       -> HTTP + PerfTest
+       - Operacoes de tarefa                                    -> criar, concluir, reabrir...
+       - Memoria da JVM e conexoes do banco                     -> efeito da carga
+
+     As chamadas de previsao usam o Open-Meteo de verdade: precisa de
+     internet. Sem internet, viram erros 5xx (que tambem aparecem nos
+     paineis de erro).
+
+6.4  Fila no painel do RabbitMQ:
+
+         http://localhost:15673  -> aba Queues -> tarefas.notificacoes
+         (usuario: tarefas / senha: tarefas)
+
+     Pela linha de comando:
+
+         docker compose exec rabbitmq rabbitmqctl list_queues name messages consumers
+
+
+======================================================================
+7. ORDEM SUGERIDA PARA A AULA
+======================================================================
+
+     1. Passo 1.1   rodar os testes (45 verdes)
+     2. Passo 2     subir a stack e conferir o alvo UP em localhost:9090/targets
+     3. Passo 3     Playwright no navegador (localhost:8081)
+     4. Passo 5     abrir o Grafana (localhost:3000), Last 5 minutes
+     5. Passo 6     rodar o teste de carga e acompanhar os graficos
+     6. Passo 6.4   mostrar a fila no RabbitMQ (localhost:15673)
+
+
+======================================================================
+8. ENCERRAR E LIMPAR
+======================================================================
+
+8.1  Parar tudo (mantem os dados do banco e do Prometheus):
+
+         docker compose --profile app --profile ui --profile carga --profile testes down
+
+8.2  Parar e APAGAR os dados (banco, RabbitMQ, Prometheus, Grafana):
+
+         docker compose --profile app --profile ui --profile carga --profile testes down -v
+
+
+======================================================================
+9. PROBLEMAS COMUNS
+======================================================================
+
+ - "Endereco ja em uso" na 8080:
+       Tem outra API (ou container) na porta. Veja o passo 0.3.
+
+ - Grafana com "No data":
+       a) o periodo esta muito longo: use "Last 5 minutes";
+       b) a API da 8080 nao e a da Aula 13: confira
+          http://localhost:9090/targets (precisa estar UP);
+       c) ninguem usou a API ainda: rode o passo 6.
+
+ - Playwright em http://IP:8081 nao funciona:
+       use sempre http://localhost:8081.
+
+ - Testes E2E falham por falta de Docker:
+       abra o Docker Desktop e tente de novo.
+
+ - Primeira execucao lenta:
+       normal; o Maven e as imagens ficam em cache nas proximas vezes.

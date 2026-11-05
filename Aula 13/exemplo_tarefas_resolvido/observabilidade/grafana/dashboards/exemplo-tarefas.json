@@ -40,7 +40,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{application=\"exemplo-tarefas\",uri!~\"/actuator.*\"}[1m]))",
+          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{application=\"exemplo-tarefas\",uri!~\"/actuator.*\"}[$__rate_interval]))",
           "legendFormat": "{{method}} {{uri}}",
           "refId": "A"
         }
@@ -73,7 +73,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{application=\"exemplo-tarefas\",uri!~\"/actuator.*\"}[1m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{application=\"exemplo-tarefas\",uri!~\"/actuator.*\"}[$__rate_interval])))",
           "legendFormat": "{{uri}}",
           "refId": "A"
         }
@@ -106,7 +106,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (status) (rate(http_server_requests_seconds_count{application=\"exemplo-tarefas\",status=~\"4..|5..\"}[1m]))",
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{application=\"exemplo-tarefas\",status=~\"4..|5..\"}[$__rate_interval]))",
           "legendFormat": "HTTP {{status}}",
           "refId": "A"
         }
@@ -139,7 +139,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (resultado) (rate(openmeteo_chamadas_seconds_count{application=\"exemplo-tarefas\"}[1m]))",
+          "expr": "sum by (resultado) (rate(openmeteo_chamadas_seconds_count{application=\"exemplo-tarefas\"}[$__rate_interval]))",
           "legendFormat": "{{resultado}}",
           "refId": "A"
         }
@@ -205,7 +205,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (tipo) (rate(tarefas_eventos_publicados_total{application=\"exemplo-tarefas\"}[1m]))",
+          "expr": "sum by (tipo) (rate(tarefas_eventos_publicados_total{application=\"exemplo-tarefas\"}[$__rate_interval]))",
           "legendFormat": "publicado {{tipo}}",
           "refId": "A"
         },
@@ -214,7 +214,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (tipo) (rate(tarefas_eventos_consumidos_total{application=\"exemplo-tarefas\"}[1m]))",
+          "expr": "sum by (tipo) (rate(tarefas_eventos_consumidos_total{application=\"exemplo-tarefas\"}[$__rate_interval]))",
           "legendFormat": "consumido {{tipo}}",
           "refId": "B"
         }
@@ -331,7 +331,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (operacao) (rate(tarefas_operacoes_total{application=\"exemplo-tarefas\"}[1m]))",
+          "expr": "sum by (operacao) (rate(tarefas_operacoes_total{application=\"exemplo-tarefas\"}[$__rate_interval]))",
           "legendFormat": "{{operacao}}",
           "refId": "A"
         }
@@ -364,7 +364,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (method, uri, status) (rate(http_server_requests_seconds_count{application=\"exemplo-tarefas\",status=~\"4..|5..\",uri!~\"/actuator.*\"}[1m]))",
+          "expr": "sum by (method, uri, status) (rate(http_server_requests_seconds_count{application=\"exemplo-tarefas\",status=~\"4..|5..\",uri!~\"/actuator.*\"}[$__rate_interval]))",
           "legendFormat": "{{method}} {{uri}} ({{status}})",
           "refId": "A"
         }

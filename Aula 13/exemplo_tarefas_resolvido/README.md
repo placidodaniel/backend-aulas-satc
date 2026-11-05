@@ -210,6 +210,40 @@ Durante a carga, compare no painel *RabbitMQ: eventos publicados x consumidos*: 
 
 ---
 
+## Teste de carga completo (alimenta todos os gráficos)
+
+Um único comando liga **duas cargas ao mesmo tempo**: o k6 chama **todas as rotas HTTP** (`carga/http.js`) e o PerfTest enche a **fila do RabbitMQ**. Sem script, só `docker compose`. Antes: a API da Aula 13 rodando na `8080` e o Grafana aberto em *Last 5 minutes*.
+
+```bash
+docker compose --profile carga up --attach carga-http --attach perftest carga-http perftest
+```
+
+Só o HTTP: `docker compose --profile carga run --rm carga-http`. Só a fila: veja a seção seguinte.
+
+| Variável | O que é | Padrão |
+|---|---|---|
+| `CARGA_VUS` | usuários virtuais do k6 (HTTP) | `5` |
+| `CARGA_SEGUNDOS` | duração das duas cargas | `60` |
+| `CARGA_TAXA` | msg/s por produtor (fila) | `200` |
+| `CARGA_URL` | endereço da API | `http://host.docker.internal:8080` |
+
+(PowerShell: `$env:CARGA_VUS=10; docker compose ...`.)
+
+Cada iteração do k6 cria uma tarefa e percorre o ciclo inteiro: listar, buscar, atrasadas, alterar (PUT e PATCH), vincular e desvincular responsável, concluir, reabrir, previsão (Open-Meteo), responsáveis, `/v3/api-docs`, a página, **erros 400 e 404 de propósito** e, por fim, excluir. Resultado de uma execução de 60 s (5 VUs): ≈ 250 requisições/s, 100% dos checks passando, e todos os painéis com dados:
+
+| Painel | O que alimenta a carga |
+|---|---|
+| Requisições por segundo, Latência p95, Todas as rotas | as 19 rotas da API |
+| Erros (4xx e 5xx), Erros por rota | os 400 e 404 provocados |
+| Chamadas ao Open-Meteo, Cache hit x miss | `/previsao`, `/previsao/agora`, `/tarefas/chuvosas`, `/tarefas/{id}/previsao` |
+| RabbitMQ publicados x consumidos | criada, concluida, reaberta, removida (HTTP) e a carga do PerfTest |
+| Operações de tarefa | criar, atualizar, concluir, reabrir, desvincular... |
+| Memória e pool do banco | efeito da carga sobre a JVM e o Hikari |
+
+> As chamadas de previsão usam o Open-Meteo de verdade (precisa de internet). Sem internet, elas viram erros 5xx, que também aparecem nos painéis de erro.
+
+---
+
 ## Teste de carga na fila (herdado da Aula 12)
 
 Sem script: é só o `docker compose`. Os parâmetros vão em variáveis de ambiente (todas opcionais):

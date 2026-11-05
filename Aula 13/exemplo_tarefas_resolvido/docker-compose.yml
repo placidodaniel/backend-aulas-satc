@@ -105,9 +105,25 @@ services:
       - --rate
       - ${CARGA_TAXA:-200}
       - --time
-      - ${CARGA_SEGUNDOS:-30}
+      - ${CARGA_SEGUNDOS:-60}
       - --flag
       - persistent
+
+  # Teste de carga HTTP (k6): chama TODAS as rotas da API (carga/http.js) e alimenta o dashboard.
+  # Roda sozinho com: docker compose --profile carga run --rm carga-http
+  # ou junto com a carga da fila:   docker compose --profile carga up
+  carga-http:
+    image: grafana/k6:0.54.0
+    profiles: ["carga"]
+    volumes:
+      - ./carga/http.js:/carga/http.js:ro
+    environment:
+      BASE_URL: ${CARGA_URL:-http://host.docker.internal:8080}
+      VUS: ${CARGA_VUS:-5}
+      SEGUNDOS: ${CARGA_SEGUNDOS:-60}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: run /carga/http.js
 
   # ------------------------------------------------------------ Observabilidade (Aula 13)
   # Prometheus: de tempos em tempos (scrape) pede as métricas da API em /actuator/prometheus
