@@ -1,0 +1,1072 @@
+{
+  "info": {
+    "_postman_id": "d7a3c1e2-5b4f-4c8d-9e1a-aula12previsao",
+    "name": "exemplo_tarefas · Aula 12",
+    "description": "Coleção da API de tarefas (Aula 12, Backend, SATC 2026.1). Suba o banco e a API antes de testar:\n\n```\ncd \"Aula 12/exemplo_tarefas\"\ndocker compose up -d\n./mvnw spring-boot:run\n```\n\nA variável {{baseUrl}} já vem configurada para http://localhost:8080. {{latitude}} e {{longitude}} são as da SATC (Criciúma). {{data}} é calculada antes de cada requisição: hoje + 3 dias.\n\nAs rotas da pasta **Previsão do tempo** fazem a NOSSA API chamar outra API (o Open-Meteo). Os pedidos \"direto no Open-Meteo\" mostram o JSON como ele entrega, para comparar.\n\n**Swagger:** http://localhost:8080/swagger-ui.html. Para gerar uma collection direto do contrato OpenAPI: Import → Link → http://localhost:8080/v3/api-docs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Swagger / OpenAPI",
+      "description": "O contrato gerado pelo springdoc a partir dos Controllers e DTOs.",
+      "item": [
+        {
+          "name": "Contrato OpenAPI (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            },
+            "description": "O documento OpenAPI que o Swagger UI desenha. O OpenMeteoRespostaDTO (o formato do Open-Meteo) não aparece em components.schemas: ele não passa pelos nossos Controllers."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tarefas",
+      "description": "CRUD de /tarefas. Entrada: TarefaRequestDTO. Saída: TarefaResponseDTO.",
+      "item": [
+        {
+          "name": "Listar tarefas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "200 com a lista de TarefaResponseDTO, prazo mais próximo primeiro."
+          }
+        },
+        {
+          "name": "Criar tarefa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "201 com o TarefaResponseDTO criado. Os campos id e concluida deste corpo NÃO existem no TarefaRequestDTO: o Jackson ignora, e a tarefa nasce com id gerado pelo banco e concluida=false.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Estudar DTO e Swagger\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-01\",\n  \"prioridade\": 4,\n  \"id\": 999,\n  \"concluida\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar tarefa por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "200 com o TarefaResponseDTO; 404 se o id não existir."
+          }
+        },
+        {
+          "name": "Atualizar tarefa (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1"
+              ]
+            },
+            "description": "PUT substitui todos os campos editáveis: os quatro são obrigatórios, como no POST (TarefaRequestDTO).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Estudar DTO, Swagger e mapeamento\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-15\",\n  \"prioridade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Concluir / reabrir tarefa",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/concluir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "concluir"
+              ]
+            },
+            "description": "Inverte o campo concluida."
+          }
+        },
+        {
+          "name": "Buscar por responsável (texto)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/buscar?responsavel=Daniel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "responsavel",
+                  "value": "Daniel"
+                }
+              ]
+            },
+            "description": "200 com as tarefas cujo responsável (texto) é Daniel, sem diferenciar maiúsculas."
+          }
+        },
+        {
+          "name": "Tarefas atrasadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/atrasadas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "atrasadas"
+              ]
+            },
+            "description": "200 com as tarefas pendentes e com prazo antes de hoje."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Responsáveis e vínculo",
+      "description": "Contrato criado na Aula 08. No Exercício 1 o código muda (entidade → DTO), mas estas respostas não podem mudar.",
+      "item": [
+        {
+          "name": "Listar responsáveis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis"
+              ]
+            },
+            "description": "200 com [{id, nome, email}], ordenado por nome."
+          }
+        },
+        {
+          "name": "Criar responsável",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis"
+              ]
+            },
+            "description": "201 com {id, nome, email}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@satc.edu.br\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar tarefa já vinculada (responsavelId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "201: a tarefa já nasce vinculada. Entra só o id (\"responsavelId\": 1) e sai o objeto inteiro (\"responsavelVinculado\": {id, nome, email}). Id inexistente = 404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Revisar o contrato no Swagger\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-01\",\n  \"prioridade\": 3,\n  \"responsavelId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Tarefas de um responsável",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis/1/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis",
+                "1",
+                "tarefas"
+              ]
+            },
+            "description": "200 com as tarefas vinculadas, no mesmo formato do GET /tarefas; 404 se o responsável não existir."
+          }
+        },
+        {
+          "name": "Vincular responsável à tarefa",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "200 com a tarefa e o responsavelVinculado preenchido.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responsavelId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Desvincular responsável",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "204 sem corpo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Casos de erro (400 / 404)",
+      "description": "No projeto base, o 404 vem em texto puro e o 400 no JSON padrão do Spring. Depois do Exercício 5, os dois vêm no formato ErroDTO.",
+      "item": [
+        {
+          "name": "Criar tarefa com corpo vazio (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "400: os quatro campos do TarefaRequestDTO são obrigatórios.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar tarefa com prioridade 9 e prazo no passado (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "400: @Max(5) na prioridade e @FutureOrPresent no prazo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Teste\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2020-01-01\",\n  \"prioridade\": 9\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar id inexistente (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "999"
+              ]
+            },
+            "description": "404: Tarefa não encontrada: 999."
+          }
+        },
+        {
+          "name": "Criar responsável com e-mail inválido (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/responsaveis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "responsaveis"
+              ]
+            },
+            "description": "400: @Email.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana\",\n  \"email\": \"ana\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Vincular sem responsavelId (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "400: @NotNull no VinculoResponsavelDTO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Vincular responsável inexistente (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/responsavel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "responsavel"
+              ]
+            },
+            "description": "404: Responsável não encontrado: 999.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responsavelId\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar tarefa com responsavelId inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas"
+              ]
+            },
+            "description": "404: o TarefaService busca o responsável antes do INSERT. Nenhuma tarefa é gravada.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Teste\",\n  \"responsavel\": \"Ana\",\n  \"dataPrazo\": \"2026-12-01\",\n  \"prioridade\": 3,\n  \"responsavelId\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Previsão do tempo (Aula 12)",
+      "description": "A nossa API como CLIENTE de outra API: o Open-Meteo.",
+      "item": [
+        {
+          "name": "Previsão de um dia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?latitude={{latitude}}&longitude={{longitude}}&data={{data}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "{{data}}"
+                }
+              ]
+            },
+            "description": "A nossa API consulta o Open-Meteo e devolve a previsão traduzida (PrevisaoDTO)."
+          }
+        },
+        {
+          "name": "Sem latitude (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?longitude={{longitude}}&data={{data}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "{{data}}"
+                }
+              ]
+            },
+            "description": "Parâmetro obrigatório ausente: ErroDTO, sem chamar o Open-Meteo."
+          }
+        },
+        {
+          "name": "Latitude fora do planeta (400, R1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?latitude=999&longitude={{longitude}}&data={{data}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "999"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "{{data}}"
+                }
+              ]
+            },
+            "description": "R1: latitude entre -90 e 90."
+          }
+        },
+        {
+          "name": "Data no passado (400, R2)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?latitude={{latitude}}&longitude={{longitude}}&data=2020-01-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "2020-01-01"
+                }
+              ]
+            },
+            "description": "R2: a previsão é para hoje em diante."
+          }
+        },
+        {
+          "name": "Data longe demais (400, R3)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?latitude={{latitude}}&longitude={{longitude}}&data=2099-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "2099-12-31"
+                }
+              ]
+            },
+            "description": "R3: o Open-Meteo prevê só 16 dias."
+          }
+        },
+        {
+          "name": "Data em formato errado (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?latitude={{latitude}}&longitude={{longitude}}&data=amanha",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "amanha"
+                }
+              ]
+            },
+            "description": "A data vai como yyyy-MM-dd."
+          }
+        },
+        {
+          "name": "Direto no Open-Meteo: previsão diária",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.open-meteo.com/v1/forecast?latitude={{latitude}}&longitude={{longitude}}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=auto&start_date={{data}}&end_date={{data}}",
+              "host": [
+                "https://api.open-meteo.com"
+              ],
+              "path": [
+                "v1",
+                "forecast"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "daily",
+                  "value": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max"
+                },
+                {
+                  "key": "timezone",
+                  "value": "auto"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{data}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{data}}"
+                }
+              ]
+            },
+            "description": "Sem passar pela nossa API: o JSON como o Open-Meteo entrega (uma lista por medida)."
+          }
+        },
+        {
+          "name": "Direto no Open-Meteo: agora",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.open-meteo.com/v1/forecast?latitude={{latitude}}&longitude={{longitude}}&current=temperature_2m,wind_speed_10m,weather_code&timezone=auto",
+              "host": [
+                "https://api.open-meteo.com"
+              ],
+              "path": [
+                "v1",
+                "forecast"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "current",
+                  "value": "temperature_2m,wind_speed_10m,weather_code"
+                },
+                {
+                  "key": "timezone",
+                  "value": "auto"
+                }
+              ]
+            },
+            "description": "O formato do Exercício 1: \"current\" é um objeto, não listas."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exercícios da Aula 12",
+      "item": [
+        {
+          "name": "Ex. 1: o tempo de agora",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao/agora?latitude={{latitude}}&longitude={{longitude}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao",
+                "agora"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                }
+              ]
+            },
+            "description": "AgoraDTO: horario, descricao, icone, temperatura, vento."
+          }
+        },
+        {
+          "name": "Ex. 2: tarefa com a previsão do prazo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/1/previsao?latitude={{latitude}}&longitude={{longitude}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "1",
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                }
+              ]
+            },
+            "description": "TarefaComPrevisaoDTO. Prazo fora da janela: previsao null e aviso."
+          }
+        },
+        {
+          "name": "Ex. 2: tarefa que não existe (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/999/previsao?latitude={{latitude}}&longitude={{longitude}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "999",
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                }
+              ]
+            },
+            "description": "404 da nossa API."
+          }
+        },
+        {
+          "name": "Ex. 3: tempo esgotado (504)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?latitude={{latitude}}&longitude={{longitude}}&data={{data}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "{{data}}"
+                }
+              ]
+            },
+            "description": "Com spring.http.client.read-timeout=1ms no application.properties: 504 Gateway Timeout."
+          }
+        },
+        {
+          "name": "Ex. 4: cache (rode duas vezes)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/previsao?latitude={{latitude}}&longitude={{longitude}}&data={{data}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "previsao"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                },
+                {
+                  "key": "data",
+                  "value": "{{data}}"
+                }
+              ]
+            },
+            "description": "Primeira vez: \"origem\": \"open-meteo\". Segunda: \"origem\": \"cache\"."
+          }
+        },
+        {
+          "name": "Ex. 5: tarefas em dias de chuva",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tarefas/chuvosas?latitude={{latitude}}&longitude={{longitude}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tarefas",
+                "chuvosas"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "{{latitude}}"
+                },
+                {
+                  "key": "longitude",
+                  "value": "{{longitude}}"
+                }
+              ]
+            },
+            "description": "Pendentes com prazo nos próximos 16 dias e chance de chuva de 60% ou mais. Uma chamada só ao Open-Meteo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Excluir tarefa",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tarefas/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "tarefas",
+            "1"
+          ]
+        },
+        "description": "204 sem corpo; 404 se o id não existir. Fica por último na coleção porque os outros requests usam a tarefa #1."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "latitude",
+      "value": "-28.6775",
+      "type": "string"
+    },
+    {
+      "key": "longitude",
+      "value": "-49.3697",
+      "type": "string"
+    },
+    {
+      "key": "data",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// {{data}} = hoje + 3 dias, no formato yyyy-MM-dd (dentro da janela de previsão).",
+          "const d = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);",
+          "const doisDigitos = n => String(n).padStart(2, '0');",
+          "pm.collectionVariables.set('data', `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}`);"
+        ]
+      }
+    }
+  ]
+}

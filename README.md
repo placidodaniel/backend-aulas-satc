@@ -84,6 +84,13 @@
   - [Parte 1: testes unitários e E2E](#parte-1-testes-unitários-e-e2e)
   - [Parte 2: observabilidade com Prometheus e Grafana](#parte-2-observabilidade-com-prometheus-e-grafana)
   - [Parte 3: rodando o projeto](#parte-3-rodando-o-projeto)
+- [Aula 14: MCP e IA no Desenvolvimento](#aula-14-mcp-e-ia-no-desenvolvimento)
+  - [Materiais](#materiais-9)
+  - [Parte 1: o que é o MCP](#parte-1-o-que-é-o-mcp)
+  - [Parte 2: o servidor MCP de tarefas](#parte-2-o-servidor-mcp-de-tarefas)
+  - [Parte 3: IA no desenvolvimento](#parte-3-ia-no-desenvolvimento)
+  - [Parte 4: o workflow com skills](#parte-4-o-workflow-com-skills)
+  - [Exercícios](#exercícios-5)
 
 ---
 
@@ -2959,3 +2966,124 @@ CARGA_TAXA=300 CARGA_PRODUTORES=2 docker compose --profile carga run --rm perfte
 | `http://localhost:15673` | Painel do RabbitMQ |
 
 > ⚠️ O Grafana está com acesso anônimo de administrador e o `/actuator` aberto: configuração **só de aula**.
+
+---
+
+## Aula 14: MCP e IA no Desenvolvimento
+
+### Materiais
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula14-mcp-ia-desenvolvimento.pdf](<Aula 14/aula14-mcp-ia-desenvolvimento.pdf>) | MCP (protocolo, primitivas, transportes, Context7, segurança), o servidor MCP de tarefas, IA no desenvolvimento (CLAUDE.md, skills, hooks, permissões), o workflow com skills, boas práticas e armadilhas (48 slides; o `.pptx` está na mesma pasta) |
+| [exemplo_tarefas_mcp](<Aula 14/exemplo_tarefas_mcp>) | O gabarito da Aula 13 com um **servidor MCP** (Spring AI) na própria API: 5 ferramentas, 1 recurso e 1 prompt |
+| [README do exemplo](<Aula 14/exemplo_tarefas_mcp/README.md>) | Como subir, testar sem IA, conectar um assistente e os exercícios |
+| [static/mcp.html](<Aula 14/exemplo_tarefas_mcp/src/main/resources/static/mcp.html>) | O *cliente MCP de bolso*: faz no navegador o que um assistente de IA faz (abra em `http://localhost:8080/mcp.html`) |
+| [static/assistente.html](<Aula 14/exemplo_tarefas_mcp/src/main/resources/static/assistente.html>) | O *assistente na tela*: você digita o pedido e um modelo de IA local (Ollama, sem chave) usa as ferramentas MCP |
+| [roteiro-aula14.txt](<Aula 14/roteiro-aula14.txt>) | O passo a passo da demonstração |
+
+### Objetivo da aula
+
+Fazer um **assistente de IA usar o nosso sistema de tarefas** (cadastrar, listar, concluir e ver estatísticas conversando em português) e aprender a **trabalhar com IA** no desenvolvimento sem perder o controle do código: dar contexto, usar skills e sempre verificar.
+
+---
+
+### Parte 1: o que é o MCP
+
+O **Model Context Protocol** é um protocolo aberto para ligar aplicativos de IA a outros sistemas. O servidor é escrito uma vez e qualquer cliente que fale MCP (Claude Code, Copilot, Cursor, Gemini...) consegue usar.
+
+```text
+Host (Claude Code, VS Code)            Servidor MCP              Sistema
+  modelo ──> cliente MCP ──POST /mcp──> nossa API :8080 ──> TarefaService ──> PostgreSQL
+```
+
+| Primitiva | O que é | Quem decide usar | No exemplo |
+|---|---|---|---|
+| **Ferramenta** | Uma ação com parâmetros | O modelo | `cadastrar_tarefa`, `listar_tarefas`... |
+| **Recurso** | Um dado ou texto, com URI | O app ou o usuário | `tarefas://regras` |
+| **Prompt** | Um pedido pronto | O usuário | `planejar_semana` |
+
+Por baixo é **JSON-RPC 2.0**: `initialize`, `tools/list`, `tools/call`. O modelo nunca chama a API: ele pede, e o **cliente** executa. Dois transportes: **stdio** (o servidor é um processo local) e **Streamable HTTP** (uma rota `POST /mcp`, o que a nossa API usa).
+
+MCPs prontos ajudam no desenvolvimento. O mais útil para começar é o **Context7**, que entrega a documentação **atual** das bibliotecas, em vez do que o modelo decorou no treino.
+
+---
+
+### Parte 2: o servidor MCP de tarefas
+
+```text
+Navegador / Postman ──HTTP/JSON──> TarefaController ──┐
+                                                       ├──> TarefaService
+Assistente de IA    ──MCP (/mcp)─> TarefaMcpTools  ────┘
+```
+
+`TarefaMcpTools` é um "Controller para a IA": cada método com `@McpTool` vira uma ferramenta e chama o mesmo `TarefaService` do REST. Três cuidados que valem para qualquer servidor MCP:
+
+1. **A descrição é para a IA**: o modelo escolhe a ferramenta lendo a `description`.
+2. **Toda porta de entrada valida**: sem `@Valid`, chamamos o `Validator` na mão; a IA também erra.
+3. **Erro é mensagem**: a exceção volta como `isError: true`, e a IA corrige sozinha.
+
+```bash
+cd "Aula 14/exemplo_tarefas_mcp"
+docker compose --profile app up -d                              # tudo, inclusive a API
+# abra http://localhost:8080/mcp.html (sem IA)
+claude mcp add --transport http tarefas http://localhost:8080/mcp   # com o Claude Code
+```
+
+#### O assistente na tela (sem chave)
+
+A tela `assistente.html` leva o MCP para dentro da aplicação: você digita o pedido, um modelo de IA escolhe as ferramentas e a própria API faz o papel de **host** (`AssistenteService`), executando cada ferramenta pelo MCP. O modelo roda localmente no **Ollama**, num container, sem conta e sem chave. O mesmo código também fala com o **OpenRouter** (modelos na nuvem, com chave), trocando só variáveis de ambiente.
+
+```bash
+docker compose --profile ia up -d                 # Ollama + modelo qwen2.5:3b (~2 GB, só na 1ª vez)
+docker compose --profile app --profile ia up -d   # tudo junto
+# abra http://localhost:8080/assistente.html
+```
+
+São **66 testes** (os 45 da Aula 13 + 21 novos); os E2E do MCP usam o cliente MCP oficial do SDK Java contra a API real, e os do assistente trocam só o modelo por um falso.
+
+> ⚠️ A rota `/mcp` não tem autenticação: configuração **só de aula**, em `localhost`.
+
+---
+
+### Parte 3: IA no desenvolvimento
+
+Um **agente de código** (Claude Code, Copilot Agent, Cursor, Codex, Gemini CLI) lê o projeto, edita, roda comandos e testes. O resultado depende do que vai em volta do modelo:
+
+| Peça | O que é | No exemplo |
+|---|---|---|
+| **CLAUDE.md** | Contexto lido em toda sessão: comandos, regras de arquitetura | [CLAUDE.md](<Aula 14/exemplo_tarefas_mcp/CLAUDE.md>) |
+| **Skill** | Receita (`SKILL.md`) carregada só quando o pedido combina, ou com `/nome` | [verificar](<Aula 14/exemplo_tarefas_mcp/.claude/skills/verificar/SKILL.md>), [nova-ferramenta-mcp](<Aula 14/exemplo_tarefas_mcp/.claude/skills/nova-ferramenta-mcp/SKILL.md>) |
+| **MCP** | Ferramentas e dados de outro sistema | `tarefas`, `context7` no [.mcp.json](<Aula 14/exemplo_tarefas_mcp/.mcp.json>) |
+| **Hook** | Comando que roda **sempre** num evento | Exemplo: preparar o ambiente ao iniciar a sessão |
+| **Permissões** | O que roda sem perguntar | [.claude/settings.json](<Aula 14/exemplo_tarefas_mcp/.claude/settings.json>) |
+
+Skills do Claude Code mais úteis para o código: `/init`, `/code-review`, `/simplify`, `/security-review`, `/run`, `/loop`, `/update-config`, `/fewer-permission-prompts`. No plugin *engineering*: `architecture`, `system-design`, `testing-strategy`, `debug`, `code-review`, `tech-debt`, `documentation`, `deploy-checklist`, `incident-response`, `standup`.
+
+---
+
+### Parte 4: o workflow com skills
+
+| Etapa | Skills e ferramentas | O que você confere |
+|---|---|---|
+| 1. Entender | `/init`, CLAUDE.md, ler o código | Se o agente entendeu a arquitetura |
+| 2. Projetar | `architecture`, `system-design` | As opções e o porquê da escolha |
+| 3. Planejar testes | `testing-strategy` | Os casos de erro e de limite |
+| 4. Implementar | modo plano, Context7, skill do projeto | O plano antes do código |
+| 5. Verificar | `verificar`, `/run`, testes | Evidência: teste verde, chamada real |
+| 6. Revisar | `/code-review`, `/simplify`, `/security-review` | O diff, linha por linha |
+| 7. Entregar | `documentation`, `deploy-checklist`, PR | README e mensagem de commit |
+| 8. Operar | `debug`, `incident-response`, `tech-debt`, `standup` | A causa, não só o sintoma |
+
+Boas práticas: dê contexto, peça o plano antes do código, faça passos pequenos, exija evidência, leia o diff, use documentação atual, não cole segredos e use a IA para aprender. Armadilhas: API inventada, teste que testa o mock, dependência inventada, "funciona na minha máquina", mudança fora do escopo e injeção de prompt.
+
+---
+
+### Exercícios
+
+Estão no [README do exemplo](<Aula 14/exemplo_tarefas_mcp/README.md#6-exercícios>):
+
+1. Ferramenta `reabrir_tarefa` (com a skill `nova-ferramenta-mcp`).
+2. Ferramenta `vincular_responsavel`.
+3. Uma descrição ruim: compare o que a IA chama antes e depois.
+4. O `CLAUDE.md` do Projeto Final do grupo.

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cliente MCP da Aula 14</title>
+<style>
+  :root {
+    --navy-dark: #12173a;
+    --navy: #1E2761;
+    --card-bg: #F3F6FD;
+    --muted: #5A6B8C;
+    --green: #1B7A6E;
+    --red: #C0392B;
+    --amber: #B7791F;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Mesmo esquema das outras páginas: a página ocupa a tela e só os painéis rolam. */
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .container { width: 100%; height: 100vh; padding: 20px 32px; display: flex; flex-direction: column; }
+
+  header { text-align: center; margin-bottom: 18px; flex: none; }
+  header h1 { color: #fff; font-size: 28px; margin: 0 0 6px; }
+  header p { color: #CADCFC; font-size: 15px; margin: 0; }
+  header nav { margin-top: 8px; font-size: 13px; display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+  header nav a { color: #9fc1ff; }
+  header code { background: rgba(255,255,255,.14); color: #fff; }
+
+  .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1.1fr; gap: 22px; }
+  @media (max-width: 900px) {
+    html, body { height: auto; overflow: visible; }
+    .container { height: auto; min-height: 100vh; padding: 16px; }
+    .grid { flex: none; grid-template-columns: 1fr; }
+    #log { max-height: 480px; }
+  }
+
+  .panel {
+    background: var(--card-bg); border-radius: 16px; padding: 22px 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25); color: var(--navy); overflow-y: auto;
+  }
+  .panel h2 { margin: 0 0 4px; font-size: 18px; display: flex; gap: 8px; align-items: center; }
+  .panel h2 .num { font-size: 12px; background: var(--navy); color: #fff; border-radius: 999px; padding: 2px 9px; }
+  .passo { background: #fff; border: 1px solid #dbe3f7; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  .nota { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; line-height: 1.5; }
+  code { background: #e8edfb; border-radius: 4px; padding: 0 4px; font-size: 12px; }
+
+  button.primary {
+    background: var(--navy); color: #fff; border: none;
+    padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px;
+  }
+  button.primary:hover:not(:disabled) { background: #151c49; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .ferramenta { border-top: 1px dashed #dbe3f7; padding-top: 10px; margin-top: 10px; }
+  .ferramenta h3 { margin: 0; font-size: 14px; font-family: Consolas, Menlo, monospace; }
+  .ferramenta .dicas { font-size: 11px; color: var(--muted); margin: 2px 0 4px; }
+  .ferramenta .desc { font-size: 12.5px; color: var(--muted); margin: 2px 0 8px; line-height: 1.45; }
+  .campos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-bottom: 8px; }
+  .campos label { font-size: 11.5px; font-weight: 600; display: flex; flex-direction: column; gap: 2px; }
+  .campos input { font: inherit; font-weight: 400; font-size: 13px; padding: 6px 8px; border: 1px solid #c9d3ee; border-radius: 8px; }
+  .resultado { font-family: Consolas, Menlo, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word;
+               background: #f7f9fe; border-radius: 8px; padding: 8px 10px; margin-top: 8px; max-height: 220px; overflow-y: auto; }
+  .resultado.erro { background: #fdecea; color: var(--red); }
+  .status { font-size: 13px; margin-top: 8px; }
+  .status.ok { color: var(--green); font-weight: 600; }
+
+  .log-panel { background: #0d1030; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+  .log-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #161c4d; color: #fff; }
+  .log-header h2 { margin: 0; font-size: 16px; }
+  .log-header p { margin: 2px 0 0; font-size: 12px; color: #9aa8d6; }
+  button.clear { background: transparent; border: 1px solid #3b437a; color: #c3cbe6; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+  button.clear:hover { background: #1c2352; }
+
+  #log { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px; font-family: Consolas, Menlo, monospace; font-size: 12.5px; line-height: 1.55; color: #c3cbe6; }
+  .msg { margin-bottom: 12px; }
+  .msg .cab { font-weight: 700; }
+  .msg.ida .cab { color: #7FB3FF; }
+  .msg.volta .cab { color: #4ADE80; }
+  .msg.erro .cab { color: #FF6B6B; }
+  .msg pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; }
+
+  footer { flex: none; text-align: center; color: #9aa8d6; font-size: 12px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🔌 Cliente MCP de bolso</h1>
+    <p>Esta página faz, passo a passo, o que um assistente de IA faz quando se conecta ao servidor MCP da API (<code>POST /mcp</code>)</p>
+    <nav>
+      <a href="index.html">🗂️ Cadastro de Tarefas</a>
+      <a href="responsaveis.html">👥 Responsáveis e vínculo</a>
+      <a href="assistente.html">🤖 Assistente de IA</a>
+      <a href="swagger-ui.html" target="_blank" rel="noopener">📘 Swagger UI</a>
+    </nav>
+  </header>
+
+  <div class="grid">
+
+    <!-- ================= PAINEL: OS PASSOS ================= -->
+    <section class="panel">
+
+      <div class="passo">
+        <h2><span class="num">1</span> Conectar (initialize)</h2>
+        <p class="nota">O cliente se apresenta e o servidor responde com o nome, a versão, o que sabe fazer
+          (<em>capabilities</em>) e as instruções. O servidor devolve um <code>Mcp-Session-Id</code>: as próximas mensagens
+          levam esse cabeçalho.</p>
+        <button class="primary" id="btn-conectar">Conectar</button>
+        <div class="status" id="status-conexao">Desconectado.</div>
+      </div>
+
+      <div class="passo">
+        <h2><span class="num">2</span> Descobrir e chamar ferramentas</h2>
+        <p class="nota"><code>tools/list</code> devolve nome, descrição e o formato dos parâmetros (JSON Schema).
+          É com isso que a IA decide o que chamar. Aqui, quem decide é você: preencha e clique em <strong>Chamar</strong>
+          (<code>tools/call</code>).</p>
+        <button class="primary" id="btn-ferramentas" disabled>Listar ferramentas</button>
+        <div id="ferramentas"></div>
+      </div>
+
+      <div class="passo">
+        <h2><span class="num">3</span> Ler um recurso</h2>
+        <p class="nota">Recurso é um texto que o cliente anexa ao contexto da IA. <code>resources/read</code> com a URI
+          <code>tarefas://regras</code>.</p>
+        <button class="primary" id="btn-recurso" disabled>Ler tarefas://regras</button>
+        <div id="recurso"></div>
+      </div>
+
+      <div class="passo">
+        <h2><span class="num">4</span> Usar um prompt pronto</h2>
+        <p class="nota">Prompt é um pedido pronto, com argumentos. <code>prompts/get</code> devolve o texto que iria para a IA.</p>
+        <div class="campos">
+          <label>responsavel <input id="prompt-responsavel" value="Ana"></label>
+        </div>
+        <button class="primary" id="btn-prompt" disabled>Montar planejar_semana</button>
+        <div id="prompt"></div>
+      </div>
+
+    </section>
+
+    <!-- ================= PAINEL: AS MENSAGENS ================= -->
+    <section class="log-panel">
+      <div class="log-header">
+        <div>
+          <h2>🧾 Mensagens JSON-RPC</h2>
+          <p>→ o que o cliente mandou &nbsp;·&nbsp; ← o que o servidor respondeu</p>
+        </div>
+        <button class="clear" id="btn-limpar">Limpar</button>
+      </div>
+      <div id="log"></div>
+    </section>
+
+  </div>
+
+  <footer>Aula 14 · Model Context Protocol · o mesmo TarefaService atende o REST (/tarefas) e o MCP (/mcp)</footer>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // O protocolo MCP é JSON-RPC 2.0 por cima de HTTP:
+  //   - toda mensagem é um POST /mcp com { jsonrpc, id, method, params };
+  //   - a resposta traz o MESMO id e um "result" (ou "error");
+  //   - notificações não têm id e não têm resposta (o servidor devolve 202).
+  // ---------------------------------------------------------------
+  const URL_MCP = '/mcp';
+  let sessao = null;     // valor do cabeçalho Mcp-Session-Id
+  let proximoId = 1;     // cada pedido leva um id novo
+
+  // Escreve uma mensagem no painel da direita.
+  function registrar(tipo, titulo, corpo) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + tipo;
+    const hora = new Date().toLocaleTimeString('pt-BR');
+    div.innerHTML = `<div class="cab">${hora}  ${titulo}</div>`;
+    const pre = document.createElement('pre');
+    pre.textContent = JSON.stringify(corpo, null, 2);
+    div.appendChild(pre);
+    const log = document.getElementById('log');
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // Manda uma mensagem e devolve a resposta já em objeto.
+  async function enviar(method, params, notificacao = false) {
+    const mensagem = { jsonrpc: '2.0', method };
+    if (!notificacao) mensagem.id = proximoId++;
+    if (params) mensagem.params = params;
+    registrar('ida', '→ ' + method, mensagem);
+
+    const cabecalhos = {
+      'Content-Type': 'application/json',
+      // O cliente diz que aceita as duas formas de resposta do Streamable HTTP:
+      // JSON simples ou um "fluxo de eventos" (Server-Sent Events).
+      'Accept': 'application/json, text/event-stream'
+    };
+    if (sessao) cabecalhos['Mcp-Session-Id'] = sessao;
+
+    const resposta = await fetch(URL_MCP, { method: 'POST', headers: cabecalhos, body: JSON.stringify(mensagem) });
+
+    // Guarda a sessão que o servidor criou no initialize.
+    const novaSessao = resposta.headers.get('Mcp-Session-Id');
+    if (novaSessao) sessao = novaSessao;
+
+    // Notificação: não tem corpo (HTTP 202 Accepted).
+    if (notificacao) {
+      registrar('volta', `← HTTP ${resposta.status} (notificação não tem resposta)`, {});
+      return null;
+    }
+
+    // A resposta pode vir como JSON ou como eventos "data: {...}".
+    const texto = await resposta.text();
+    const json = texto.trim().startsWith('{')
+      ? JSON.parse(texto)
+      : JSON.parse(texto.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5)).join(''));
+
+    const deuErro = json.error || (json.result && json.result.isError);
+    registrar(deuErro ? 'erro' : 'volta', '← resposta ao id ' + json.id + (deuErro ? ' (erro)' : ''), json);
+    return json;
+  }
+
+  // Passo 1: initialize + notifications/initialized.
+  document.getElementById('btn-conectar').onclick = async () => {
+    sessao = null;
+    const r = await enviar('initialize', {
+      protocolVersion: '2025-06-18',
+      capabilities: {},
+      clientInfo: { name: 'cliente-mcp-de-bolso', version: '1.0' }
+    });
+    await enviar('notifications/initialized', null, true);
+    const info = r.result.serverInfo;
+    const status = document.getElementById('status-conexao');
+    status.className = 'status ok';
+    status.textContent = `Conectado a "${info.name}" ${info.version}. Sessão: ${sessao}`;
+    ['btn-ferramentas', 'btn-recurso', 'btn-prompt'].forEach(id => document.getElementById(id).disabled = false);
+  };
+
+  // Passo 2: tools/list e um formulário para cada ferramenta.
+  document.getElementById('btn-ferramentas').onclick = async () => {
+    const r = await enviar('tools/list', {});
+    const area = document.getElementById('ferramentas');
+    area.innerHTML = '';
+    r.result.tools.forEach(f => area.appendChild(montarFerramenta(f)));
+  };
+
+  function montarFerramenta(f) {
+    const caixa = document.createElement('div');
+    caixa.className = 'ferramenta';
+    const a = f.annotations || {};
+    const dicas = [a.readOnlyHint ? 'só leitura' : 'altera dados', a.idempotentHint ? 'idempotente' : null]
+      .filter(Boolean).join(' · ');
+    caixa.innerHTML = `<h3>${f.name}</h3><div class="dicas">${dicas}</div><div class="desc"></div><div class="campos"></div>`;
+    caixa.querySelector('.desc').textContent = f.description;
+
+    // Um campo por propriedade do JSON Schema.
+    const props = (f.inputSchema && f.inputSchema.properties) || {};
+    const obrigatorios = (f.inputSchema && f.inputSchema.required) || [];
+    const campos = caixa.querySelector('.campos');
+    Object.entries(props).forEach(([nome, schema]) => {
+      const label = document.createElement('label');
+      label.textContent = nome + (obrigatorios.includes(nome) ? ' *' : '') + ` (${schema.type})`;
+      const input = document.createElement('input');
+      input.dataset.nome = nome;
+      input.dataset.tipo = schema.type;
+      input.placeholder = schema.description || '';
+      input.title = schema.description || '';
+      label.appendChild(input);
+      campos.appendChild(label);
+    });
+
+    const botao = document.createElement('button');
+    botao.className = 'primary';
+    botao.textContent = 'Chamar';
+    const saida = document.createElement('div');
+    botao.onclick = async () => {
+      // Junta os campos preenchidos nos "arguments" da chamada.
+      const args = {};
+      campos.querySelectorAll('input').forEach(i => {
+        if (i.value === '') return;
+        args[i.dataset.nome] = i.dataset.tipo === 'integer' ? Number(i.value) : i.value;
+      });
+      const r = await enviar('tools/call', { name: f.name, arguments: args });
+      mostrarConteudo(saida, r.result.content, r.result.isError);
+    };
+    caixa.appendChild(botao);
+    caixa.appendChild(saida);
+    return caixa;
+  }
+
+  // Mostra o texto devolvido (formatando quando for JSON).
+  function mostrarConteudo(alvo, conteudo, erro) {
+    const texto = (conteudo || []).map(c => c.text).join('\n');
+    let bonito = texto;
+    try { bonito = JSON.stringify(JSON.parse(texto), null, 2); } catch (e) { /* não era JSON: mostra como veio */ }
+    alvo.className = 'resultado' + (erro ? ' erro' : '');
+    alvo.textContent = bonito;
+  }
+
+  // Passo 3: resources/read.
+  document.getElementById('btn-recurso').onclick = async () => {
+    const r = await enviar('resources/read', { uri: 'tarefas://regras' });
+    mostrarConteudo(document.getElementById('recurso'), r.result.contents, false);
+  };
+
+  // Passo 4: prompts/get.
+  document.getElementById('btn-prompt').onclick = async () => {
+    const responsavel = document.getElementById('prompt-responsavel').value;
+    const r = await enviar('prompts/get', { name: 'planejar_semana', arguments: { responsavel } });
+    mostrarConteudo(document.getElementById('prompt'), r.result.messages.map(m => m.content), false);
+  };
+
+  document.getElementById('btn-limpar').onclick = () => document.getElementById('log').innerHTML = '';
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw test:*)",
+      "Bash(./mvnw -B -ntp test:*)",
+      "Bash(./mvnw -q -B compile:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose up -d:*)",
+      "Bash(curl -s http://localhost:8080/:*)",
+      "mcp__tarefas__listar_tarefas",
+      "mcp__tarefas__buscar_tarefa",
+      "mcp__tarefas__estatisticas_tarefas"
+    ]
+  },
+  "enabledMcpjsonServers": ["tarefas", "context7"]
+}

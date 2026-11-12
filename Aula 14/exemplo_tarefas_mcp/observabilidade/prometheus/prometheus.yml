@@ -1,0 +1,10 @@
+# Prometheus: de 5 em 5 segundos pede as métricas da API (modelo "pull").
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: exemplo-tarefas
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # A API roda no host; host.docker.internal é definido no docker-compose.yml.
+      - targets: ["host.docker.internal:8080"]
