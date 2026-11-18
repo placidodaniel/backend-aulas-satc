@@ -15,7 +15,6 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import api.assistente.AssistenteIndisponivelException;
 import api.assistente.ChatCompletions;
@@ -40,8 +39,9 @@ import api.dto.AssistenteStatusDTO;
 // um modelo de verdade pode responder diferente a cada vez.
 class AssistenteE2ETest extends AbstractE2ETest {
 
-    @MockitoBean
-    ModeloClient modelos;
+    // O ModeloClient falso agora fica no AbstractE2ETest (campo "modelos"): com ele
+    // aqui, esta classe subia um SEGUNDO contexto do Spring, com um segundo listener
+    // na mesma fila do RabbitMQ, e o teste de eventos falhava dependendo da ordem.
 
     // Resposta em que o modelo PEDE uma ferramenta.
     private Resposta pedeFerramenta(String nome, String argumentosJson) {

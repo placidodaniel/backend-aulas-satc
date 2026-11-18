@@ -19,6 +19,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 
+import api.assistente.ModeloClient;
 import api.client.OpenMeteoClient;
 import api.dto.CadastroUsuarioDTO;
 import api.dto.LoginDTO;
@@ -59,6 +60,13 @@ abstract class AbstractE2ETest {
     // Troca o OpenMeteoClient do contexto por um mock. Cada teste diz o que ele responde.
     @MockitoBean
     protected OpenMeteoClient openMeteoClient;
+
+    // O cliente do modelo de IA (Aula 14), também falso para TODOS os testes E2E.
+    // Precisa estar aqui, e não só no AssistenteE2ETest: cada combinação diferente de
+    // @MockitoBean faz o Spring subir OUTRO contexto da aplicação, e os dois ficariam
+    // vivos ao mesmo tempo, disputando as mensagens da mesma fila do RabbitMQ.
+    @MockitoBean
+    protected ModeloClient modelos;
 
     @Autowired
     protected TestRestTemplate http;
