@@ -1,0 +1,90 @@
+/* Aula 15: estilo das telas de entrar, criar conta e minha conta.
+   Mesmas cores das outras páginas do sistema (Aulas 09 a 14). */
+:root {
+  --navy-dark: #12173a;
+  --navy: #1E2761;
+  --card-bg: #F3F6FD;
+  --muted: #5A6B8C;
+  --green: #1B7A6E;
+  --red: #C0392B;
+  --amber: #8a6512;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #1c2340;
+}
+
+.centro { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.pagina { max-width: 980px; margin: 0 auto; padding: 24px 16px 40px; }
+
+.cartao {
+  width: 100%; max-width: 420px; background: var(--card-bg); border-radius: 16px;
+  padding: 28px; box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+}
+.cartao.largo { max-width: none; }
+
+h1 { margin: 0 0 4px; font-size: 24px; color: var(--navy); }
+h2 { margin: 0 0 12px; font-size: 18px; color: var(--navy); }
+.subtitulo { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.titulo-pagina { color: #fff; margin: 0 0 4px; }
+.subtitulo-pagina { color: #CADCFC; margin: 0 0 20px; font-size: 15px; }
+
+label { display: block; font-size: 13px; font-weight: 600; color: var(--navy); margin: 14px 0 6px; }
+input {
+  width: 100%; padding: 11px 12px; font-size: 15px; border: 1px solid #c8d1ea; border-radius: 10px;
+  background: #fff; color: #1c2340;
+}
+input:focus { outline: 2px solid #6b84d8; border-color: transparent; }
+input.codigo { font-size: 26px; letter-spacing: 10px; text-align: center; font-family: ui-monospace, Consolas, monospace; }
+input.invalido { border-color: var(--red); }
+.erro-campo { color: var(--red); font-size: 12px; margin-top: 4px; min-height: 0; }
+
+button {
+  font: inherit; font-weight: 600; border-radius: 10px; padding: 11px 16px; cursor: pointer; border: none;
+}
+button.primario { width: 100%; margin-top: 20px; background: var(--navy); color: #fff; }
+button.primario:hover { background: #2b3680; }
+button.secundario { background: #fff; color: var(--navy); border: 1px solid #c8d1ea; }
+button.perigo { background: #fff; color: var(--red); border: 1px solid #e3a59e; }
+button:disabled { opacity: .6; cursor: wait; }
+
+.aviso { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 16px; line-height: 1.45; }
+.aviso.erro { background: #fdecea; color: #8e2318; border: 1px solid #f2b8b0; }
+.aviso.ok { background: #e6f5f2; color: #145c53; border: 1px solid #a8dcd2; }
+.aviso.info { background: #eef2fd; color: #2b3a78; border: 1px solid #c8d1ea; }
+.aviso.atencao { background: #fdf5e4; color: var(--amber); border: 1px solid #ecd39a; }
+
+.rodape { margin-top: 18px; text-align: center; font-size: 14px; color: var(--muted); }
+.rodape a { color: var(--navy); font-weight: 600; }
+
+.regras { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.regras li.ok { color: var(--green); }
+
+.grade { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 800px) { .grade { grid-template-columns: 1fr; } }
+
+.dados { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; margin: 0; }
+.dados dt { color: var(--muted); }
+.dados dd { margin: 0; font-weight: 600; word-break: break-all; }
+
+.selo { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.selo.sim { background: #e6f5f2; color: var(--green); }
+.selo.nao { background: #fdf5e4; color: var(--amber); }
+
+.qr { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; margin-top: 12px; }
+.qr img { width: 200px; height: 200px; background: #fff; border-radius: 10px; border: 1px solid #c8d1ea; padding: 6px; }
+.segredo { font-family: ui-monospace, Consolas, monospace; font-size: 14px; background: #fff; border: 1px dashed #9aa8d6;
+  border-radius: 8px; padding: 8px 10px; word-break: break-all; }
+.passos { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.6; color: #2b3456; }
+
+pre.token { background: #0b0f2b; color: #d8e1ff; border-radius: 10px; padding: 12px; font-size: 12px; overflow-x: auto;
+  white-space: pre-wrap; word-break: break-all; margin: 8px 0 0; }
+.token .p1 { color: #ff8fa3; } .token .p2 { color: #b39cff; } .token .p3 { color: #6FE0C7; }
+.nota { font-size: 13px; color: var(--muted); line-height: 1.5; }
+code { background: #e3e8f7; border-radius: 4px; padding: 1px 5px; font-size: 90%; }

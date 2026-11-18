@@ -1,0 +1,340 @@
+# Nome do projeto Compose. Sem ele, o Docker usa o nome da pasta
+# ("exemplo_tarefas_resolvido") -- o mesmo das Aulas 08 e 09 -- e as aulas
+# acabariam dividindo o mesmo volume de dados (e o mesmo flyway_schema_history).
+name: aula15-tarefas
+
+# Define os serviços que serão executados pelo Docker Compose.
+services:
+  # Declara o serviço do banco de dados da aplicação.
+  postgres:
+    # Usa uma imagem leve do PostgreSQL 16.
+    image: postgres:16-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: aula15-tarefas-postgres
+    # Define as variáveis que o PostgreSQL lê na primeira inicialização.
+    environment:
+      # Cria o banco lógico usado pela aplicação.
+      POSTGRES_DB: tarefas
+      # Cria o usuário dono do banco.
+      POSTGRES_USER: tarefas
+      # Aula 15: a senha vem do .env (DB_SENHA). "tarefas" é só o padrão de aula.
+      POSTGRES_PASSWORD: ${DB_SENHA:-tarefas}
+    # Publica a porta interna do banco no computador host.
+    ports:
+      # Usa 5444 no host para não conflitar com o banco do projeto dos alunos
+      # (5439) nem com os das aulas anteriores (5433 a 5443).
+      # Aula 15: "127.0.0.1:" na frente = a porta só abre para ESTE computador.
+      # Sem isso, o Docker publica em todas as placas de rede (e passa por cima do
+      # firewall): qualquer máquina da rede do laboratório entraria no banco.
+      - "127.0.0.1:5444:5432"
+    # Guarda os dados fora do ciclo de vida do container.
+    volumes:
+      # Monta o volume nomeado no diretório padrão de dados do PostgreSQL.
+      - postgres_data:/var/lib/postgresql/data
+    # Verifica se o PostgreSQL está pronto para receber conexões.
+    healthcheck:
+      # Executa o comando oficial de verificação do PostgreSQL.
+      test: ["CMD-SHELL", "pg_isready -U tarefas -d tarefas"]
+      # Aguarda cinco segundos entre verificações.
+      interval: 5s
+      # Interrompe uma verificação que demorar mais que cinco segundos.
+      timeout: 5s
+      # Tenta cinco vezes antes de marcar o serviço como unhealthy.
+      retries: 5
+
+  # Declara o serviço do broker de mensagens (mensageria, desde a Aula 12).
+  rabbitmq:
+    # Imagem oficial com o painel de administração (management) já incluído.
+    image: rabbitmq:3.13-management-alpine
+    # Define um nome fixo para localizar o container facilmente.
+    container_name: aula15-tarefas-rabbitmq
+    # Usuário e senha do broker (só para desenvolvimento).
+    environment:
+      RABBITMQ_DEFAULT_USER: tarefas
+      # Aula 15: a senha continua fixa porque também está em carga/definitions.json
+      # (o arquivo que cria usuário, fila e exchange na subida). Veja SEGURANCA.md.
+      RABBITMQ_DEFAULT_PASS: tarefas
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+    ports:
+      # 5675 no host (5672 dentro do container) = protocolo AMQP, o que a aplicação usa para publicar e consumir.
+      - "127.0.0.1:5675:5672"
+      # 15675 no host = painel web: http://localhost:15675 (usuário/senha: tarefas).
+      - "127.0.0.1:15675:15672"
+    # Ao subir, o RabbitMQ já cria a exchange, a fila e o binding descritos em
+    # carga/definitions.json (os mesmos do RabbitConfig). Assim o teste de carga
+    # funciona mesmo com a API desligada, sem script nenhum.
+    # O ERL_ARGS manda o plugin de administração carregar o arquivo de definições.
+    # Guarda filas e mensagens entre reinicializações.
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./carga/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Teste de carga da fila (Aula 12). Só roda com: docker compose --profile carga run --rm perftest
+  # (veja o README: parâmetros por variável de ambiente). Publica eventos JSON na exchange, que roteia para tarefas.notificacoes.
+  perftest:
+    # Aula 15: versão fixa (antes era "latest", que muda sozinha sem ninguém perceber).
+    image: pivotalrabbitmq/perf-test:2.25.0
+    profiles: ["carga"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./carga/evento.json:/carga/evento.json:ro
+    # --predeclared: usa a exchange/fila que a API já declarou (RabbitConfig), sem recriar.
+    # --body*: manda o JSON do evento, com content-type que o listener da API entende.
+    # --rate: msg/s por produtor (0 = sem limite). --consumers 0: a API é quem consome.
+    command:
+      - --uri
+      - amqp://tarefas:tarefas@rabbitmq:5672
+      - --predeclared
+      - --exchange
+      - tarefas.eventos
+      - --type
+      - topic
+      - --routing-key
+      - tarefa.criada
+      - --queue
+      - tarefas.notificacoes
+      - --body
+      - /carga/evento.json
+      - --body-content-type
+      - application/json
+      - --producers
+      - ${CARGA_PRODUTORES:-1}
+      - --consumers
+      - ${CARGA_CONSUMIDORES:-0}
+      - --rate
+      - ${CARGA_TAXA:-200}
+      - --time
+      - ${CARGA_SEGUNDOS:-60}
+      - --flag
+      - persistent
+
+  # Teste de carga HTTP (k6): chama TODAS as rotas da API (carga/http.js) e alimenta o dashboard.
+  # Roda sozinho com: docker compose --profile carga run --rm carga-http
+  # ou junto com a carga da fila:   docker compose --profile carga up
+  carga-http:
+    image: grafana/k6:0.54.0
+    profiles: ["carga"]
+    volumes:
+      - ./carga/http.js:/carga/http.js:ro
+    environment:
+      BASE_URL: ${CARGA_URL:-http://host.docker.internal:8080}
+      VUS: ${CARGA_VUS:-5}
+      SEGUNDOS: ${CARGA_SEGUNDOS:-60}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: run /carga/http.js
+
+  # ------------------------------------------------------------ Observabilidade (Aula 13)
+  # Prometheus: de tempos em tempos (scrape) pede as métricas da API em /actuator/prometheus
+  # e guarda como série temporal. Painel: http://localhost:9090
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: aula15-tarefas-prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observabilidade/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    # A API roda NO HOST (./mvnw spring-boot:run), e o Prometheus roda num container:
+    # host.docker.internal aponta para o host (no Linux precisa deste host-gateway).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Grafana: desenha os gráficos a partir do Prometheus. Datasource e dashboard já vêm
+  # provisionados. Painel: http://localhost:3000 (usuário/senha: admin/admin)
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: aula15-tarefas-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      # Abre sem tela de login (é um ambiente de aula; nunca faça isso em produção).
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      # Aula 15: o visitante anônimo só VÊ (antes era Admin: podia mudar tudo).
+      # Para editar, entre como admin (senha em GRAFANA_SENHA no .env; padrão "admin").
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_SENHA:-admin}
+    volumes:
+      - ./observabilidade/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observabilidade/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # ------------------------------------------------------------ Sem script (Aula 13)
+  # Nos computadores do laboratório (Windows, travados) não dá para rodar ./mvnw nem .cmd.
+  # Estes dois serviços rodam o Maven DENTRO de um container, só com o docker compose.
+  # Não sobem com "docker compose up": só quando pedidos pelo perfil (profiles).
+
+  # Testes unitários + E2E:   docker compose --profile testes run --rm testes
+  # Só os unitários:          docker compose --profile testes run --rm testes mvn -B -ntp test "-Dtest=!*E2ETest"
+  testes:
+    image: maven:3.9.12-eclipse-temurin-25
+    profiles: ["testes"]
+    working_dir: /app
+    volumes:
+      # O projeto inteiro, para o Maven enxergar o código e gravar o target/.
+      - .:/app
+      # Guarda as dependências baixadas: só a primeira execução demora.
+      - maven_repo:/root/.m2
+      # Os testes E2E (Testcontainers) criam PostgreSQL e RabbitMQ pelo Docker do computador.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Aula 15: no Docker a verificação de checksums é a RÍGIDA: biblioteca que não está em
+      # .mvn/checksums/ também falha (veja CADEIA-DE-SUPRIMENTOS.md, seção 3.2).
+      MAVEN_ARGS: -Daether.artifactResolver.postProcessor.trustedChecksums.failIfMissing=true
+      # Os containers do Testcontainers ficam no Docker do computador, não dentro deste:
+      # é por este endereço que o teste os alcança.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: mvn -B -ntp test
+
+  # A API (em vez de ./mvnw spring-boot:run):   docker compose --profile app up api
+  # Sobe o PostgreSQL e o RabbitMQ junto (depends_on) e fica na porta 8080.
+  api:
+    image: maven:3.9.12-eclipse-temurin-25
+    # "app": só a API. "ui": a API junto com o Playwright (veja os serviços abaixo).
+    profiles: ["app", "ui"]
+    working_dir: /app
+    volumes:
+      - .:/app
+      - maven_repo:/root/.m2
+    ports:
+      # A API fica aberta para a rede (sem 127.0.0.1) porque o Prometheus a alcança
+      # por host.docker.internal. Desde a Aula 15 ela exige token em tudo que importa.
+      - "8080:8080"
+    environment:
+      # Dentro do Compose, os serviços se chamam pelo nome (postgres, rabbitmq) e pela porta
+      # INTERNA do container (5432 e 5672), não pelas portas publicadas no computador.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tarefas
+      # Aula 15: verificação rígida de checksums (veja o serviço "testes").
+      MAVEN_ARGS: -Daether.artifactResolver.postProcessor.trustedChecksums.failIfMissing=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+      # Aula 15: a senha do banco e a chave dos tokens vêm do .env (fora do Git). Veja .env.exemplo.
+      DB_SENHA: ${DB_SENHA:-tarefas}
+      JWT_SEGREDO: ${JWT_SEGREDO:-}
+      # Aula 14: dentro do Compose, o Ollama se chama "ollama". Para usar o OpenRouter,
+      # defina ASSISTENTE_URL, ASSISTENTE_CHAVE e ASSISTENTE_MODELO num arquivo .env (fora do Git).
+      ASSISTENTE_URL: ${ASSISTENTE_URL:-http://ollama:11434/v1}
+      ASSISTENTE_CHAVE: ${ASSISTENTE_CHAVE:-}
+      ASSISTENTE_MODELO: ${ASSISTENTE_MODELO:-qwen2.5:3b}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    # Pronta quando o /actuator/health responde. O Maven compila antes de subir: dê tempo.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 20s
+    command: mvn -B -ntp spring-boot:run
+
+  # ------------------------------------------------------------ Testes de tela (Playwright)
+  # Abre um navegador de verdade (Chromium, dentro do container) e testa o cadastro de tarefas.
+  # Como o computador do laboratório não deixa rodar scripts nem instalar nada, o Playwright
+  # roda num container e mostra a INTERFACE dele numa página web:
+  #
+  #   docker compose --profile ui up playwright      e abra  http://localhost:8081
+  #
+  # Lá você escolhe o teste, vê o navegador clicando e digitando (com a tela de cada passo)
+  # e pode rodar de novo ao vivo. A API sobe junto (depends_on).
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: ["ui"]
+    working_dir: /work
+    # init + ipc: recomendados pela Microsoft para o Chromium em container.
+    init: true
+    ipc: host
+    volumes:
+      - ./playwright:/work
+      # node_modules fica num volume: mais rápido e sem problema de permissão no Windows.
+      - playwright_node_modules:/work/node_modules
+    environment:
+      # Dentro do Compose, a API se chama "api".
+      BASE_URL: http://api:8080
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      api:
+        condition: service_healthy
+    # --ui-host/--ui-port: serve a interface do Playwright em http://localhost:8081
+    command: sh -c "npm ci --no-audit --no-fund && npx playwright test --ui-host=0.0.0.0 --ui-port=8081"
+
+  # Mesmos testes, sem interface: roda tudo e imprime o resultado no terminal.
+  #   docker compose --profile ui run --rm playwright-run
+  playwright-run:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: ["ui"]
+    working_dir: /work
+    init: true
+    ipc: host
+    volumes:
+      - ./playwright:/work
+      - playwright_node_modules:/work/node_modules
+    environment:
+      # Dentro do Compose, a API se chama "api".
+      BASE_URL: http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    command: sh -c "npm ci --no-audit --no-fund && npx playwright test"
+
+  # ------------------------------------------------------------ IA local (Aula 14)
+  # O Ollama roda um modelo de IA na própria máquina, sem conta e sem chave.
+  # Ele entende o formato "chat completions", o mesmo do OpenRouter.
+  # Subir: docker compose --profile ia up -d   (a 1ª vez baixa o modelo, ~2 GB)
+  ollama:
+    image: ollama/ollama:0.40.12
+    container_name: aula15-tarefas-ollama
+    profiles: ["ia"]
+    ports:
+      # http://localhost:11434/v1 é o endereço que a API usa quando roda pela IDE.
+      - "127.0.0.1:11434:11434"
+    volumes:
+      # O modelo baixado fica no volume: não baixa de novo a cada subida.
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Baixa o modelo uma vez (ollama pull) e termina. Os próximos "up" são instantâneos.
+  ollama-modelo:
+    image: ollama/ollama:0.40.12
+    profiles: ["ia"]
+    environment:
+      OLLAMA_HOST: ollama:11434
+    command: ["pull", "${ASSISTENTE_MODELO:-qwen2.5:3b}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+# Declara os volumes nomeados usados pelos serviços.
+volumes:
+  # Mantém os dados do PostgreSQL entre reinicializações.
+  postgres_data:
+  # Mantém filas e mensagens do RabbitMQ entre reinicializações.
+  rabbitmq_data:
+  # Mantém o histórico de métricas do Prometheus.
+  prometheus_data:
+  # Mantém as configurações do Grafana.
+  grafana_data:
+  # Dependências do Maven baixadas pelos serviços "testes" e "api".
+  maven_repo:
+  # Dependências do Playwright (node_modules) dos serviços "playwright" e "playwright-run".
+  playwright_node_modules:
+  # Aula 14: os modelos baixados pelo Ollama.
+  ollama_data:

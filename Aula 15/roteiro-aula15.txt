@@ -1,0 +1,260 @@
+ROTEIRO DA AULA 15 - AUTENTICACAO E SEGURANCA
+Passo a passo da demonstracao e links para abrir durante a aula.
+
+Funciona no Windows (PowerShell), Linux e Mac: so precisa do Docker,
+do navegador e de um celular com um aplicativo autenticador (Google
+Authenticator, Microsoft Authenticator, 2FAS, Authy, FreeOTP...).
+Todos os comandos abaixo sao digitados DENTRO da pasta:
+
+    Aula 15/exemplo_tarefas_seguranca
+
+
+======================================================================
+0. ANTES DE COMECAR
+======================================================================
+
+0.1  Abra o Docker Desktop e espere ficar "running".
+
+0.2  Entre na pasta do projeto:
+
+         cd "Aula 15/exemplo_tarefas_seguranca"
+
+0.3  Pare qualquer outra API que esteja na porta 8080
+     (a Aula 14, a IDE etc.). So uma API pode usar a 8080.
+
+         Linux/Mac:   ss -ltnp | grep 8080
+         PowerShell:  netstat -ano | findstr :8080
+
+     Se for um container da Aula 14:
+
+         cd "../../Aula 14/exemplo_tarefas_mcp"
+         docker compose --profile app down
+         cd "../../Aula 15/exemplo_tarefas_seguranca"
+
+0.4  (Opcional) Para os tokens nao caírem quando a API reiniciar,
+     crie o .env com uma chave fixa. Sem isso, a chave e sorteada a
+     cada subida (o que tambem serve para mostrar o 401).
+
+         Linux/Mac:   cp .env.exemplo .env
+                      echo "JWT_SEGREDO=$(openssl rand -base64 48)" >> .env
+         PowerShell:  Copy-Item .env.exemplo .env
+                      e escreva no .env uma linha JWT_SEGREDO= com 32 ou
+                      mais caracteres aleatorios
+
+
+======================================================================
+1. SUBIR A STACK
+======================================================================
+
+1.1  Suba tudo, inclusive a API (o Maven compila dentro do container):
+
+         docker compose --profile app up -d
+
+1.2  Confira:
+
+         docker compose --profile app ps
+
+     Esperado: postgres, rabbitmq e api "healthy" (1 a 2 minutos na
+     primeira vez, porque baixa as dependencias).
+
+1.3  Mostre no log que o Maven conferiu os checksums confiaveis:
+
+         docker compose logs api | findstr trusted         (PowerShell)
+         docker compose logs api | grep trusted            (Linux/Mac)
+
+     Esperado: "Loaded 1107 trusted checksums from /app/.mvn/checksums/..."
+
+1.4  Se a api aparecer "Exited" (a 8080 estava ocupada), libere a
+     porta e recrie so ela:
+
+         docker compose --profile app up -d --force-recreate api
+
+
+======================================================================
+2. A PORTA FECHADA
+======================================================================
+
+2.1  Sem token, a API recusa:
+
+         curl -i http://localhost:8080/tarefas
+
+     Mostre: status 401, o cabecalho "WWW-Authenticate: Bearer" e o
+     corpo no formato ErroDTO ("E preciso entrar no sistema...").
+     (No PowerShell, use curl.exe em vez de curl.)
+
+2.2  O /mcp tambem:
+
+         curl -i -X POST http://localhost:8080/mcp
+
+2.3  A saude continua publica, mas sem detalhes:
+
+         curl http://localhost:8080/actuator/health
+
+     Esperado: {"status":"UP"} (sem banco, RabbitMQ e disco).
+
+2.4  Abra no navegador:
+
+         http://localhost:8080
+
+     A pagina manda para "entrar.html?voltar=index.html".
+
+
+======================================================================
+3. CRIAR CONTA, ENTRAR E O MENU
+======================================================================
+
+3.1  Clique em "Criar conta". Tente a senha 12345678: a API recusa
+     ("esta entre as mais usadas"). Use uma frase:
+
+         cafe com pao na praia
+
+3.2  Entre. Mostre o menu no topo: o nome, o selo "2FA desligado" e
+     o botao "Sair". As paginas das aulas anteriores continuam iguais.
+
+3.3  Aperte F12 > Rede (Network), clique em "Atualizar (GET /tarefas)"
+     e mostre o cabecalho "Authorization: Bearer eyJ..." na requisicao
+     e os cabecalhos de seguranca na resposta (Content-Security-Policy,
+     X-Frame-Options, Referrer-Policy).
+
+3.4  Clique no seu nome ("Minha conta"). Na caixa "O que tem dentro do
+     seu token", mostre as tres partes e o conteudo aberto (sub, exp,
+     scope). Pergunte: "se qualquer um le, por que e seguro?"
+
+3.5  Mostre a tabela no banco (IntelliJ, DBeaver ou psql na porta 5444,
+     usuario/senha tarefas):
+
+         select email, senha_hash from usuarios;
+
+     So o hash $2a$12$... Nunca a senha.
+
+
+======================================================================
+4. VERIFICACAO EM DUAS ETAPAS (2FA)
+======================================================================
+
+4.1  Em "Minha conta", clique em "Ligar a verificacao em duas etapas".
+
+4.2  Peca para a turma: abram o aplicativo autenticador no celular e
+     leiam o QR Code da tela projetada. (Cada aluno cadastra a SUA conta
+     depois; na demonstracao, so o seu celular.)
+
+4.3  Digite o codigo de 6 digitos e clique em "Ativar". O selo do menu
+     vira "2FA ligado".
+
+4.4  Clique em "Sair" e entre de novo. Depois da senha, aparece a
+     segunda etapa. Digite o codigo do aplicativo.
+
+4.5  Mostre a regra do "codigo que nao se repete": entre de novo e use
+     o MESMO codigo que acabou de usar (dentro dos 30 segundos). Ele e
+     recusado ("Codigo invalido ou ja usado").
+
+
+======================================================================
+5. ATAQUES (Postman ou curl)
+======================================================================
+
+5.1  Forca bruta: erre a senha 5 vezes seguidas. Na 6a tentativa, ate
+     a senha certa recebe 429 com o cabecalho Retry-After.
+
+     (Use uma conta de teste para isso: ela fica bloqueada 15 minutos.)
+
+5.2  Token adulterado: no Postman, rode a pasta "Autenticacao (Aula 15)"
+     (o "Entrar" guarda o token), copie o token, troque UMA letra no
+     meio e chame GET /tarefas. Resposta: 401, "Token invalido ou
+     expirado".
+
+5.3  O desafio do 2FA nao abre a API: faca POST /auth/login numa conta
+     com 2FA, pegue o "desafio" e use como token em GET /tarefas.
+     Resposta: 403.
+
+
+======================================================================
+6. CADEIA DE SUPRIMENTOS
+======================================================================
+
+     Sem Java instalado (laboratorio), troque "./mvnw" por:
+
+         docker compose --profile testes run --rm testes mvn -B -ntp
+
+6.1  A arvore de dependencias (20 declaradas, 127 no .jar):
+
+         ./mvnw dependency:tree
+
+6.2  O ataque: simule um .jar adulterado trocando o resumo do ZXing.
+
+         Linux/Mac:   sed -i 's/^967023e2aa/000000e2aa/' .mvn/checksums/checksums-central.sha512
+         PowerShell:  (Get-Content .mvn/checksums/checksums-central.sha512) -replace '^967023e2aa','000000e2aa' | Set-Content .mvn/checksums/checksums-central.sha512
+
+         ./mvnw compile
+
+     Esperado: "trusted checksum mismatch" e o build para.
+
+     Desfaca:
+
+         git checkout .mvn/checksums/checksums-central.sha512
+
+     (Se a pasta ainda nao estiver no Git, guarde uma copia do arquivo
+     antes do passo 6.2 e copie de volta.)
+
+6.3  Versao dinamica: no pom.xml, troque <zxing.version>3.5.4 por
+     [3.5,) e rode ./mvnw validate. O Enforcer recusa ("banned dynamic
+     version"). No Docker (modo rigido), a lista de checksums recusa
+     antes. Volte para 3.5.4.
+
+6.3b Biblioteca fora da lista: no Docker, a verificacao e rigida
+     (MAVEN_ARGS no docker-compose.yml). Apague da lista a linha do
+     core-3.5.4.pom do ZXing e rode:
+
+         docker compose --profile testes run --rm testes mvn -B -ntp validate
+
+     Esperado: "Missing from summaryFile trusted checksum". Desfaca
+     como no passo 6.2. (No terminal e no IntelliJ esse caso so avisa:
+     o IntelliJ nao entende ${session.rootDirectory} no maven.config.)
+
+6.4  O SBOM (lista de ingredientes):
+
+         ./mvnw package -DskipTests
+
+     Abra target/classes/META-INF/sbom/application.cdx.json.
+
+
+======================================================================
+7. TESTES
+======================================================================
+
+7.1  Testes do Maven (87):
+
+         docker compose --profile testes run --rm testes
+
+7.2  Testes de tela (10, Playwright):
+
+         docker compose --profile ui up playwright      e abra http://localhost:8081
+
+     Rode "login.spec.ts > 2FA" e mostre o navegador ligando o 2FA e
+     entrando em duas etapas sozinho.
+
+
+======================================================================
+8. LINKS
+======================================================================
+
+     Sistema ................ http://localhost:8080
+     Entrar ................. http://localhost:8080/entrar.html
+     Minha conta ............ http://localhost:8080/conta.html
+     Swagger (Authorize) .... http://localhost:8080/swagger-ui.html
+     Playwright ............. http://localhost:8081
+     Grafana (so ve) ........ http://localhost:3000
+     Painel do RabbitMQ ..... http://localhost:15675   (tarefas / tarefas)
+
+     Documentos do projeto:
+       README.md                 como subir, como funciona, exercicios
+       SEGURANCA.md              os 30 pontos de seguranca
+       CADEIA-DE-SUPRIMENTOS.md  bibliotecas, ataques e defesas
+
+
+======================================================================
+9. NO FIM
+======================================================================
+
+     docker compose --profile app --profile ui down        (os dados ficam)
+     docker compose --profile app --profile ui down -v     (apaga os dados)

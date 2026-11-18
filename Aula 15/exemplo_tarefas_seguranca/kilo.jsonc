@@ -1,0 +1,17 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "tarefas": {
+      "type": "remote",
+      "url": "http://localhost:8080/mcp",
+      // Aula 15: o /mcp exige token. Defina TAREFAS_TOKEN antes de abrir o Kilo.
+      "headers": {
+        "Authorization": "Bearer {env:TAREFAS_TOKEN}"
+      },
+      "enabled": true
+    }
+  },
+  "instructions": [
+    "README.md"
+  ]
+}

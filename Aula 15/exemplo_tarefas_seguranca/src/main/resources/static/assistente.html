@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistente de Tarefas</title>
+<style>
+  :root {
+    --navy-dark: #12173a;
+    --navy: #1E2761;
+    --card-bg: #F3F6FD;
+    --muted: #5A6B8C;
+    --green: #1B7A6E;
+    --red: #C0392B;
+    --amber: #B7791F;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Mesmo esquema das outras páginas: a página ocupa a tela e só os painéis rolam. */
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .container { width: 100%; height: 100vh; padding: 20px 32px; display: flex; flex-direction: column; }
+
+  header { text-align: center; margin-bottom: 16px; flex: none; }
+  header h1 { color: #fff; font-size: 28px; margin: 0 0 6px; }
+  header p { color: #CADCFC; font-size: 15px; margin: 0; }
+  header nav { margin-top: 8px; font-size: 13px; display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+  header nav a { color: #9fc1ff; }
+
+  .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; }
+  @media (max-width: 900px) {
+    html, body { height: auto; overflow: visible; }
+    .container { height: auto; min-height: 100vh; padding: 16px; }
+    .grid { flex: none; grid-template-columns: 1fr; }
+    .chat { height: 70vh; }
+    #passos { max-height: 480px; }
+  }
+
+  /* ---------- conversa ---------- */
+  .chat {
+    background: var(--card-bg); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    color: var(--navy); display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  }
+  .barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid #dbe3f7; background: #fff; }
+  .barra label { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .barra input[type=text] { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid #c9d3ee; border-radius: 8px; width: 220px; }
+  .barra .espaco { flex: 1; }
+  .status { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #e8edfb; }
+  .status.ok { background: #e6f4f1; color: var(--green); }
+  .status.erro { background: #fdecea; color: var(--red); }
+
+  .aviso { margin: 12px 18px 0; padding: 10px 14px; border-radius: 10px; background: #fdecea; color: var(--red); font-size: 13px; line-height: 1.5; display: none; }
+  .aviso code { background: #fff; border-radius: 4px; padding: 0 4px; }
+
+  #mensagens { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 14.5px; line-height: 1.5; word-wrap: break-word; }
+  .msg.usuario { align-self: flex-end; background: var(--navy); color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+  .msg.assistente { align-self: flex-start; background: #fff; border: 1px solid #dbe3f7; border-bottom-left-radius: 4px; }
+  .msg.erro { align-self: flex-start; background: #fdecea; color: var(--red); border: 1px solid #f5c6c0; }
+  .msg .rodape { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .msg table { border-collapse: collapse; margin: 6px 0; font-size: 13px; }
+  .msg th, .msg td { border: 1px solid #dbe3f7; padding: 3px 8px; text-align: left; }
+  .msg th { background: #f3f6fd; }
+  .msg code { background: #e8edfb; border-radius: 4px; padding: 0 4px; font-size: 12.5px; }
+  .msg p { margin: 0 0 6px; }
+  .msg ul { margin: 4px 0; padding-left: 20px; }
+  .pensando { align-self: flex-start; color: var(--muted); font-size: 13px; font-style: italic; }
+
+  .vazio { margin: auto; text-align: center; color: var(--muted); font-size: 14px; max-width: 460px; line-height: 1.6; }
+
+  .sugestoes { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 18px 10px; }
+  .sugestoes button { font: inherit; font-size: 12.5px; background: #fff; border: 1px solid #c9d3ee; color: var(--navy); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .sugestoes button:hover { background: #e8edfb; }
+
+  form { display: flex; gap: 10px; padding: 12px 18px 16px; border-top: 1px solid #dbe3f7; background: #fff; }
+  textarea { flex: 1; font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid #c9d3ee; border-radius: 10px; resize: none; height: 64px; }
+  button.primary { background: var(--navy); color: #fff; border: none; padding: 0 18px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; }
+  button.primary:hover:not(:disabled) { background: #151c49; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.secundario { font: inherit; font-size: 12px; background: transparent; border: 1px solid #c9d3ee; color: var(--navy); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+
+  /* ---------- o que a IA fez ---------- */
+  .log-panel { background: #0d1030; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; min-height: 0; }
+  .log-header { padding: 14px 18px; background: #161c4d; color: #fff; }
+  .log-header h2 { margin: 0; font-size: 16px; }
+  .log-header p { margin: 2px 0 0; font-size: 12px; color: #9aa8d6; }
+  #passos { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px; font-family: Consolas, Menlo, monospace; font-size: 12.5px; line-height: 1.55; color: #c3cbe6; }
+  .pedido { color: #fff; font-weight: 700; margin: 4px 0 8px; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 13px; }
+  .passo { border-left: 3px solid #7FB3FF; padding: 2px 0 2px 10px; margin-bottom: 12px; }
+  .passo.erro { border-left-color: #FF6B6B; }
+  .passo .nome { color: #7FB3FF; font-weight: 700; }
+  .passo.erro .nome { color: #FF6B6B; }
+  .passo .args { color: #F5C66B; white-space: pre-wrap; word-break: break-word; }
+  .passo pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; color: #c3cbe6; }
+  .final { color: #4ADE80; margin-bottom: 18px; }
+  .separador { border: none; border-top: 1px dashed #3b437a; margin: 12px 0; }
+
+  footer { flex: none; text-align: center; color: #9aa8d6; font-size: 12px; margin-top: 12px; }
+</style>
+<!-- Aula 15: exige login, põe o token em todo fetch() para a API e desenha o menu (js/sessao.js). -->
+<script src="js/sessao.js"></script>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🤖 Assistente de Tarefas</h1>
+    <p>Digite um pedido em português: um modelo de IA escolhe as ferramentas do servidor MCP (<code style="color:#fff">/mcp</code>) e a API executa</p>
+    <!-- Aula 15: os links que ficavam aqui foram para o menu do topo (js/sessao.js). -->
+  </header>
+
+  <div class="grid">
+
+    <!-- ================= CONVERSA ================= -->
+    <section class="chat">
+      <div class="barra">
+        <label>Modelo
+          <input type="text" id="modelo" list="lista-modelos" placeholder="padrão do servidor">
+          <datalist id="lista-modelos"></datalist>
+        </label>
+        <label title="O modelo só recebe as ferramentas marcadas com readOnlyHint = true">
+          <input type="checkbox" id="somente-leitura"> Só leitura
+        </label>
+        <span class="espaco"></span>
+        <span class="status" id="status">verificando...</span>
+        <button class="secundario" id="btn-nova" type="button">Nova conversa</button>
+      </div>
+
+      <div class="aviso" id="aviso"></div>
+
+      <div id="mensagens">
+        <div class="vazio" id="vazio">
+          Pergunte sobre as tarefas, peça para cadastrar ou concluir.<br>
+          Cada ferramenta que o modelo usar aparece no painel da direita.<br>
+          <small>Modelos pequenos rodando no processador podem levar de 10 a 60 segundos.</small>
+        </div>
+      </div>
+
+      <div class="sugestoes" id="sugestoes">
+        <button type="button">Como está o andamento das tarefas?</button>
+        <button type="button">Quais tarefas estão atrasadas?</button>
+        <button type="button">Cadastre "Estudar MCP" para a Ana, prazo sexta que vem, prioridade 4</button>
+        <button type="button">Quem tem mais tarefas abertas?</button>
+        <button type="button">Conclua a tarefa 1</button>
+      </div>
+
+      <form id="form">
+        <textarea id="texto" placeholder="Ex.: liste as tarefas abertas do Bruno (Enter envia, Shift+Enter quebra a linha)"></textarea>
+        <button class="primary" id="btn-enviar" type="submit">Enviar</button>
+      </form>
+    </section>
+
+    <!-- ================= O QUE A IA FEZ ================= -->
+    <section class="log-panel">
+      <div class="log-header">
+        <h2>🔧 Ferramentas MCP usadas</h2>
+        <p>o que o modelo pediu → o que o servidor MCP devolveu</p>
+      </div>
+      <div id="passos"></div>
+    </section>
+
+  </div>
+
+  <footer>Aula 14 · tela → POST /assistente → modelo (Ollama ou OpenRouter) + cliente MCP → /mcp → TarefaService</footer>
+</div>
+
+<script>
+  // A conversa fica AQUI, no navegador. A API não guarda nada: a cada pedido,
+  // mandamos o histórico inteiro (só as mensagens de texto, sem as ferramentas).
+  const conversa = [];
+  const el = id => document.getElementById(id);
+
+  // Escapa texto para não injetar HTML vindo do modelo.
+  function escapar(t) {
+    // Aula 15: também as aspas. Sem elas, um texto dentro de um atributo (value="...")
+    // poderia "fechar" o atributo e abrir outro (onmouseover=...).
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Markdown mínimo: tabelas, listas, **negrito** e `código`. O suficiente para as respostas.
+  function markdown(texto) {
+    const linhas = escapar(texto).split('\n');
+    let html = '', i = 0;
+    const inline = s => s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+    while (i < linhas.length) {
+      const l = linhas[i];
+      if (l.trim().startsWith('|')) {
+        const tabela = [];
+        while (i < linhas.length && linhas[i].trim().startsWith('|')) tabela.push(linhas[i++]);
+        const celulas = r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => inline(c.trim()));
+        const corpo = tabela.filter(r => !/^\s*\|?\s*:?-{2,}/.test(r));
+        html += '<table><tr>' + celulas(corpo[0]).map(c => `<th>${c}</th>`).join('') + '</tr>'
+          + corpo.slice(1).map(r => '<tr>' + celulas(r).map(c => `<td>${c}</td>`).join('') + '</tr>').join('') + '</table>';
+        continue;
+      }
+      if (/^\s*[-*] /.test(l)) {
+        html += '<ul>';
+        while (i < linhas.length && /^\s*[-*] /.test(linhas[i])) html += '<li>' + inline(linhas[i++].replace(/^\s*[-*] /, '')) + '</li>';
+        html += '</ul>';
+        continue;
+      }
+      if (l.trim()) html += '<p>' + inline(l) + '</p>';
+      i++;
+    }
+    return html;
+  }
+
+  function adicionarMensagem(tipo, conteudo, rodape) {
+    el('vazio')?.remove();
+    const div = document.createElement('div');
+    div.className = 'msg ' + tipo;
+    if (tipo === 'assistente') div.innerHTML = markdown(conteudo);
+    else div.textContent = conteudo;
+    if (rodape) {
+      const r = document.createElement('div');
+      r.className = 'rodape';
+      r.textContent = rodape;
+      div.appendChild(r);
+    }
+    el('mensagens').appendChild(div);
+    el('mensagens').scrollTop = el('mensagens').scrollHeight;
+    return div;
+  }
+
+  // Painel da direita: um bloco por pedido, um item por ferramenta chamada.
+  function registrarPassos(pedido, resposta, segundos) {
+    const area = el('passos');
+    if (area.children.length) area.appendChild(Object.assign(document.createElement('hr'), { className: 'separador' }));
+    const titulo = document.createElement('div');
+    titulo.className = 'pedido';
+    titulo.textContent = '› ' + pedido;
+    area.appendChild(titulo);
+
+    if (!resposta.passos.length) {
+      const nada = document.createElement('div');
+      nada.textContent = '(nenhuma ferramenta: o modelo respondeu direto)';
+      area.appendChild(nada);
+    }
+    resposta.passos.forEach((p, i) => {
+      const d = document.createElement('div');
+      d.className = 'passo' + (p.erro ? ' erro' : '');
+      let resultado = p.resultado;
+      try { resultado = JSON.stringify(JSON.parse(p.resultado), null, 2); } catch (e) { /* era texto */ }
+      d.innerHTML = `<div class="nome">${i + 1}. ${escapar(p.ferramenta)}${p.erro ? '  (isError)' : ''}</div>`
+        + `<div class="args">${escapar(p.argumentos)}</div><pre></pre>`;
+      d.querySelector('pre').textContent = resultado;
+      area.appendChild(d);
+    });
+    const fim = document.createElement('div');
+    fim.className = 'final';
+    fim.textContent = `✔ resposta de ${resposta.modelo} em ${segundos}s`;
+    area.appendChild(fim);
+    area.scrollTop = area.scrollHeight;
+  }
+
+  async function enviar(texto) {
+    texto = texto.trim();
+    if (!texto) return;
+    el('texto').value = '';
+    el('btn-enviar').disabled = true;
+    adicionarMensagem('usuario', texto);
+    conversa.push({ papel: 'usuario', texto });
+
+    const pensando = document.createElement('div');
+    pensando.className = 'pensando';
+    pensando.textContent = 'pensando e chamando ferramentas...';
+    el('mensagens').appendChild(pensando);
+    el('mensagens').scrollTop = el('mensagens').scrollHeight;
+
+    const inicio = performance.now();
+    try {
+      const r = await fetch('/assistente', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensagens: conversa, modelo: el('modelo').value, somenteLeitura: el('somente-leitura').checked })
+      });
+      const corpo = await r.json();
+      if (!r.ok) throw new Error(corpo.mensagem || ('HTTP ' + r.status));
+      const segundos = ((performance.now() - inicio) / 1000).toFixed(1);
+      const usadas = corpo.passos.map(p => p.ferramenta).join(', ');
+      adicionarMensagem('assistente', corpo.resposta,
+        `${corpo.modelo} · ${segundos}s` + (usadas ? ` · ferramentas: ${usadas}` : ''));
+      conversa.push({ papel: 'assistente', texto: corpo.resposta });
+      registrarPassos(texto, corpo, segundos);
+    } catch (e) {
+      // A pergunta que falhou sai do histórico, para não confundir o próximo pedido.
+      conversa.pop();
+      adicionarMensagem('erro', 'Erro: ' + e.message);
+    } finally {
+      pensando.remove();
+      el('btn-enviar').disabled = false;
+      el('texto').focus();
+    }
+  }
+
+  // Situação do servidor de modelos (GET /assistente/status).
+  async function verificarStatus() {
+    try {
+      const s = await (await fetch('/assistente/status')).json();
+      el('modelo').placeholder = s.modeloPadrao;
+      el('lista-modelos').innerHTML = s.modelos.map(m => `<option value="${escapar(m)}">`).join('');
+      if (s.disponivel) {
+        // O modelo padrão precisa estar na lista que o servidor devolveu (no Ollama: já baixado).
+        const baixado = s.modelos.some(m => m === s.modeloPadrao || m === s.modeloPadrao + ':latest');
+        el('status').className = 'status ' + (baixado ? 'ok' : 'erro');
+        el('status').textContent = baixado ? '● modelo pronto' : '● modelo não baixado';
+        if (!baixado) mostrarAviso(`O servidor de modelos está no ar, mas não tem o modelo <code>${escapar(s.modeloPadrao)}</code>. `
+          + `Rode <code>docker compose --profile ia up -d</code> e espere o download terminar.`);
+      } else {
+        el('status').className = 'status erro';
+        el('status').textContent = '● servidor de modelos fora do ar';
+        mostrarAviso(`Não foi possível falar com <code>${escapar(s.servidor)}</code>. `
+          + `Suba o Ollama com <code>docker compose --profile ia up -d</code> (a primeira vez baixa ~2 GB) e recarregue a página.`);
+      }
+    } catch (e) {
+      el('status').className = 'status erro';
+      el('status').textContent = '● API fora do ar';
+    }
+  }
+  function mostrarAviso(html) {
+    el('aviso').innerHTML = html;
+    el('aviso').style.display = 'block';
+  }
+
+  el('form').onsubmit = e => { e.preventDefault(); enviar(el('texto').value); };
+  el('texto').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el('form').requestSubmit(); }
+  });
+  el('sugestoes').querySelectorAll('button').forEach(b => b.onclick = () => enviar(b.textContent));
+  el('btn-nova').onclick = () => {
+    conversa.length = 0;
+    el('mensagens').innerHTML = '<div class="vazio" id="vazio">Conversa nova. O modelo não lembra de nada do que foi dito antes.</div>';
+    el('passos').innerHTML = '';
+  };
+
+  verificarStatus();
+</script>
+</body>
+</html>

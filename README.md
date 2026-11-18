@@ -91,6 +91,13 @@
   - [Parte 3: IA no desenvolvimento](#parte-3-ia-no-desenvolvimento)
   - [Parte 4: o workflow com skills](#parte-4-o-workflow-com-skills)
   - [Exercícios](#exercícios-5)
+- [Aula 15: Autenticação e Segurança](#aula-15-autenticação-e-segurança)
+  - [Materiais](#materiais-10)
+  - [Parte 1: autenticação com Spring Security e JWT](#parte-1-autenticação-com-spring-security-e-jwt)
+  - [Parte 2: verificação em duas etapas (2FA)](#parte-2-verificação-em-duas-etapas-2fa)
+  - [Parte 3: o levantamento de segurança](#parte-3-o-levantamento-de-segurança)
+  - [Parte 4: a cadeia de suprimentos](#parte-4-a-cadeia-de-suprimentos)
+  - [Exercícios](#exercícios-6)
 
 ---
 
@@ -3087,3 +3094,105 @@ Estão no [README do exemplo](<Aula 14/exemplo_tarefas_mcp/README.md#6-exercíci
 2. Ferramenta `vincular_responsavel`.
 3. Uma descrição ruim: compare o que a IA chama antes e depois.
 4. O `CLAUDE.md` do Projeto Final do grupo.
+
+---
+
+## Aula 15: Autenticação e Segurança
+
+### Materiais
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula15-autenticacao-seguranca.pdf](<Aula 15/aula15-autenticacao-seguranca.pdf>) | Autenticação e autorização, JWT, Spring Security, BCrypt, força bruta, 2FA com TOTP, o levantamento de segurança e a cadeia de suprimentos (48 slides; o `.pptx` está na mesma pasta) |
+| [exemplo_tarefas_seguranca](<Aula 15/exemplo_tarefas_seguranca>) | O sistema de tarefas da Aula 14 com **login**, **cadastro de usuário**, **2FA pelo aplicativo** e **menu** |
+| [README do exemplo](<Aula 15/exemplo_tarefas_seguranca/README.md>) | Como subir, como o login funciona, testes e exercícios |
+| [SEGURANCA.md](<Aula 15/exemplo_tarefas_seguranca/SEGURANCA.md>) | Os 30 pontos de segurança do sistema: o que foi corrigido, o que é aceito só em aula e o que falta |
+| [CADEIA-DE-SUPRIMENTOS.md](<Aula 15/exemplo_tarefas_seguranca/CADEIA-DE-SUPRIMENTOS.md>) | O caminho das bibliotecas Java, onde o ataque entra e as defesas no Maven |
+| [roteiro-aula15.txt](<Aula 15/roteiro-aula15.txt>) | O passo a passo da demonstração |
+
+### Objetivo da aula
+
+Colocar **login** no sistema de tarefas (conta, senha e, para quem quiser, um código do celular), entender **por que** cada cuidado existe e aprender a olhar o sistema, e as bibliotecas que ele usa, com os olhos de quem quer atacá-lo.
+
+---
+
+### Parte 1: autenticação com Spring Security e JWT
+
+**Autenticação** é provar quem você é (falhou: `401`). **Autorização** é o que você pode fazer (falhou: `403`).
+
+```text
+POST /auth/cadastro  {nome, email, senha}   -> 201 (a senha vira hash BCrypt)
+POST /auth/login     {email, senha}         -> {token}   (JWT de 30 minutos)
+GET  /tarefas        Authorization: Bearer <token>
+```
+
+- **Negar por padrão**: o `SegurancaConfig` lista o pouco que é público; o resto (REST, `/mcp`, `/assistente`) exige token.
+- **JWT**: cabeçalho.conteúdo.assinatura. Qualquer um **lê** o conteúdo; ninguém **altera** sem a chave do servidor (`JWT_SEGREDO`, sempre fora do Git).
+- **Senha**: só o hash **BCrypt** (com sal e lento de propósito), nunca MD5 ou SHA puro.
+- **Login que não entrega segredos**: a mesma mensagem e o mesmo tempo para "e-mail não existe" e "senha errada"; 5 erros bloqueiam a conta por 15 minutos (`429`).
+- **Menu**: o `js/sessao.js`, no `<head>` de todas as páginas, guarda o token, manda quem não entrou para o login, põe o token em todo `fetch()` e desenha o menu.
+
+---
+
+### Parte 2: verificação em duas etapas (2FA)
+
+Senha é algo que você **sabe**; o celular é algo que você **tem**. Quem rouba só a senha não entra.
+
+O código de 6 dígitos (**TOTP**, RFC 6238) é `HMAC-SHA1(segredo, segundos desde 1970 / 30)`: o celular e o servidor têm o mesmo segredo (entregue uma vez pelo QR Code) e o mesmo relógio, então chegam ao mesmo número sem internet. Funciona com Google Authenticator, Microsoft Authenticator, 2FAS, Authy, FreeOTP...
+
+```text
+POST /auth/login     {email, senha}      -> {segundoFatorPendente: true, desafio}
+POST /auth/login/2fa {desafio, codigo}   -> {token}
+```
+
+Cuidados no código: o mesmo código não serve duas vezes, aceita ±30 s de relógio torto, comparação em tempo constante e desligar pede senha **e** código.
+
+---
+
+### Parte 3: o levantamento de segurança
+
+O [SEGURANCA.md](<Aula 15/exemplo_tarefas_seguranca/SEGURANCA.md>) revisa o sistema inteiro em 30 pontos. Alguns corrigidos nesta aula:
+
+| Antes | Agora |
+|---|---|
+| `@CrossOrigin(origins = "*")` nos controllers | Removido: só a própria origem chama a API |
+| Três `innerHTML` com dado de fora | `textContent` (sem XSS) + cabeçalho **CSP** |
+| Erros com a mensagem interna da exceção | Detalhe só no log; resposta com mensagem fixa |
+| Portas do Docker abertas para a rede inteira | `127.0.0.1:` na frente |
+| Grafana anônimo como administrador | Anônimo só vê |
+
+E o que ainda falta, documentado: cada usuário ver só as suas tarefas (IDOR), revogar tokens, limite de requisições por IP, HTTPS e a injeção de prompt no assistente.
+
+---
+
+### Parte 4: a cadeia de suprimentos
+
+O `pom.xml` declara 20 dependências, mas o `.jar` leva **127 bibliotecas**. O caminho de cada uma: `pom.xml` → Maven Central → `~/.m2/repository` → classpath. Em cada etapa, alguém pode trocar uma biblioteca boa por uma corrompida.
+
+| Defesa | Onde |
+|---|---|
+| Versão sempre fixa e lista negra (Log4Shell...) | `maven-enforcer-plugin` no `pom.xml` |
+| **Checksums confiáveis no Git**: o build recusa um `.jar` adulterado | `.mvn/maven.config` + `.mvn/checksums/` |
+| O próprio Maven conferido | `distributionSha256Sum` no `maven-wrapper.properties` |
+| Lista de ingredientes (SBOM) | `cyclonedx-maven-plugin` |
+| Falhas conhecidas (CVE) | `./mvnw -P auditoria verify` (OWASP Dependency-Check) |
+
+```bash
+cd "Aula 15/exemplo_tarefas_seguranca"
+docker compose --profile app up -d          # abra http://localhost:8080 e crie a sua conta
+docker compose --profile testes run --rm testes     # 87 testes
+docker compose --profile ui run --rm playwright-run # 10 testes de tela
+```
+
+---
+
+### Exercícios
+
+Estão no [README do exemplo](<Aula 15/exemplo_tarefas_seguranca/README.md#6-exercícios>):
+
+1. Ataque ao token: troque uma letra e diminua a validade.
+2. Códigos de recuperação do 2FA, guardados como hash.
+3. Cada usuário com as suas tarefas (IDOR).
+4. O assistente pede confirmação antes de alterar dados.
+5. Uma dependência nova, do jeito certo (checksums e diff).
+

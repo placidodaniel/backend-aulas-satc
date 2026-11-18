@@ -1,0 +1,221 @@
+// Define o pacote dos controllers e seus tratadores de erro.
+package api.controller;
+
+// Importa o tipo de data e hora usado no timestamp do erro.
+import java.time.LocalDateTime;
+// Importa a unidade usada para cortar os nanossegundos do timestamp.
+import java.time.temporal.ChronoUnit;
+// Importa o comparador usado para ordenar os erros por campo.
+import java.util.Comparator;
+// Importa a lista de erros por campo.
+import java.util.List;
+
+// Importa o enum com os status HTTP conhecidos pelo Spring.
+import org.springframework.http.HttpStatus;
+
+// Aula 14: a exceção do assistente.
+import api.assistente.AssistenteIndisponivelException;
+// Importa o tipo usado para montar uma resposta HTTP completa.
+import org.springframework.http.ResponseEntity;
+// Importa a exceção lançada quando o corpo não é um JSON legível.
+import org.springframework.http.converter.HttpMessageNotReadableException;
+// Importa a exceção lançada quando o @Valid reprova o DTO.
+import org.springframework.web.bind.MethodArgumentNotValidException;
+// Importa a exceção de parâmetro obrigatório ausente na URL (Aula 12).
+import org.springframework.web.bind.MissingServletRequestParameterException;
+// Importa a anotação que marca um método como tratador de exceção.
+import org.springframework.web.bind.annotation.ExceptionHandler;
+// Importa a anotação que aplica o tratador a todos os controllers.
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+// Importa a exceção de parâmetro da URL que não converte (Aula 12).
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+// Aula 15: as exceções de autenticação.
+import api.seguranca.ContaBloqueadaException;
+import api.seguranca.CredenciaisInvalidasException;
+import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+// Importa a requisição HTTP, de onde sai o "caminho" do erro.
+import jakarta.servlet.http.HttpServletRequest;
+
+// Importa as exceções do serviço de previsão (Aula 12).
+import api.client.PrevisaoIndisponivelException;
+import api.client.PrevisaoTempoEsgotadoException;
+// Importa os DTOs de erro (Exercício 5).
+import api.dto.CampoErroDTO;
+import api.dto.ErroDTO;
+// Importa a exceção de regra de negócio (Aula 12).
+import api.service.RegraDeNegocioException;
+// Importa as exceções de "não encontrado".
+import api.service.ResponsavelNaoEncontradoException;
+import api.service.TarefaNaoEncontradaException;
+
+// Trata exceções de qualquer controller da API, num único lugar.
+//
+// Exercício 5: toda resposta de erro sai como ErroDTO. O ApiExceptionHandler
+// passa a ser o "mapper dos erros": recebe uma exceção (mundo Java) e devolve
+// um DTO (mundo do contrato).
+//
+// Aula 15: agora existe um @ExceptionHandler(Exception.class) "pega-tudo", para
+// nenhum erro inesperado chegar ao cliente com detalhes internos. Cuidado: ele
+// também capturaria os 404, 405 e 415 que o próprio Spring gera. Por isso eles
+// têm tratadores próprios, e o pega-tudo respeita o status de qualquer exceção
+// do Spring que já saiba o seu (as que implementam ErrorResponse).
+// Registra esta classe para tratar exceções lançadas pelos controllers.
+@RestControllerAdvice
+public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    // Aula 15 -- 401: e-mail, senha, código ou desafio errado. Mensagem sempre genérica.
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<ErroDTO> credenciaisInvalidas(CredenciaisInvalidasException e, HttpServletRequest request) {
+        return responder(HttpStatus.UNAUTHORIZED, e.getMessage(), request, List.of());
+    }
+
+    // Aula 15 -- 429 Too Many Requests: a conta está bloqueada por força bruta.
+    // O cabeçalho Retry-After diz ao cliente quantos segundos esperar.
+    @ExceptionHandler(ContaBloqueadaException.class)
+    public ResponseEntity<ErroDTO> contaBloqueada(ContaBloqueadaException e, HttpServletRequest request) {
+        long segundos = Math.max(1, Duration.between(java.time.Instant.now(), e.getAte()).toSeconds());
+        ResponseEntity<ErroDTO> resposta = responder(HttpStatus.TOO_MANY_REQUESTS, e.getMessage(), request, List.of());
+        return ResponseEntity.status(resposta.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(segundos))
+                .body(resposta.getBody());
+    }
+
+    // Aula 15 -- erros do próprio Spring MVC que antes caíam no tratador padrão.
+    // Ficam aqui para o "pega-tudo" abaixo não transformá-los em 500.
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErroDTO> rotaNaoExiste(NoResourceFoundException e, HttpServletRequest request) {
+        return responder(HttpStatus.NOT_FOUND, "Rota não encontrada.", request, List.of());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErroDTO> metodoNaoSuportado(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
+        return responder(HttpStatus.METHOD_NOT_ALLOWED, "Método " + e.getMethod() + " não é aceito nesta rota.", request, List.of());
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErroDTO> tipoNaoSuportado(HttpMediaTypeNotSupportedException e, HttpServletRequest request) {
+        return responder(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Envie o corpo como application/json.", request, List.of());
+    }
+
+    // Aula 15 -- 500: qualquer erro INESPERADO (um bug, o banco fora do ar, um texto
+    // maior que a coluna). O detalhe vai para o LOG, onde só a equipe vê; o cliente
+    // recebe uma mensagem fixa. Mensagem de exceção pode trazer SQL, nome de tabela,
+    // caminho de arquivo, versão de biblioteca: tudo informação útil para quem ataca.
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErroDTO> erroInesperado(Exception e, HttpServletRequest request) {
+        // Exceções do Spring que já carregam um status 4xx (cabeçalho obrigatório
+        // ausente, por exemplo): respeita o status, com mensagem genérica.
+        if (e instanceof org.springframework.web.ErrorResponse conhecida && conhecida.getStatusCode().is4xxClientError()) {
+            return responder(HttpStatus.valueOf(conhecida.getStatusCode().value()), "Requisição inválida.", request, List.of());
+        }
+        log.error("Erro inesperado em {} {}", request.getMethod(), request.getRequestURI(), e);
+        return responder(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Erro interno. Se continuar, avise a equipe informando o horário do erro.", request, List.of());
+    }
+
+    // 404: um método só para as duas exceções -- a resposta é a mesma, só a
+    // mensagem muda (e a mensagem já vem pronta de cada exceção).
+    @ExceptionHandler({TarefaNaoEncontradaException.class, ResponsavelNaoEncontradoException.class})
+    public ResponseEntity<ErroDTO> tratarNaoEncontrado(RuntimeException e, HttpServletRequest request) {
+        // Sem erros de campo: a lista vai vazia, mas vai (o campo sempre existe).
+        return responder(HttpStatus.NOT_FOUND, e.getMessage(), request, List.of());
+    }
+
+    // 400 de validação: o @Valid reprovou o DTO antes do Controller rodar.
+    // Antes deste exercício, quem respondia era o Spring, com o JSON padrão dele.
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErroDTO> tratarValidacao(MethodArgumentNotValidException e, HttpServletRequest request) {
+        // Cada FieldError vira um CampoErroDTO {campo, mensagem}.
+        List<CampoErroDTO> campos = e.getBindingResult().getFieldErrors().stream()
+                .map(erro -> new CampoErroDTO(erro.getField(), erro.getDefaultMessage()))
+                // Ordem fixa (por campo): o Bean Validation não garante ordem nenhuma.
+                .sorted(Comparator.comparing(CampoErroDTO::campo).thenComparing(CampoErroDTO::mensagem))
+                .toList();
+        // A mensagem geral é fixa; o detalhe de cada campo está na lista.
+        return responder(HttpStatus.BAD_REQUEST, "Dados inválidos: confira a lista de campos", request, campos);
+    }
+
+    // 400 de JSON ilegível: vírgula faltando, data em formato errado
+    // ("dataPrazo": "amanhã"), texto onde deveria ser número...
+    // Acontece ANTES do @Valid: o Jackson nem conseguiu montar o DTO.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErroDTO> tratarCorpoIlegivel(HttpMessageNotReadableException e, HttpServletRequest request) {
+        // e.getMessage() traria detalhes internos do Jackson -- não vai para o cliente.
+        return responder(HttpStatus.BAD_REQUEST,
+                "Corpo da requisição inválido: confira o JSON e o formato das datas (yyyy-MM-dd)", request, List.of());
+    }
+
+    // Aula 12 -- 400 de parâmetro ausente na URL: GET /previsao sem latitude,
+    // por exemplo. Sem este tratador, o Spring responderia com o JSON padrão dele.
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErroDTO> tratarParametroAusente(MissingServletRequestParameterException e, HttpServletRequest request) {
+        // getParameterName(): o nome do parâmetro que faltou.
+        return responder(HttpStatus.BAD_REQUEST, "Parâmetro obrigatório ausente: " + e.getParameterName(), request,
+                List.of(new CampoErroDTO(e.getParameterName(), "é obrigatório")));
+    }
+
+    // Aula 12 -- 400 de parâmetro da URL que não converte: latitude=abc ou
+    // data=amanhã. Acontece antes do Controller rodar, como o JSON ilegível.
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErroDTO> tratarParametroInvalido(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+        // getName(): o nome do parâmetro; o valor recusado não volta (pode ser qualquer coisa).
+        return responder(HttpStatus.BAD_REQUEST, "Parâmetro inválido: " + e.getName()
+                + " (números com ponto, datas no formato yyyy-MM-dd)", request,
+                List.of(new CampoErroDTO(e.getName(), "valor em formato inválido")));
+    }
+
+    // Aula 12 -- 400 de regra de negócio: o pedido veio no formato certo, mas
+    // o sistema não pode aceitar (ex.: previsão para daqui a 30 dias).
+    @ExceptionHandler(RegraDeNegocioException.class)
+    public ResponseEntity<ErroDTO> tratarRegraDeNegocio(RegraDeNegocioException e, HttpServletRequest request) {
+        // A mensagem já explica a regra; não há erro de campo.
+        return responder(HttpStatus.BAD_REQUEST, e.getMessage(), request, List.of());
+    }
+
+    // Aula 14: o servidor de modelos de IA falhou ou demorou demais: 502, como o Open-Meteo.
+    @ExceptionHandler(AssistenteIndisponivelException.class)
+    public ResponseEntity<ErroDTO> assistenteIndisponivel(AssistenteIndisponivelException e, HttpServletRequest request) {
+        return responder(HttpStatus.BAD_GATEWAY, e.getMessage(), request, List.of());
+    }
+
+    // Aula 12 -- 502 Bad Gateway: a nossa API funcionou, quem falhou foi o
+    // serviço de previsão, que ela chamou. Não é 400 (o cliente não errou) nem
+    // 500 (não é bug nosso). A mensagem diz o que se tentou fazer e a pista do
+    // motivo (o status que o serviço respondeu, ou o tipo da falha).
+    @ExceptionHandler(PrevisaoIndisponivelException.class)
+    public ResponseEntity<ErroDTO> tratarPrevisaoIndisponivel(PrevisaoIndisponivelException e, HttpServletRequest request) {
+        // Responde no mesmo formato de todo erro da API.
+        return responder(HttpStatus.BAD_GATEWAY, e.getMessage(), request, List.of());
+    }
+
+    // Aula 12, Exercício 3 -- 504 Gateway Timeout: o serviço de previsão não
+    // respondeu a tempo. PrevisaoTempoEsgotadoException é filha da
+    // PrevisaoIndisponivelException; o Spring escolhe o tratador mais
+    // específico, então ela cai aqui, e as outras falhas continuam no 502.
+    @ExceptionHandler(PrevisaoTempoEsgotadoException.class)
+    public ResponseEntity<ErroDTO> tratarPrevisaoLenta(PrevisaoTempoEsgotadoException e, HttpServletRequest request) {
+        // Mesmo formato de erro; só o status muda.
+        return responder(HttpStatus.GATEWAY_TIMEOUT, e.getMessage(), request, List.of());
+    }
+
+    // Monta o ErroDTO e a resposta HTTP -- um lugar só, igual a um mapper.
+    private ResponseEntity<ErroDTO> responder(HttpStatus status, String mensagem, HttpServletRequest request,
+                                              List<CampoErroDTO> campos) {
+        // getReasonPhrase(): "Not Found", "Bad Request"... O timestamp é cortado
+        // nos segundos: "2026-10-06T19:30:00", sem os nanossegundos do relógio.
+        ErroDTO erro = new ErroDTO(status.value(), status.getReasonPhrase(), mensagem,
+                request.getRequestURI(), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), campos);
+        // O status vai na linha de status HTTP e também dentro do corpo.
+        return ResponseEntity.status(status).body(erro);
+    }
+}

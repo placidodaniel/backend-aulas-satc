@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Criar conta · Tarefas SATC</title>
+<link rel="stylesheet" href="css/conta.css">
+<script src="js/sessao.js"></script>
+</head>
+<body>
+<main class="centro">
+  <section class="cartao">
+    <form id="form" novalidate>
+      <h1>Criar conta</h1>
+      <p class="subtitulo">Aula 15: <code>POST /auth/cadastro</code>. A senha vira um hash BCrypt antes de ir para o banco.</p>
+
+      <label for="nome">Nome</label>
+      <input id="nome" autocomplete="name" maxlength="100" required autofocus>
+      <div class="erro-campo" id="erro-nome"></div>
+
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="username" maxlength="255" required>
+      <div class="erro-campo" id="erro-email"></div>
+
+      <label for="senha">Senha</label>
+      <!-- new-password: o gerenciador de senhas do navegador oferece uma senha forte. -->
+      <input id="senha" type="password" autocomplete="new-password" maxlength="64" required>
+      <div class="erro-campo" id="erro-senha"></div>
+      <ul class="regras">
+        <li id="regra-tamanho">De 8 a 64 caracteres (uma frase é ótima: "cafe com pao na praia")</li>
+        <li>Não pode estar na lista das senhas mais vazadas (12345678, senha123...)</li>
+        <li>Não pode conter o seu e-mail</li>
+      </ul>
+
+      <label for="confirmar">Repita a senha</label>
+      <input id="confirmar" type="password" autocomplete="new-password" maxlength="64" required>
+      <div class="erro-campo" id="erro-confirmar"></div>
+
+      <button class="primario" type="submit" id="btn">Criar conta</button>
+    </form>
+
+    <div id="aviso" class="aviso" hidden></div>
+    <p class="rodape">Já tem conta? <a href="entrar.html">Entrar</a></p>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  if (Sessao.ler()) location.replace('index.html');
+
+  // Dica ao vivo do tamanho. Validar no navegador é CONFORTO para o usuário;
+  // quem garante é a API (@Valid + regras no AutenticacaoService).
+  $('senha').addEventListener('input', () => {
+    const n = $('senha').value.length;
+    $('regra-tamanho').className = n >= 8 && n <= 64 ? 'ok' : '';
+  });
+
+  function limparErros() {
+    for (const campo of ['nome', 'email', 'senha', 'confirmar']) {
+      $('erro-' + campo).textContent = '';
+      $(campo).classList.remove('invalido');
+    }
+    $('aviso').hidden = true;
+  }
+
+  function erroNoCampo(campo, mensagem) {
+    if (!$('erro-' + campo)) return false;
+    $('erro-' + campo).textContent = mensagem;
+    $(campo).classList.add('invalido');
+    return true;
+  }
+
+  function avisar(tipo, texto) {
+    $('aviso').className = 'aviso ' + tipo;
+    $('aviso').textContent = texto;
+    $('aviso').hidden = false;
+  }
+
+  $('form').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    limparErros();
+    if ($('senha').value !== $('confirmar').value) {
+      erroNoCampo('confirmar', 'as duas senhas estão diferentes');
+      return;
+    }
+    $('btn').disabled = true;
+    try {
+      const resposta = await fetch(Sessao.API + '/auth/cadastro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: $('nome').value, email: $('email').value, senha: $('senha').value }),
+      });
+      if (resposta.status === 201) {
+        location.replace('entrar.html?motivo=criada');
+        return;
+      }
+      const erro = await resposta.json();
+      // Cada erro de campo do ErroDTO vai para baixo do campo certo.
+      const semCampo = (erro.campos || []).filter(c => !erroNoCampo(c.campo, c.mensagem));
+      if (!erro.campos || erro.campos.length === 0 || semCampo.length) avisar('erro', erro.mensagem);
+    } catch (e) {
+      avisar('erro', 'API fora do ar? ' + e.message);
+    } finally {
+      $('btn').disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
