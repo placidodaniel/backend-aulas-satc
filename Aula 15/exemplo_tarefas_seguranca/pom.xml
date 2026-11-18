@@ -208,6 +208,15 @@
             <version>${zxing.version}</version>
         </dependency>
 
+        <!-- Demonstração do CI (exercício 5): uma biblioteca NOVA, para exportar as tarefas
+             em CSV. Sem regravar .mvn/checksums/, o CI recusa: ela não está na lista. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <!-- Publicada em 2025-07-27: bem depois da quarentena de 7 dias. -->
+            <version>1.14.1</version>
+        </dependency>
+
         <!-- Aula 15: utilitários de teste do Spring Security (não vão para produção). -->
         <dependency>
             <groupId>org.springframework.security</groupId>
