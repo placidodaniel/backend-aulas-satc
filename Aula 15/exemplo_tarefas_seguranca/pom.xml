@@ -30,7 +30,7 @@
         <!-- Faz o Maven tratar os arquivos de texto como UTF-8. -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Aula 14: versão do Spring AI. A linha 1.1 é a que combina com o Spring Boot 3.5. -->
-        <spring-ai.version>1.1.8</spring-ai.version>
+        <spring-ai.version>2.0.2</spring-ai.version>
         <!-- Aula 15: versões dos plugins de segurança da cadeia de suprimentos.
              Versão SEMPRE fixa (nada de LATEST, RELEASE ou faixa [1.0,)): o build
              de hoje e o de daqui a um ano precisam baixar exatamente os mesmos arquivos. -->
