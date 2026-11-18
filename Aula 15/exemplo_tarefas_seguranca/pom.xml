@@ -14,7 +14,7 @@
         <!-- Importa as configurações e versões oficiais do Spring Boot. -->
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Escolhe a versão do Spring Boot usada pela aplicação. -->
-        <version>3.5.16</version>
+        <version>4.1.2</version>
     </parent>
 
     <!-- Identifica o grupo acadêmico que criou o projeto. -->
