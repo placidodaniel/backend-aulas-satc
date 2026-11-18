@@ -63,6 +63,10 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # A imagem do Maven carrega a versão do JAVA no nome (eclipse-temurin-25). O Dependabot
+      # não entende isso e sugeriu trocar para Java 26 com a tag "3.9", que muda sozinha.
+      # A versão do Java é decidida à mão, junto com o <java.version> do pom.xml.
+      - dependency-name: "maven"
     commit-message:
       prefix: "aula15(deps)"
 
