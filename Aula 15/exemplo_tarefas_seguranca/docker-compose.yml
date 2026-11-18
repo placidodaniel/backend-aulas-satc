@@ -176,7 +176,7 @@ services:
   # Testes unitários + E2E:   docker compose --profile testes run --rm testes
   # Só os unitários:          docker compose --profile testes run --rm testes mvn -B -ntp test "-Dtest=!*E2ETest"
   testes:
-    image: maven:3.9.12-eclipse-temurin-25
+    image: maven:3.9-eclipse-temurin-26
     profiles: ["testes"]
     working_dir: /app
     volumes:
@@ -200,7 +200,7 @@ services:
   # A API (em vez de ./mvnw spring-boot:run):   docker compose --profile app up api
   # Sobe o PostgreSQL e o RabbitMQ junto (depends_on) e fica na porta 8080.
   api:
-    image: maven:3.9.12-eclipse-temurin-25
+    image: maven:3.9-eclipse-temurin-26
     # "app": só a API. "ui": a API junto com o Playwright (veja os serviços abaixo).
     profiles: ["app", "ui"]
     working_dir: /app
