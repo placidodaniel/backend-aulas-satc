@@ -1,20 +1,17 @@
 # Aula 15: integração contínua (CI) do projeto de segurança.
 #
-# Roda a cada push e a cada pull request que mexa no projeto da Aula 15
-# (inclusive os PRs abertos pelo Dependabot). Se algum passo falhar, o PR
-# fica vermelho e a mudança não deveria entrar.
+# Roda a CADA push, em qualquer branch e mexendo em qualquer arquivo do
+# repositório, e a cada pull request (inclusive os abertos pelo Dependabot).
+# Se algum passo falhar, o commit ou o PR fica vermelho.
 name: Aula 15 - build, testes e cadeia de suprimentos
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "Aula 15/exemplo_tarefas_seguranca/**"
-      - ".github/workflows/aula15-ci.yml"
+    # As branches do Dependabot já são testadas pelo evento pull_request abaixo:
+    # sem esta linha, cada PR dele rodaria o CI duas vezes.
+    branches-ignore:
+      - "dependabot/**"
   pull_request:
-    paths:
-      - "Aula 15/exemplo_tarefas_seguranca/**"
-      - ".github/workflows/aula15-ci.yml"
   # Botão "Run workflow" na aba Actions, para rodar à mão na aula.
   workflow_dispatch:
 

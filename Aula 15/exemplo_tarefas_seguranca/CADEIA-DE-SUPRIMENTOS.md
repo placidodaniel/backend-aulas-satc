@@ -234,7 +234,7 @@ Este repositório tem o Dependabot ligado no arquivo [.github/dependabot.yml](..
 
 ### 3.8b O CI: quem valida o PR
 
-O Dependabot só **propõe**. Quem **valida** é o CI: [.github/workflows/aula15-ci.yml](../../.github/workflows/aula15-ci.yml), que roda no GitHub (aba **Actions**) a cada push e a cada PR que mexa neste projeto:
+O Dependabot só **propõe**. Quem **valida** é o CI: [.github/workflows/aula15-ci.yml](../../.github/workflows/aula15-ci.yml), que roda no GitHub (aba **Actions**) a cada push, em qualquer branch, e a cada PR:
 
 | Passo | O que confere |
 |---|---|
