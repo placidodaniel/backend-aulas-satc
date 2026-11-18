@@ -17,6 +17,12 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    # Versão principal (major: Spring Boot 3 para 4, Grafana 11 para 13) costuma QUEBRAR
+    # o projeto e muda o conteúdo da aula: essa troca é decidida à mão, numa aula nova.
+    # Correções de segurança continuam chegando (o "ignore" não vale para elas).
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     # Um PR só para as atualizações pequenas (patch), para não virar uma chuva de PRs.
     groups:
       correcoes:
@@ -33,6 +39,12 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 2
+    # Versão principal (major: Spring Boot 3 para 4, Grafana 11 para 13) costuma QUEBRAR
+    # o projeto e muda o conteúdo da aula: essa troca é decidida à mão, numa aula nova.
+    # Correções de segurança continuam chegando (o "ignore" não vale para elas).
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "aula15(deps)"
 
@@ -45,6 +57,12 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 3
+    # Versão principal (major: Spring Boot 3 para 4, Grafana 11 para 13) costuma QUEBRAR
+    # o projeto e muda o conteúdo da aula: essa troca é decidida à mão, numa aula nova.
+    # Correções de segurança continuam chegando (o "ignore" não vale para elas).
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "aula15(deps)"
 
