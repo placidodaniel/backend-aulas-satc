@@ -183,7 +183,7 @@ Quando sai uma falha nova (um "Log4Shell" da vez), a pergunta "nós usamos isso?
 |---|---|---|
 | **OWASP Dependency-Check** | `./mvnw -P auditoria verify` | Perfil no `pom.xml`. Falha com nota CVSS 7 ou mais. A 1ª execução baixa a base do NVD e demora; com uma chave gratuita do NVD (`NVD_API_KEY`), fica bem mais rápida |
 | **OSV-Scanner** (Google) | `docker run --rm -v "$PWD/target/classes/META-INF/sbom:/sbom:ro" ghcr.io/google/osv-scanner:v2.7.0 scan source -L /sbom/application.cdx.json` | Lê o SBOM. **Não foi testado nesta máquina**: confira o comando na documentação do OSV-Scanner antes de usar em aula |
-| **GitHub Dependabot** | Liga em *Settings > Code security* do repositório | Avisa sozinho quando sai CVE de uma dependência e abre o PR de atualização |
+| **GitHub Dependabot** | Já ligado neste repositório (seção 3.8) | Avisa sozinho quando sai CVE de uma dependência e abre o PR de atualização |
 
 ### 3.6 Um repositório só, com HTTPS
 
@@ -217,21 +217,45 @@ Dois erros opostos:
 - **Nunca atualizar**: as CVEs se acumulam (Log4Shell atingiu quem estava parado).
 - **Atualizar no mesmo minuto**: versões maliciosas costumam ser descobertas e removidas em poucos dias. Quem atualizou na hora já instalou.
 
-O meio-termo é uma **quarentena** (*cooldown*): atualizar sempre, mas só versões publicadas há alguns dias. As versões dos plugins novos deste projeto foram escolhidas assim. O Dependabot e o Renovate fazem isso sozinhos:
+O meio-termo é uma **quarentena** (*cooldown*): atualizar sempre, mas só versões publicadas há alguns dias. As versões dos plugins novos deste projeto foram escolhidas assim. O Dependabot e o Renovate fazem isso sozinhos.
+
+Este repositório tem o Dependabot ligado no arquivo [.github/dependabot.yml](../../.github/dependabot.yml), na raiz do repositório (é o único lugar onde o GitHub procura). Toda segunda-feira ele confere quatro coisas deste projeto: o `pom.xml`, o `package.json` do Playwright, as imagens do `docker-compose.yml` e as actions do CI. Todas com quarentena de 7 dias:
 
 ```yaml
-# .github/dependabot.yml (na raiz do repositório)
-version: 2
-updates:
   - package-ecosystem: "maven"
-    directory: "/"
+    directory: "/Aula 15/exemplo_tarefas_seguranca"
     schedule:
       interval: "weekly"
     cooldown:
       default-days: 7        # só sugere versões publicadas há pelo menos 7 dias
 ```
 
-(No Renovate, a opção é `minimumReleaseAge`.)
+(No Renovate, a opção é `minimumReleaseAge`.) A quarentena vale para as atualizações **de rotina**. Quando sai uma correção de segurança (CVE), o Dependabot abre o PR na hora.
+
+### 3.8b O CI: quem valida o PR
+
+O Dependabot só **propõe**. Quem **valida** é o CI: [.github/workflows/aula15-ci.yml](../../.github/workflows/aula15-ci.yml), que roda no GitHub (aba **Actions**) a cada push e a cada PR que mexa neste projeto:
+
+| Passo | O que confere |
+|---|---|
+| `./mvnw verify` com os checksums no modo **rígido** | Compila, roda os 87 testes, as regras do Enforcer, e recusa biblioteca adulterada **ou fora da lista** |
+| SBOM guardado | A lista de ingredientes de cada execução fica em *Artifacts* |
+| Revisão de dependências (só em PR) | Reprova se o PR trouxer uma biblioteca com CVE de gravidade alta ou crítica |
+
+O próprio CI segue as regras da aula: permissão só de leitura e cada action **fixada pelo hash do commit**, não pela tag. Uma tag (`v7`) pode ser movida para outro código; o hash, nunca. Foi assim que, em 2025, a action `tj-actions/changed-files` comprometida vazou segredos de milhares de repositórios que usavam a tag.
+
+**O que acontece com um PR do Dependabot que atualiza o `pom.xml`:**
+
+1. O Dependabot abre o PR trocando, por exemplo, o ZXing de 3.5.4 para 3.5.5.
+2. O CI fica **vermelho**: o `.jar` novo não está em `.mvn/checksums/` ("Missing from summaryFile trusted checksum"). É de propósito: nenhuma biblioteca entra sem uma pessoa olhar.
+3. Alguém da equipe baixa a branch do PR, regrava a lista e **revisa** o diff:
+   ```bash
+   git fetch origin && git switch <branch-do-dependabot>
+   ./mvnw clean verify dependency:tree -Daether.artifactResolver.postProcessor.trustedChecksums.record=true
+   git diff .mvn/checksums/          # entrou só o ZXing 3.5.5? Ou vieram outras bibliotecas junto?
+   git commit -am "Checksums do ZXing 3.5.5" && git push
+   ```
+4. O CI roda de novo, fica **verde** e o PR pode entrar.
 
 ### 3.9 Assinaturas
 

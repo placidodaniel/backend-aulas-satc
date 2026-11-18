@@ -1,0 +1,59 @@
+# Aula 15: o Dependabot lê este arquivo e abre PRs de atualização sozinho.
+# Só o projeto da Aula 15 é acompanhado: os das aulas anteriores são "fotografias"
+# do material e não devem mudar a cada versão nova de biblioteca.
+#
+# Todo PR do Dependabot passa pelo CI (.github/workflows/aula15-ci.yml) antes de
+# poder entrar: testes, Enforcer, checksums no modo rígido e revisão de dependências.
+version: 2
+updates:
+  # Bibliotecas Java (pom.xml)
+  - package-ecosystem: "maven"
+    directory: "/Aula 15/exemplo_tarefas_seguranca"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Quarentena: só sugere versões publicadas há pelo menos 7 dias.
+    # Versão maliciosa costuma ser descoberta e removida nesse prazo.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    # Um PR só para as atualizações pequenas (patch), para não virar uma chuva de PRs.
+    groups:
+      correcoes:
+        update-types: ["patch"]
+    commit-message:
+      prefix: "aula15(deps)"
+
+  # Playwright (playwright/package.json e package-lock.json)
+  - package-ecosystem: "npm"
+    directory: "/Aula 15/exemplo_tarefas_seguranca/playwright"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "aula15(deps)"
+
+  # Imagens do docker-compose.yml (postgres, rabbitmq, grafana...)
+  - package-ecosystem: "docker-compose"
+    directory: "/Aula 15/exemplo_tarefas_seguranca"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "aula15(deps)"
+
+  # As próprias actions do CI (fixadas por hash de commit no workflow).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "ci"

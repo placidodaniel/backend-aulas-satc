@@ -1,0 +1,80 @@
+# Aula 15: integração contínua (CI) do projeto de segurança.
+#
+# Roda a cada push e a cada pull request que mexa no projeto da Aula 15
+# (inclusive os PRs abertos pelo Dependabot). Se algum passo falhar, o PR
+# fica vermelho e a mudança não deveria entrar.
+name: Aula 15 - build, testes e cadeia de suprimentos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Aula 15/exemplo_tarefas_seguranca/**"
+      - ".github/workflows/aula15-ci.yml"
+  pull_request:
+    paths:
+      - "Aula 15/exemplo_tarefas_seguranca/**"
+      - ".github/workflows/aula15-ci.yml"
+  # Botão "Run workflow" na aba Actions, para rodar à mão na aula.
+  workflow_dispatch:
+
+# Menor permissão possível: o CI só LÊ o código. Um passo comprometido
+# não consegue escrever no repositório.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: "Aula 15/exemplo_tarefas_seguranca"
+
+jobs:
+  build:
+    name: Testes, Enforcer, checksums e SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Cada action está fixada pelo HASH do commit, não pela tag (v7): uma tag
+      # pode ser movida para outro código; o hash, nunca. O comentário diz a versão.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: "Aula 15/exemplo_tarefas_seguranca/pom.xml"
+
+      # verify = compila, roda os 87 testes (os E2E usam o Docker do runner),
+      # confere as regras do Enforcer e gera o SBOM.
+      # MAVEN_ARGS liga o modo RÍGIDO dos checksums: biblioteca adulterada OU fora
+      # da lista em .mvn/checksums/ derruba o build (veja CADEIA-DE-SUPRIMENTOS.md).
+      - name: Build e testes (checksums no modo rígido)
+        env:
+          MAVEN_ARGS: -Daether.artifactResolver.postProcessor.trustedChecksums.failIfMissing=true
+        run: ./mvnw -B -ntp verify
+
+      # A "lista de ingredientes" fica guardada em cada execução (aba Actions > Artifacts).
+      - name: Guardar o SBOM
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-aula15
+          path: "Aula 15/exemplo_tarefas_seguranca/target/classes/META-INF/sbom/application.cdx.json"
+          if-no-files-found: warn
+
+  # Só em pull request: compara as dependências antes e depois da mudança e
+  # reprova se entrar alguma com falha conhecida (CVE) de gravidade alta ou crítica.
+  revisao-de-dependencias:
+    name: Revisão de dependências (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never
