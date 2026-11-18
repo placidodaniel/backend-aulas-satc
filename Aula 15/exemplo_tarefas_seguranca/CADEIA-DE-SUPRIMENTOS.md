@@ -120,6 +120,7 @@ O [.mvn/maven.config](.mvn/maven.config) é lido pelo Maven **em todo build** (n
 -Daether.artifactResolver.postProcessor.trustedChecksums=true   (3)
 -Daether.artifactResolver.postProcessor.trustedChecksums.checksumAlgorithms=SHA-512
 -Daether.artifactResolver.postProcessor.trustedChecksums.failIfMissing=false  (4)
+-Daether.system.repositoryKeyFunction=nid                                      (5)
 ```
 
 1. Se o `.sha1` do repositório não bater, **falha** (o padrão do Maven é só avisar).
@@ -136,6 +137,8 @@ O [.mvn/maven.config](.mvn/maven.config) é lido pelo Maven **em todo build** (n
 > | Docker Compose (`api`, `testes`) e CI | Falha | **Falha** |
 >
 > O modo rígido vem da variável `MAVEN_ARGS` no [docker-compose.yml](docker-compose.yml), que vence o `maven.config`. No terminal, use o mesmo: `MAVEN_ARGS="-Daether.artifactResolver.postProcessor.trustedChecksums.failIfMissing=true" ./mvnw verify`. Num servidor de CI (GitHub Actions, por exemplo), a regra rígida é a que vale: é lá que nenhum código entra sem passar.
+
+5. O nome do arquivo da lista. O Maven 3.10 (que usa o Maven Resolver 2.0) passou a chamar a lista de `checksums-central-<código do endereço>.sha512`. Esta linha mantém o nome simples, `checksums-central.sha512`, nas duas versões. Sem ela, ao atualizar o Maven, o build "não acha" a lista e recusa tudo. Foi o que o CI pegou no PR do Dependabot que atualizava o Maven para a 3.10.0.
 
 Esse recurso é do *Maven Resolver* e existe a partir do Maven 3.9 (no Gradle, o equivalente é o `gradle/verification-metadata.xml`).
 
