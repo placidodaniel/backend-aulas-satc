@@ -83,7 +83,7 @@
             <!-- Gera o OpenAPI a partir do Spring MVC e serve o Swagger UI. -->
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <!-- 2.9.1 foi compilada contra o Spring Boot 3.5.16, o mesmo do <parent>. -->
-            <version>2.9.1</version>
+            <version>2.10.0</version>
         </dependency>
 
         <!-- Reúne Spring Data JPA, JPA e Hibernate para persistência relacional. -->
