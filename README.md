@@ -3103,7 +3103,7 @@ Estão no [README do exemplo](<Aula 14/exemplo_tarefas_mcp/README.md#6-exercíci
 
 | Arquivo | Conteúdo |
 |---|---|
-| [aula15-autenticacao-seguranca.pdf](<Aula 15/aula15-autenticacao-seguranca.pdf>) | Autenticação e autorização, JWT, Spring Security, BCrypt, força bruta, 2FA com TOTP, o levantamento de segurança e a cadeia de suprimentos (48 slides; o `.pptx` está na mesma pasta) |
+| [aula15-autenticacao-seguranca.pdf](<Aula 15/aula15-autenticacao-seguranca.pdf>) | Autenticação e autorização, JWT, Spring Security, BCrypt, força bruta, 2FA com TOTP, o levantamento de segurança e a cadeia de suprimentos (55 slides; o `.pptx` está na mesma pasta) |
 | [exemplo_tarefas_seguranca](<Aula 15/exemplo_tarefas_seguranca>) | O sistema de tarefas da Aula 14 com **login**, **cadastro de usuário**, **2FA pelo aplicativo** e **menu** |
 | [README do exemplo](<Aula 15/exemplo_tarefas_seguranca/README.md>) | Como subir, como o login funciona, testes e exercícios |
 | [SEGURANCA.md](<Aula 15/exemplo_tarefas_seguranca/SEGURANCA.md>) | Os 30 pontos de segurança do sistema: o que foi corrigido, o que é aceito só em aula e o que falta |
