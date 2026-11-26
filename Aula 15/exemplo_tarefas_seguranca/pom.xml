@@ -248,7 +248,7 @@
                 <!-- Plugin responsável por executar os testes. -->
                 <artifactId>maven-surefire-plugin</artifactId>
                 <!-- Versão do plugin compatível com JUnit 5. -->
-                <version>3.5.4</version>
+                <version>3.6.1</version>
             </plugin>
 
             <!-- Aula 15, cadeia de suprimentos: o Enforcer confere REGRAS antes de compilar.
