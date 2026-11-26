@@ -296,7 +296,7 @@ services:
   # Ele entende o formato "chat completions", o mesmo do OpenRouter.
   # Subir: docker compose --profile ia up -d   (a 1ª vez baixa o modelo, ~2 GB)
   ollama:
-    image: ollama/ollama:0.40.12
+    image: ollama/ollama:0.40.16
     container_name: aula15-tarefas-ollama
     profiles: ["ia"]
     ports:
@@ -313,7 +313,7 @@ services:
 
   # Baixa o modelo uma vez (ollama pull) e termina. Os próximos "up" são instantâneos.
   ollama-modelo:
-    image: ollama/ollama:0.40.12
+    image: ollama/ollama:0.40.16
     profiles: ["ia"]
     environment:
       OLLAMA_HOST: ollama:11434
