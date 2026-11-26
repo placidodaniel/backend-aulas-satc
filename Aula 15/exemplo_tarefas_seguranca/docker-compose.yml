@@ -150,7 +150,7 @@ services:
   # Grafana: desenha os gráficos a partir do Prometheus. Datasource e dashboard já vêm
   # provisionados. Painel: http://localhost:3000 (usuário/senha: admin/admin)
   grafana:
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:11.6.16
     container_name: aula15-tarefas-grafana
     ports:
       - "127.0.0.1:3000:3000"
