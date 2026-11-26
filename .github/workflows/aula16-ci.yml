@@ -1,0 +1,99 @@
+# Aula 16: integração contínua (CI) do projeto de infraestrutura.
+#
+# Dois trabalhos (jobs), em máquinas separadas do GitHub:
+#   1. testes: os testes de sempre (unitários + E2E), como na Aula 15;
+#   2. imagem: constrói a IMAGEM da API pelo Dockerfile, sobe o sistema inteiro com
+#      o docker compose (com 2 cópias da API atrás do proxy) e faz um "teste de
+#      fumaça" (smoke test): o sistema subiu e responde pelo caminho de verdade?
+#
+# Só roda quando algo dentro da pasta da Aula 16 (ou este arquivo) muda.
+name: Aula 16 - testes, imagem e sistema completo
+
+on:
+  push:
+    branches-ignore:
+      - "dependabot/**"
+    paths:
+      - "Aula 16/exemplo_tarefas_infra/**"
+      - ".github/workflows/aula16-ci.yml"
+  pull_request:
+    paths:
+      - "Aula 16/exemplo_tarefas_infra/**"
+      - ".github/workflows/aula16-ci.yml"
+  workflow_dispatch:
+
+# Menor permissão possível: o CI só LÊ o código.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: "Aula 16/exemplo_tarefas_infra"
+
+jobs:
+  testes:
+    name: Testes (unitários e E2E)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Actions fixadas pelo HASH do commit (Aula 15); o comentário diz a versão.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: "Aula 16/exemplo_tarefas_infra/pom.xml"
+
+      - name: Build e testes (checksums no modo rígido)
+        env:
+          MAVEN_ARGS: -Daether.artifactResolver.postProcessor.trustedChecksums.failIfMissing=true
+        run: ./mvnw -B -ntp verify
+
+  imagem:
+    name: Imagem Docker e sistema completo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # A chave dos tokens é sorteada AQUI, uma vez, e entregue às duas cópias da API
+      # (o Compose lê JWT_SEGREDO do ambiente). Nunca fica gravada em lugar nenhum.
+      - name: Subir o sistema (2 cópias da API)
+        run: |
+          export JWT_SEGREDO="$(openssl rand -base64 48)"
+          docker compose up -d --build --wait --scale api=2
+
+      - name: Teste de fumaça pelo proxy
+        run: |
+          set -e
+          # 1) O caminho inteiro responde: proxy -> api -> banco.
+          curl -fsS http://localhost:8080/actuator/health/readiness
+          echo
+          # 2) A página inicial (login) é servida.
+          curl -fsS -o /dev/null http://localhost:8080/entrar.html
+          # 3) HTTPS também (-k: o certificado é da autoridade local do Caddy).
+          curl -fsSk -o /dev/null https://localhost:8443/entrar.html
+          # 4) As duas cópias atendem: em 6 requisições, aparecem 2 nomes diferentes.
+          nomes=$(for i in 1 2 3 4 5 6; do
+            curl -fsS -o /dev/null -D - http://localhost:8080/actuator/health/readiness \
+              | grep -i '^x-instancia' | tr -d '\r'
+          done | sort -u | wc -l)
+          echo "cópias que responderam: $nomes"
+          test "$nomes" -eq 2
+
+      - name: Tamanho da imagem
+        run: docker image ls tarefas-api
+
+      - name: Logs (se algo falhou)
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Derrubar
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,374 @@
+# Aula 16: o sistema INTEIRO sobe com um comando só:
+#
+#     docker compose up -d
+#
+# Sobem: PostgreSQL, RabbitMQ, a API (construída pelo Dockerfile), o proxy (Caddy),
+# o Prometheus e o Grafana. Abra http://localhost:8080 (ou https://localhost:8443).
+#
+# O que mudou em relação à Aula 15:
+#   - a API não roda mais "mvn spring-boot:run" num container com Maven: ela tem uma
+#     IMAGEM própria (Dockerfile), pequena e pronta para ir para um servidor;
+#   - a API não publica porta nenhuma: quem atende o navegador é o PROXY (Caddy),
+#     que distribui as requisições entre as cópias da API;
+#   - a API pode ter várias cópias:  docker compose up -d --scale api=3
+#   - todo serviço volta sozinho se cair (restart) e tem limite de memória;
+#   - backup e restauração do banco com um comando (perfil "backup").
+
+# Nome do projeto Compose: separa containers, rede e volumes das outras aulas.
+name: aula16-tarefas
+
+services:
+  # ------------------------------------------------------------ banco de dados
+  postgres:
+    image: postgres:16-alpine
+    container_name: aula16-tarefas-postgres
+    # Aula 16: se o container cair (ou o computador reiniciar), o Docker sobe de novo.
+    # Só não volta se alguém parou de propósito (docker compose stop).
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tarefas
+      POSTGRES_USER: tarefas
+      # A senha vem do .env (DB_SENHA). "tarefas" é só o padrão de aula.
+      POSTGRES_PASSWORD: ${DB_SENHA:-tarefas}
+    ports:
+      # 5445 só para ESTE computador (127.0.0.1): é por aqui que a IDE e o DBeaver entram.
+      # A API não usa esta porta: dentro do Compose ela fala com "postgres:5432".
+      - "127.0.0.1:5445:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tarefas -d tarefas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------ mensageria (Aula 12)
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: aula16-tarefas-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: tarefas
+      # Fixa porque também está em carga/definitions.json (veja SEGURANCA.md).
+      RABBITMQ_DEFAULT_PASS: tarefas
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+    ports:
+      # 5676 = AMQP (a API rodando pela IDE usa esta). 15676 = painel: http://localhost:15676
+      - "127.0.0.1:5676:5672"
+      - "127.0.0.1:15676:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./carga/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # ------------------------------------------------------------ a API (Aula 16: imagem própria)
+  api:
+    # "build": o Compose constrói a imagem a partir do Dockerfile desta pasta.
+    # "image": o nome que a imagem recebe (docker image ls tarefas-api).
+    build: .
+    image: tarefas-api:aula16
+    # Sem container_name e sem "ports": é isso que permite ter VÁRIAS cópias
+    # (dois containers não podem ter o mesmo nome nem disputar a mesma porta).
+    restart: unless-stopped
+    environment:
+      # Dentro do Compose, os serviços se chamam pelo NOME e pela porta INTERNA.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tarefas
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+      # Segredos: só pelo .env (fora do Git). Veja .env.exemplo.
+      DB_SENHA: ${DB_SENHA:-tarefas}
+      JWT_SEGREDO: ${JWT_SEGREDO:-}
+      # Aula 16: perfil do Spring. Vazio = configuração de aula.
+      # PERFIL=producao no .env liga o application-producao.properties.
+      SPRING_PROFILES_ACTIVE: ${PERFIL:-}
+      # Assistente (Aula 14): o Ollama se chama "ollama" dentro do Compose.
+      ASSISTENTE_URL: ${ASSISTENTE_URL:-http://ollama:11434/v1}
+      ASSISTENTE_CHAVE: ${ASSISTENTE_CHAVE:-}
+      ASSISTENTE_MODELO: ${ASSISTENTE_MODELO:-qwen2.5:3b}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    # Aula 16: limite de recursos de CADA cópia. Sem limite, uma API com vazamento de
+    # memória derruba o computador inteiro (e todos os outros containers junto).
+    # O Java lê este limite e ajusta o heap (MaxRAMPercentage, no Dockerfile).
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "1.5"
+    # Na hora de parar, o Docker manda SIGTERM e espera até 30 s antes de matar.
+    # O Spring usa esse tempo para terminar as requisições em andamento (graceful shutdown).
+    stop_grace_period: 30s
+    # O HEALTHCHECK está no Dockerfile (vale para qualquer lugar onde a imagem rodar).
+
+  # ------------------------------------------------------------ proxy reverso (Aula 16)
+  # A ÚNICA porta de entrada do sistema. Configuração em infra/caddy/Caddyfile.
+  proxy:
+    image: caddy:2.11.9-alpine
+    container_name: aula16-tarefas-proxy
+    restart: unless-stopped
+    ports:
+      # http://localhost:8080  -> o mesmo endereço de sempre, agora passando pelo proxy.
+      - "8080:80"
+      # https://localhost:8443 -> HTTPS com certificado local (o navegador avisa: é esperado).
+      - "8443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Onde o Caddy guarda a autoridade certificadora local e os certificados.
+      # Num volume, para o certificado não mudar a cada subida.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # O caminho inteiro: proxy -> api -> "pronta". (wget já vem na imagem alpine.)
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------ observabilidade (Aula 13)
+  # Aula 16: o Prometheus pergunta ao DNS do Docker os IPs do serviço "api" e coleta
+  # as métricas de CADA cópia separadamente (observabilidade/prometheus/prometheus.yml).
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: aula16-tarefas-prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observabilidade/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: aula16-tarefas-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_SENHA:-admin}
+    volumes:
+      - ./observabilidade/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observabilidade/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # ------------------------------------------------------------ backup do banco (Aula 16)
+  # Não sobem com "docker compose up": só quando pedidos pelo perfil "backup".
+  #
+  # Fazer um backup:     docker compose --profile backup run --rm backup
+  #   -> cria backups/tarefas-AAAA-MM-DD_HHMMSS.sql.gz nesta pasta.
+  #
+  # Restaurar um backup: docker compose stop api
+  #                      docker compose --profile backup run --rm restaurar tarefas-AAAA-MM-DD_HHMMSS.sql.gz
+  #                      docker compose start api
+  #
+  # (Os comandos ficam aqui dentro, e não num arquivo .sh, para funcionar igual no
+  # Windows: um .sh baixado no Windows pode ganhar quebras de linha que o Linux não entende.)
+  backup:
+    image: postgres:16-alpine
+    profiles: ["backup"]
+    environment:
+      PGPASSWORD: ${DB_SENHA:-tarefas}
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # pg_dump: escreve o banco inteiro como comandos SQL (CREATE TABLE, INSERT...).
+    # --clean --if-exists: o arquivo começa apagando as tabelas, para restaurar por cima.
+    # gzip: o texto SQL comprime muito bem.
+    # ($$ é o jeito de escrever um $ literal no Compose.)
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        arquivo=/backups/tarefas-$$(date +%Y-%m-%d_%H%M%S).sql.gz
+        pg_dump -h postgres -U tarefas -d tarefas --clean --if-exists | gzip > "$$arquivo"
+        echo "Backup salvo em backups/$$(basename "$$arquivo")"
+        ls -lh /backups
+
+  restaurar:
+    image: postgres:16-alpine
+    profiles: ["backup"]
+    environment:
+      PGPASSWORD: ${DB_SENHA:-tarefas}
+    volumes:
+      - ./backups:/backups:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # O nome do arquivo vem depois de "restaurar" no comando (vira o $1 do script).
+    # ON_ERROR_STOP=1: no primeiro erro, para (em vez de restaurar pela metade sem avisar).
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        if [ -z "$$1" ]; then
+          echo "Diga qual arquivo restaurar. Os backups disponíveis:"
+          ls -1 /backups
+          exit 1
+        fi
+        gunzip -c "/backups/$$1" | psql -q -v ON_ERROR_STOP=1 -h postgres -U tarefas -d tarefas
+        echo "Banco restaurado a partir de backups/$$1"
+      - restaurar
+
+  # ------------------------------------------------------------ testes (Aula 13)
+  # Testes unitários + E2E, sem instalar Java:   docker compose --profile testes run --rm testes
+  testes:
+    image: maven:3.9.12-eclipse-temurin-25
+    profiles: ["testes"]
+    working_dir: /app
+    volumes:
+      - .:/app
+      - maven_repo:/root/.m2
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Modo RÍGIDO dos checksums (Aula 15, CADEIA-DE-SUPRIMENTOS.md).
+      MAVEN_ARGS: -Daether.artifactResolver.postProcessor.trustedChecksums.failIfMissing=true
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: mvn -B -ntp test
+
+  # ------------------------------------------------------------ testes de carga (Aulas 12 e 13)
+  # Fila:  docker compose --profile carga run --rm perftest
+  perftest:
+    image: pivotalrabbitmq/perf-test:2.25.0
+    profiles: ["carga"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./carga/evento.json:/carga/evento.json:ro
+    command:
+      - --uri
+      - amqp://tarefas:tarefas@rabbitmq:5672
+      - --predeclared
+      - --exchange
+      - tarefas.eventos
+      - --type
+      - topic
+      - --routing-key
+      - tarefa.criada
+      - --queue
+      - tarefas.notificacoes
+      - --body
+      - /carga/evento.json
+      - --body-content-type
+      - application/json
+      - --producers
+      - ${CARGA_PRODUTORES:-1}
+      - --consumers
+      - ${CARGA_CONSUMIDORES:-0}
+      - --rate
+      - ${CARGA_TAXA:-200}
+      - --time
+      - ${CARGA_SEGUNDOS:-60}
+      - --flag
+      - persistent
+
+  # HTTP:  docker compose --profile carga run --rm carga-http
+  # Aula 16: a carga entra pelo PROXY, como um usuário de verdade (e é repartida entre as cópias).
+  carga-http:
+    image: grafana/k6:0.54.0
+    profiles: ["carga"]
+    volumes:
+      - ./carga/http.js:/carga/http.js:ro
+    environment:
+      BASE_URL: ${CARGA_URL:-http://proxy}
+      VUS: ${CARGA_VUS:-5}
+      SEGUNDOS: ${CARGA_SEGUNDOS:-60}
+    depends_on:
+      proxy:
+        condition: service_healthy
+    command: run /carga/http.js
+
+  # ------------------------------------------------------------ testes de tela (Playwright)
+  # Com interface:  docker compose --profile ui up playwright   e abra http://localhost:8081
+  # Sem interface:  docker compose --profile ui run --rm playwright-run
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: ["ui"]
+    working_dir: /work
+    init: true
+    ipc: host
+    volumes:
+      - ./playwright:/work
+      - playwright_node_modules:/work/node_modules
+    environment:
+      # Aula 16: o navegador do teste entra pelo proxy, como uma pessoa.
+      BASE_URL: http://proxy
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      proxy:
+        condition: service_healthy
+    command: sh -c "npm ci --no-audit --no-fund && npx playwright test --ui-host=0.0.0.0 --ui-port=8081"
+
+  playwright-run:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: ["ui"]
+    working_dir: /work
+    init: true
+    ipc: host
+    volumes:
+      - ./playwright:/work
+      - playwright_node_modules:/work/node_modules
+    environment:
+      BASE_URL: http://proxy
+    depends_on:
+      proxy:
+        condition: service_healthy
+    command: sh -c "npm ci --no-audit --no-fund && npx playwright test"
+
+  # ------------------------------------------------------------ IA local (Aula 14)
+  # Subir: docker compose --profile ia up -d   (a 1ª vez baixa o modelo, ~2 GB)
+  ollama:
+    image: ollama/ollama:0.40.12
+    container_name: aula16-tarefas-ollama
+    profiles: ["ia"]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ollama-modelo:
+    image: ollama/ollama:0.40.12
+    profiles: ["ia"]
+    environment:
+      OLLAMA_HOST: ollama:11434
+    command: ["pull", "${ASSISTENTE_MODELO:-qwen2.5:3b}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+  maven_repo:
+  playwright_node_modules:
+  ollama_data:
+  # Aula 16: certificados e configuração do Caddy.
+  caddy_data:
+  caddy_config:

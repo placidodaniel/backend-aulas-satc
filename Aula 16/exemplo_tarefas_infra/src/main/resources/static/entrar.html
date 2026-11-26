@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar · Tarefas SATC</title>
+<link rel="stylesheet" href="css/conta.css">
+<!-- Aula 15: sessão, token e menu (veja js/sessao.js). -->
+<script src="js/sessao.js"></script>
+</head>
+<body>
+<main class="centro">
+  <section class="cartao">
+
+    <!-- ===== ETAPA 1: e-mail e senha ===== -->
+    <form id="form-senha" novalidate>
+      <h1>✅ Tarefas SATC</h1>
+      <p class="subtitulo">Entre com o seu e-mail e a sua senha. <br>Aula 15: <code>POST /auth/login</code></p>
+
+      <label for="email">E-mail</label>
+      <!-- autocomplete: deixa o gerenciador de senhas do navegador preencher (ajuda a usar senhas fortes). -->
+      <input id="email" type="email" autocomplete="username" required autofocus>
+
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" autocomplete="current-password" required>
+
+      <button class="primario" type="submit" id="btn-entrar">Entrar</button>
+    </form>
+
+    <!-- ===== ETAPA 2: código do aplicativo (só para contas com 2FA) ===== -->
+    <form id="form-codigo" novalidate hidden>
+      <h1>🔐 Verificação em duas etapas</h1>
+      <p class="subtitulo">A senha está certa. Agora abra o aplicativo autenticador no celular
+        (Google Authenticator, Microsoft Authenticator, 2FAS...) e digite o código de 6 dígitos de <strong>Tarefas SATC</strong>.
+        <br><code>POST /auth/login/2fa</code></p>
+
+      <label for="codigo">Código do aplicativo</label>
+      <!-- inputmode numeric: teclado numérico no celular. one-time-code: o navegador sabe que é um código. -->
+      <input id="codigo" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" required>
+
+      <button class="primario" type="submit" id="btn-codigo">Confirmar</button>
+      <p class="nota" id="tempo-desafio"></p>
+    </form>
+
+    <div id="aviso" class="aviso" hidden></div>
+
+    <p class="rodape" id="rodape">Ainda não tem conta? <a href="criar-conta.html">Criar conta</a></p>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let desafio = null;      // o token curto da etapa 2 (só fica na memória desta página)
+  let fimDesafio = null;
+
+  // Já entrou? Vai direto para o sistema.
+  if (Sessao.ler()) location.replace(Sessao.destinoDepoisDoLogin());
+
+  // Mensagens que chegam pela URL (?motivo=...), escritas por nós, nunca o texto da URL.
+  const MOTIVOS = {
+    expirou: ['atencao', 'A sua sessão expirou ou o token foi recusado. Entre de novo.'],
+    saiu: ['ok', 'Você saiu do sistema.'],
+    criada: ['ok', 'Conta criada! Agora é só entrar.'],
+  };
+  const motivo = MOTIVOS[new URLSearchParams(location.search).get('motivo')];
+  if (motivo) avisar(motivo[0], motivo[1]);
+
+  function avisar(tipo, texto) {
+    const aviso = $('aviso');
+    aviso.className = 'aviso ' + tipo;
+    aviso.textContent = texto;      // textContent: nunca HTML vindo de fora
+    aviso.hidden = false;
+  }
+
+  // Envia JSON e devolve { status, corpo }.
+  async function enviar(caminho, dados) {
+    const resposta = await fetch(Sessao.API + caminho, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    });
+    let corpo = null;
+    try { corpo = await resposta.json(); } catch (e) { /* sem corpo */ }
+    return { status: resposta.status, corpo };
+  }
+
+  function explicarErro(r) {
+    if (r.status === 429) {
+      avisar('erro', '⏳ ' + r.corpo.mensagem);
+    } else if (r.corpo && r.corpo.mensagem) {
+      const campos = (r.corpo.campos || []).map(c => c.campo + ' ' + c.mensagem).join('; ');
+      avisar('erro', r.corpo.mensagem + (campos ? ' (' + campos + ')' : ''));
+    } else {
+      avisar('erro', 'Não foi possível falar com a API (status ' + r.status + ').');
+    }
+  }
+
+  function concluir(corpo) {
+    Sessao.salvar(corpo);
+    location.replace(Sessao.destinoDepoisDoLogin());
+  }
+
+  // ---------- Etapa 1
+  $('form-senha').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    $('btn-entrar').disabled = true;
+    try {
+      const r = await enviar('/auth/login', { email: $('email').value, senha: $('senha').value });
+      if (r.status !== 200) return explicarErro(r);
+      if (!r.corpo.segundoFatorPendente) return concluir(r.corpo);
+
+      // Conta com 2FA: guarda o desafio e mostra a etapa 2.
+      desafio = r.corpo.desafio;
+      fimDesafio = new Date(r.corpo.expiraEm);
+      $('senha').value = '';          // a senha não fica na tela
+      $('form-senha').hidden = true;
+      $('form-codigo').hidden = false;
+      $('rodape').hidden = true;
+      $('aviso').hidden = true;
+      $('codigo').focus();
+      contarTempo();
+    } catch (e) {
+      avisar('erro', 'API fora do ar? ' + e.message);
+    } finally {
+      $('btn-entrar').disabled = false;
+    }
+  });
+
+  // ---------- Etapa 2
+  $('codigo').addEventListener('input', () => {
+    $('codigo').value = $('codigo').value.replace(/\D/g, '').slice(0, 6);
+    if ($('codigo').value.length === 6) $('form-codigo').requestSubmit();
+  });
+
+  $('form-codigo').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    $('btn-codigo').disabled = true;
+    try {
+      const r = await enviar('/auth/login/2fa', { desafio, codigo: $('codigo').value });
+      if (r.status === 200) return concluir(r.corpo);
+      $('codigo').value = '';
+      explicarErro(r);
+    } finally {
+      $('btn-codigo').disabled = false;
+    }
+  });
+
+  // O desafio vale 5 minutos: mostramos quanto falta.
+  function contarTempo() {
+    const restante = Math.max(0, Math.round((fimDesafio - new Date()) / 1000));
+    $('tempo-desafio').textContent = restante > 0
+      ? 'Esta etapa expira em ' + Math.floor(restante / 60) + ':' + String(restante % 60).padStart(2, '0') + '.'
+      : 'Tempo esgotado: recarregue a página e entre de novo.';
+    if (restante > 0) setTimeout(contarTempo, 1000);
+  }
+</script>
+</body>
+</html>

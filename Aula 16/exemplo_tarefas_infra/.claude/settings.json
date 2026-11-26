@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw test:*)",
+      "Bash(./mvnw -B -ntp test:*)",
+      "Bash(./mvnw -q -B compile:*)",
+      "Bash(docker compose ps:*)",
+      "mcp__tarefas__listar_tarefas",
+      "mcp__tarefas__buscar_tarefa",
+      "mcp__tarefas__estatisticas_tarefas",
+      "Bash(docker compose up -d postgres rabbitmq)",
+      "Bash(curl -s http://localhost:8080/actuator/health)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "tarefas",
+    "context7"
+  ]
+}

@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- Declara que este arquivo é a configuração Maven do projeto. -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- spring-boot-starter-parent: dá versão gerenciada para todo dependency/plugin do
+         ecossistema Spring (não precisa mais escrever <version> neles) e configura o
+         maven-compiler-plugin a partir da property java.version, logo abaixo. -->
+    <parent>
+        <!-- Define o grupo que identifica o projeto Spring Boot pai. -->
+        <groupId>org.springframework.boot</groupId>
+        <!-- Importa as configurações e versões oficiais do Spring Boot. -->
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <!-- Escolhe a versão do Spring Boot usada pela aplicação. -->
+        <version>3.5.16</version>
+    </parent>
+
+    <!-- Identifica o grupo acadêmico que criou o projeto. -->
+    <groupId>org.example</groupId>
+    <!-- Define o nome usado para o artefato gerado pelo Maven. -->
+    <artifactId>exemplo-tarefas-infra</artifactId>
+    <!-- Define a versão atual do projeto. -->
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <!-- Diz ao compilador qual versão da linguagem Java deve ser usada. -->
+        <java.version>25</java.version>
+        <!-- Faz o Maven tratar os arquivos de texto como UTF-8. -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Aula 14: versão do Spring AI. A linha 1.1 é a que combina com o Spring Boot 3.5. -->
+        <spring-ai.version>1.1.8</spring-ai.version>
+        <!-- Aula 15: versões dos plugins de segurança da cadeia de suprimentos.
+             Versão SEMPRE fixa (nada de LATEST, RELEASE ou faixa [1.0,)): o build
+             de hoje e o de daqui a um ano precisam baixar exatamente os mesmos arquivos. -->
+        <zxing.version>3.5.4</zxing.version>
+        <enforcer.version>3.7.0</enforcer.version>
+        <cyclonedx.version>2.9.3</cyclonedx.version>
+        <dependency-check.version>13.0.0</dependency-check.version>
+    </properties>
+
+    <!-- Aula 14: o BOM ("lista de versões") do Spring AI. Com ele, as dependências
+         do Spring AI abaixo não precisam de <version>: todas ficam na mesma versão. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Spring MVC + servidor Tomcat embutido: é o que permite @RestController/@GetMapping. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Adiciona Spring MVC, Jackson e Tomcat embutido. -->
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Habilita @Valid e as anotações de validação (@NotBlank...) usadas nos DTOs de entrada;
+             sem esta dependência, o Spring ignora @Valid silenciosamente. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Habilita as anotações de validação usadas nos DTOs. -->
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Aula 09, Swagger: o springdoc lê os Controllers e os DTOs na subida da
+             aplicação e gera o contrato OpenAPI (/v3/api-docs) e a página interativa
+             do Swagger UI (/swagger-ui.html). Não faz parte do ecossistema gerenciado
+             pelo starter-parent, por isso aqui a <version> é obrigatória: a linha 2.x
+             é a do Spring Boot 3 (a 3.x já é para o Spring Boot 4). -->
+        <dependency>
+            <!-- Grupo que publica o springdoc-openapi. -->
+            <groupId>org.springdoc</groupId>
+            <!-- Gera o OpenAPI a partir do Spring MVC e serve o Swagger UI. -->
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <!-- 2.9.1 foi compilada contra o Spring Boot 3.5.16, o mesmo do <parent>. -->
+            <version>2.9.1</version>
+        </dependency>
+
+        <!-- Reúne Spring Data JPA, JPA e Hibernate para persistência relacional. -->
+        <dependency>
+            <!-- Grupo que publica os starters oficiais do Spring Boot. -->
+            <groupId>org.springframework.boot</groupId>
+            <!-- Cria os repositórios JPA e configura o Hibernate automaticamente. -->
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Driver JDBC que permite ao Java conversar com o PostgreSQL. -->
+        <dependency>
+            <!-- Grupo oficial do driver PostgreSQL. -->
+            <groupId>org.postgresql</groupId>
+            <!-- Dependência que implementa a conexão JDBC com o PostgreSQL. -->
+            <artifactId>postgresql</artifactId>
+            <!-- Só é necessário quando a aplicação está executando. -->
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Motor principal do Flyway para controlar versões do banco. -->
+        <dependency>
+            <!-- Grupo que publica o Flyway. -->
+            <groupId>org.flywaydb</groupId>
+            <!-- Inclui a API e o executor das migrations. -->
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- Extensão que permite ao Flyway entender recursos específicos do PostgreSQL. -->
+        <dependency>
+            <!-- Grupo que publica os módulos do Flyway. -->
+            <groupId>org.flywaydb</groupId>
+            <!-- Adiciona o suporte de banco PostgreSQL ao Flyway. -->
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- Actuator (Aula 13): endpoints de operação da aplicação: /actuator/health (está viva?),
+             /actuator/metrics, /actuator/info... É a base da observabilidade no Spring Boot. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Micrometer + formato Prometheus: expõe todas as métricas (JVM, HTTP, banco, RabbitMQ
+             e as nossas) em texto, em /actuator/prometheus, para o Prometheus coletar. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Testes (Aula 13) -->
+        <!-- spring-boot-starter-test: JUnit 5, Mockito (mocks), AssertJ (asserts legíveis),
+             JsonPath e o suporte @SpringBootTest / MockMvc. Substitui o junit-jupiter avulso. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers: sobe PostgreSQL e RabbitMQ REAIS em containers durante o teste e
+             derruba no final. É o que torna o teste E2E fiel à produção (sem H2 nem mocks de broker).
+             O spring-boot-testcontainers liga o container à configuração do Spring (@ServiceConnection). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>rabbitmq</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- spring-boot-starter-amqp: o cliente do RabbitMQ (Spring AMQP). Traz o RabbitTemplate,
+             para PUBLICAR mensagens, e o @RabbitListener, para CONSUMIR. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- Aula 14: servidor MCP (Model Context Protocol) dentro da própria API.
+             Ele abre a rota POST /mcp, por onde um assistente de IA (Claude Code,
+             Copilot, Cursor...) descobre e chama as "ferramentas" da classe
+             TarefaMcpTools. Usa o mesmo Spring MVC/Tomcat das rotas REST. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+
+        <!-- Aula 15: Spring Security. Só de estar no classpath, ele já FECHA todas as
+             rotas (nega por padrão). A classe SegurancaConfig diz o que fica aberto. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Aula 15: "resource server" = a API aceita um token JWT no cabeçalho
+             Authorization: Bearer ... Traz o Nimbus JOSE, que assina (JwtEncoder)
+             e confere (JwtDecoder) os tokens. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <!-- Aula 15: ZXing, só o módulo "core", para desenhar o QR Code que o aplicativo
+             autenticador lê. Fora do Spring Boot, então a versão vem escrita aqui.
+             Toda dependência nova é código de terceiros rodando na NOSSA aplicação:
+             escolhemos uma biblioteca conhecida, sem dependências próprias. -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>${zxing.version}</version>
+        </dependency>
+
+        <!-- Aula 15: utilitários de teste do Spring Security (não vão para produção). -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <!-- Aula 15: o Enforcer (requirePluginVersions) apontou que o maven-site-plugin
+             vinha "da versão padrão do Maven instalado". Cada Maven traria uma versão
+             diferente; aqui ela fica escrita, como todas as outras. -->
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <version>3.21.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <!-- Empacota a aplicação como jar executável (java -jar) e dá o goal
+                 "mvn spring-boot:run" para rodar a API direto pelo Maven. -->
+            <plugin>
+                <!-- Grupo dos plugins oficiais do Spring Boot. -->
+                <groupId>org.springframework.boot</groupId>
+                <!-- Plugin que executa e empacota a aplicação Spring Boot. -->
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Surefire é quem roda os testes no "mvn test".
+                 A versão precisa ser 3.x: as antigas não enxergam JUnit 5. -->
+            <plugin>
+                <!-- Grupo dos plugins oficiais do Maven. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <!-- Plugin responsável por executar os testes. -->
+                <artifactId>maven-surefire-plugin</artifactId>
+                <!-- Versão do plugin compatível com JUnit 5. -->
+                <version>3.5.4</version>
+            </plugin>
+
+            <!-- Aula 15, cadeia de suprimentos: o Enforcer confere REGRAS antes de compilar.
+                 Se alguma falhar, o build para (mvn validate já roda estas regras). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${enforcer.version}</version>
+                <executions>
+                    <execution>
+                        <id>regras-da-cadeia-de-suprimentos</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- Maven antigo não tem os recursos de verificação usados
+                                     em .mvn/maven.config (checksums confiáveis). -->
+                                <requireMavenVersion>
+                                    <version>[3.9.6,)</version>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                </requireJavaVersion>
+                                <!-- Proíbe versão "que muda sozinha": faixas [1.0,2.0),
+                                     LATEST, RELEASE e SNAPSHOT de terceiros. -->
+                                <banDynamicVersions>
+                                    <ignores>
+                                        <!-- O próprio projeto é 1.0-SNAPSHOT; só ele pode. -->
+                                        <ignore>org.example:*</ignore>
+                                    </ignores>
+                                </banDynamicVersions>
+                                <!-- Todo plugin com versão escrita (ou herdada do parent). -->
+                                <requirePluginVersions>
+                                    <message>Plugin sem versão fixa: escreva a versão no pom.xml.</message>
+                                </requirePluginVersions>
+                                <!-- A mesma dependência declarada duas vezes no pom. -->
+                                <banDuplicatePomDependencyVersions/>
+                                <!-- Lista negra: versões com falha grave conhecida ou
+                                     bibliotecas abandonadas. Se alguma entrar, mesmo
+                                     como dependência transitiva (a dependência da
+                                     dependência), o build falha. -->
+                                <bannedDependencies>
+                                    <excludes>
+                                        <!-- Log4Shell (CVE-2021-44228) e as correções seguintes. -->
+                                        <exclude>org.apache.logging.log4j:log4j-core:[,2.17.1)</exclude>
+                                        <!-- Log4j 1.x: abandonado desde 2015. -->
+                                        <exclude>log4j:log4j</exclude>
+                                        <!-- Desserialização insegura (CVE-2015-7501). -->
+                                        <exclude>commons-collections:commons-collections:[,3.2.2)</exclude>
+                                        <!-- Text4Shell (CVE-2022-42889). -->
+                                        <exclude>org.apache.commons:commons-text:[,1.10.0)</exclude>
+                                    </excludes>
+                                    <message>Dependência proibida pela lista negra do projeto (veja CADEIA-DE-SUPRIMENTOS.md).</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Aula 15: SBOM (Software Bill of Materials), a "lista de ingredientes"
+                 da aplicação: cada biblioteca, versão e hash, no formato CycloneDX.
+                 O spring-boot-starter-parent já deixa este plugin configurado: no
+                 "mvn package" ele grava target/classes/META-INF/sbom/application.cdx.json
+                 (e o arquivo vai junto, dentro do .jar). É com ela que um scanner
+                 (OSV-Scanner, Dependency-Track) descobre se uma falha nova nos atinge.
+                 Aqui só fixamos a versão e ligamos a execução. -->
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>${cyclonedx.version}</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>makeAggregateBom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Aula 15: auditoria de vulnerabilidades conhecidas (CVE) nas dependências.
+             Não roda em todo build porque a 1ª execução baixa a base do NVD (demora).
+             Uso: ./mvnw -P auditoria verify   (com NVD_API_KEY, fica bem mais rápido)
+             Falha o build se achar falha com nota CVSS 7 ou mais (alta ou crítica). -->
+        <profile>
+            <id>auditoria</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>${dependency-check.version}</version>
+                        <configuration>
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                            </formats>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>

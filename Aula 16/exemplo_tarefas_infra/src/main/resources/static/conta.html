@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minha conta · Tarefas SATC</title>
+<link rel="stylesheet" href="css/conta.css">
+<!-- Aula 15: sessão, token e menu. Esta página exige login. -->
+<script src="js/sessao.js"></script>
+</head>
+<body>
+<main class="pagina">
+  <h1 class="titulo-pagina">👤 Minha conta</h1>
+  <p class="subtitulo-pagina">Seus dados, a verificação em duas etapas (2FA) e o que tem dentro do seu token.</p>
+
+  <div class="grade">
+
+    <!-- ================= DADOS ================= -->
+    <section class="cartao largo">
+      <h2>Dados da conta <small class="nota">(<code>GET /auth/eu</code>)</small></h2>
+      <dl class="dados">
+        <dt>Nome</dt><dd id="nome">...</dd>
+        <dt>E-mail</dt><dd id="email">...</dd>
+        <dt>2FA</dt><dd><span class="selo" id="selo">...</span></dd>
+      </dl>
+      <p class="nota">O nome e o e-mail vêm da API, a partir do token: a API nunca pergunta "quem é você?" para o
+        navegador, ela lê o <code>sub</code> do token, que ninguém consegue alterar sem a chave do servidor.</p>
+    </section>
+
+    <!-- ================= 2FA ================= -->
+    <section class="cartao largo">
+      <h2>🔐 Verificação em duas etapas</h2>
+
+      <!-- Estado: desligado -->
+      <div id="dois-fatores-desligado" hidden>
+        <p class="nota">Com o 2FA ligado, entrar exige a senha <strong>e</strong> um código de 6 dígitos que muda a cada
+          30 segundos no seu celular. Quem descobrir só a sua senha não entra.</p>
+        <p class="nota">Funciona com qualquer aplicativo TOTP: Google Authenticator, Microsoft Authenticator, 2FAS,
+          Authy, FreeOTP, Aegis, o gerenciador de senhas do iPhone...</p>
+        <button class="secundario" id="btn-configurar">Ligar a verificação em duas etapas</button>
+      </div>
+
+      <!-- Estado: configurando (QR Code na tela) -->
+      <div id="dois-fatores-configurando" hidden>
+        <ol class="passos">
+          <li>Abra o aplicativo autenticador e toque em <strong>adicionar conta</strong> (ou "+").</li>
+          <li>Leia o QR Code abaixo com a câmera.</li>
+          <li>Digite o código de 6 dígitos que apareceu no aplicativo.</li>
+        </ol>
+        <div class="qr">
+          <img id="qr" alt="QR Code para o aplicativo autenticador">
+          <div style="flex:1; min-width: 200px">
+            <p class="nota">A câmera não leu? Digite este segredo no aplicativo (tipo: <em>baseado em tempo</em>):</p>
+            <div class="segredo" id="segredo"></div>
+            <p class="nota">⚠️ O segredo aparece só agora. Ele é a "semente" de todos os códigos: não tire print nem mande para ninguém.</p>
+          </div>
+        </div>
+        <form id="form-ativar" novalidate>
+          <label for="codigo-ativar">Código que apareceu no aplicativo</label>
+          <input id="codigo-ativar" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+          <button class="primario" type="submit">Ativar</button>
+        </form>
+      </div>
+
+      <!-- Estado: ligado -->
+      <div id="dois-fatores-ligado" hidden>
+        <div class="aviso ok">✅ Ligado. No próximo login, a API vai pedir o código do aplicativo.</div>
+        <form id="form-desativar" novalidate>
+          <p class="nota">Para desligar, confirme a senha <strong>e</strong> um código. Só o token não basta: se alguém
+            pegar o seu computador aberto, não consegue tirar a proteção.</p>
+          <label for="senha-desativar">Senha</label>
+          <input id="senha-desativar" type="password" autocomplete="current-password" required>
+          <label for="codigo-desativar">Código do aplicativo</label>
+          <input id="codigo-desativar" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+          <button class="perigo" type="submit" style="margin-top: 14px">Desligar o 2FA</button>
+        </form>
+      </div>
+
+      <div id="aviso-2fa" class="aviso" hidden></div>
+    </section>
+  </div>
+
+  <!-- ================= O TOKEN ================= -->
+  <section class="cartao largo" style="margin-top: 20px">
+    <h2>🔎 O que tem dentro do seu token (JWT)</h2>
+    <p class="nota">Um JWT tem três partes separadas por ponto: <span style="color:#c03a52">cabeçalho</span>.<span style="color:#6b4fd8">conteúdo</span>.<span style="color:#1B7A6E">assinatura</span>.
+      O conteúdo é só Base64: <strong>qualquer um lê</strong> (é o que esta página faz, sem chave nenhuma). O que ninguém
+      consegue é <strong>alterar</strong>: a assinatura deixaria de bater e a API responderia 401.</p>
+    <pre class="token" id="token-bruto"></pre>
+    <pre class="token" id="token-conteudo"></pre>
+    <p class="nota" id="token-validade"></p>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function avisar(tipo, texto) {
+    $('aviso-2fa').className = 'aviso ' + tipo;
+    $('aviso-2fa').textContent = texto;
+    $('aviso-2fa').hidden = !texto;
+  }
+
+  async function chamar(metodo, caminho, dados) {
+    // O fetch já leva o token: o js/sessao.js acrescenta o cabeçalho Authorization.
+    const resposta = await fetch(Sessao.API + caminho, {
+      method: metodo,
+      headers: dados ? { 'Content-Type': 'application/json' } : {},
+      body: dados ? JSON.stringify(dados) : undefined,
+    });
+    const corpo = await resposta.json().catch(() => null);
+    if (!resposta.ok) throw new Error(corpo && corpo.mensagem ? corpo.mensagem : 'Erro ' + resposta.status);
+    return corpo;
+  }
+
+  function mostrarEstado(usuario) {
+    $('nome').textContent = usuario.nome;
+    $('email').textContent = usuario.email;
+    $('selo').textContent = usuario.segundoFatorAtivo ? 'ligado' : 'desligado';
+    $('selo').className = 'selo ' + (usuario.segundoFatorAtivo ? 'sim' : 'nao');
+    $('dois-fatores-desligado').hidden = usuario.segundoFatorAtivo;
+    $('dois-fatores-ligado').hidden = !usuario.segundoFatorAtivo;
+    $('dois-fatores-configurando').hidden = true;
+    Sessao.atualizarUsuario(usuario);
+  }
+
+  async function carregar() {
+    try {
+      mostrarEstado(await chamar('GET', '/auth/eu'));
+    } catch (e) {
+      avisar('erro', e.message);
+    }
+    mostrarToken();
+  }
+
+  // ---------- 2FA: passo 1 (QR Code)
+  $('btn-configurar').addEventListener('click', async () => {
+    avisar('', '');
+    try {
+      const configuracao = await chamar('POST', '/auth/2fa/configurar');
+      // O SVG vira uma IMAGEM (data:), e não HTML colado na página com innerHTML:
+      // dentro de um <img>, nenhum script do SVG roda.
+      $('qr').src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(configuracao.qrCodeSvg);
+      $('segredo').textContent = configuracao.segredo.replace(/(.{4})/g, '$1 ').trim();
+      $('dois-fatores-desligado').hidden = true;
+      $('dois-fatores-configurando').hidden = false;
+      $('codigo-ativar').focus();
+    } catch (e) {
+      avisar('erro', e.message);
+    }
+  });
+
+  // ---------- 2FA: passo 2 (confirmar com um código)
+  $('form-ativar').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    try {
+      const usuario = await chamar('POST', '/auth/2fa/ativar', { codigo: $('codigo-ativar').value.trim() });
+      $('segredo').textContent = '';
+      $('qr').removeAttribute('src');
+      mostrarEstado(usuario);
+      avisar('ok', 'Pronto! Saia e entre de novo para ver a segunda etapa do login.');
+    } catch (e) {
+      $('codigo-ativar').value = '';
+      avisar('erro', e.message);
+    }
+  });
+
+  // ---------- desligar
+  $('form-desativar').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    try {
+      const usuario = await chamar('POST', '/auth/2fa/desativar', {
+        senha: $('senha-desativar').value, codigo: $('codigo-desativar').value.trim() });
+      $('senha-desativar').value = '';
+      $('codigo-desativar').value = '';
+      mostrarEstado(usuario);
+      avisar('atencao', 'O 2FA foi desligado. A conta volta a depender só da senha.');
+    } catch (e) {
+      avisar('erro', e.message);
+    }
+  });
+
+  // ---------- o token, aberto
+  function mostrarToken() {
+    const sessao = Sessao.ler();
+    if (!sessao) return;
+    const [cabecalho, conteudo, assinatura] = sessao.token.split('.');
+    const bruto = $('token-bruto');
+    bruto.textContent = '';
+    [[cabecalho, 'p1'], [conteudo, 'p2'], [assinatura, 'p3']].forEach(([parte, classe], i) => {
+      const span = document.createElement('span');
+      span.className = classe;
+      span.textContent = parte;
+      bruto.appendChild(span);
+      if (i < 2) bruto.appendChild(document.createTextNode('.'));
+    });
+
+    // Base64URL -> texto -> JSON. Sem chave: é só uma codificação.
+    const decodificar = (b64) => JSON.parse(decodeURIComponent(escape(atob(b64.replace(/-/g, '+').replace(/_/g, '/')))));
+    const claims = decodificar(conteudo);
+    $('token-conteudo').textContent = '// cabeçalho\n' + JSON.stringify(decodificar(cabecalho), null, 2)
+      + '\n// conteúdo (claims)\n' + JSON.stringify(claims, null, 2);
+
+    const atualizar = () => {
+      const restante = Math.round((claims.exp * 1000 - Date.now()) / 1000);
+      $('token-validade').textContent = restante > 0
+        ? '⏱️ Este token vale por mais ' + Math.floor(restante / 60) + ' min ' + (restante % 60) + ' s (claim "exp"). Depois disso, a API responde 401 e o sistema pede login de novo.'
+        : 'Token vencido.';
+    };
+    atualizar();
+    setInterval(atualizar, 1000);
+  }
+
+  carregar();
+</script>
+</body>
+</html>

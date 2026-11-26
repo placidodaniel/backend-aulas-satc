@@ -1,0 +1,35 @@
+# Aula 16: o que NÃO entra no "contexto" do build da imagem.
+#
+# No "docker build", a pasta inteira é enviada para o Docker antes de começar.
+# Tudo o que está listado aqui fica de fora: o build fica mais rápido e nenhum
+# arquivo secreto ou desnecessário acaba, por engano, dentro da imagem.
+
+# O resultado de builds anteriores na sua máquina (a imagem compila do zero).
+target/
+
+# Segredos locais: NUNCA dentro de uma imagem (qualquer um que baixe a imagem leria).
+.env
+.env.*
+
+# Histórico do Git, configurações de IDE e de assistentes de IA.
+.git/
+.idea/
+.vscode/
+.claude/
+*.iml
+
+# Partes do projeto que não são a API: cada uma roda em outro container.
+playwright/
+observabilidade/
+carga/
+infra/
+backups/
+
+# Documentação e arquivos de ferramentas.
+*.md
+*.jsonc
+.mcp.json
+exemplo_tarefas.postman_collection.json
+docker-compose.yml
+Dockerfile
+.dockerignore

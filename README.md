@@ -98,6 +98,13 @@
   - [Parte 3: o levantamento de segurança](#parte-3-o-levantamento-de-segurança)
   - [Parte 4: a cadeia de suprimentos](#parte-4-a-cadeia-de-suprimentos)
   - [Exercícios](#exercícios-6)
+- [Aula 16: Infraestrutura](#aula-16-infraestrutura)
+  - [Materiais](#materiais-11)
+  - [Parte 1: a imagem da API](#parte-1-a-imagem-da-api)
+  - [Parte 2: o sistema inteiro com um comando](#parte-2-o-sistema-inteiro-com-um-comando)
+  - [Parte 3: proxy reverso, HTTPS e várias cópias](#parte-3-proxy-reverso-https-e-várias-cópias)
+  - [Parte 4: operação: quedas, backup e produção](#parte-4-operação-quedas-backup-e-produção)
+  - [Exercícios](#exercícios-7)
 
 ---
 
@@ -3195,4 +3202,83 @@ Estão no [README do exemplo](<Aula 15/exemplo_tarefas_seguranca/README.md#6-exe
 3. Cada usuário com as suas tarefas (IDOR).
 4. O assistente pede confirmação antes de alterar dados.
 5. Uma dependência nova, do jeito certo (checksums e diff).
+
+---
+
+## Aula 16: Infraestrutura
+
+### Materiais
+
+| Arquivo | Conteúdo |
+|---|---|
+| [aula16-infraestrutura.pdf](<Aula 16/aula16-infraestrutura.pdf>) | Imagem e container, Dockerfile em duas etapas, camadas, Compose, proxy reverso, HTTPS, várias cópias, quedas, backup, ambientes e CI (o `.pptx` está na mesma pasta) |
+| [exemplo_tarefas_infra](<Aula 16/exemplo_tarefas_infra>) | O sistema de tarefas da Aula 15 com **imagem própria**, **proxy com HTTPS**, **várias cópias** da API e **backup** |
+| [README do exemplo](<Aula 16/exemplo_tarefas_infra/README.md>) | Como subir, como cada peça funciona, testes e exercícios |
+| [roteiro-aula16.txt](<Aula 16/roteiro-aula16.txt>) | O passo a passo da demonstração |
+
+### Objetivo da aula
+
+Tirar o sistema de tarefas do "roda na minha máquina" e deixá-lo pronto para um servidor: uma **imagem** que roda em qualquer lugar, o sistema inteiro subindo com **um comando**, uma **porta de entrada** com HTTPS na frente de **várias cópias** da API e o básico da operação: o que acontece quando algo cai, como fazer **backup** e como a mesma imagem roda em aula e em produção.
+
+---
+
+### Parte 1: a imagem da API
+
+Uma **imagem** é um pacote fechado com o Java, a aplicação e tudo de que ela precisa. Um **container** é uma imagem rodando. O [Dockerfile](<Aula 16/exemplo_tarefas_infra/Dockerfile>) é a receita, em duas etapas:
+
+```text
+etapa "construcao"  maven + JDK (480 MB)  ->  mvn package  ->  .jar aberto em camadas
+etapa final         só o JRE (327 MB)     +   as camadas   ->  tarefas-api:aula16 (413 MB)
+```
+
+- **Camadas na ordem certa**: bibliotecas (79 MB, quase nunca mudam) antes do nosso código (menos de 1 MB). Mudou o código? Só a última camada é refeita.
+- **Usuário sem poderes** (`USER tarefas`), **versões fixas**, **`.dockerignore`** (o `.env` nunca entra na imagem) e **`HEALTHCHECK`** na readiness do Actuator.
+
+---
+
+### Parte 2: o sistema inteiro com um comando
+
+```bash
+cd "Aula 16/exemplo_tarefas_infra"
+docker compose up -d          # banco, RabbitMQ, API, proxy, Prometheus e Grafana
+```
+
+Cada serviço tem `restart: unless-stopped` (volta sozinho se cair), a API tem limite de memória e CPU, e a ordem de subida respeita os `healthcheck` (`depends_on: condition: service_healthy`). É exatamente o que a carta **C5 (Arca)** do [Projeto Final](<Projeto Final/projeto-final.md>) pede.
+
+---
+
+### Parte 3: proxy reverso, HTTPS e várias cópias
+
+O **proxy reverso** (Caddy) é a única porta de entrada: `http://localhost:8080` e `https://localhost:8443`. A API não publica porta nenhuma.
+
+```bash
+docker compose up -d --scale api=3     # 3 cópias; o proxy reparte em rodízio
+```
+
+O menu mostra qual cópia respondeu (cabeçalho `X-Instancia`). Sem `JWT_SEGREDO`, cada cópia sorteia a sua chave e o token de uma é recusado pelas outras (`401`): **API com várias cópias não guarda nada só para si**.
+
+---
+
+### Parte 4: operação: quedas, backup e produção
+
+| Situação | O que acontece |
+|---|---|
+| Uma cópia cai | O proxy usa as outras; o Docker a sobe de novo |
+| Desligar ou atualizar | Desligamento gracioso: as requisições em andamento terminam |
+| Dados apagados por engano | `docker compose --profile backup run --rm backup` e `... restaurar <arquivo>` |
+| Produção | A mesma imagem com `PERFIL=producao`: exige `JWT_SEGREDO`, sem Swagger, logs em JSON |
+
+O CI ([aula16-ci.yml](.github/workflows/aula16-ci.yml)) constrói a imagem, sobe o sistema com 2 cópias e faz um teste de fumaça.
+
+---
+
+### Exercícios
+
+Estão no [README do exemplo](<Aula 16/exemplo_tarefas_infra/README.md#8-exercícios>):
+
+1. Medir e encolher a imagem (base Alpine, `docker history`).
+2. Atualizar sem derrubar ninguém.
+3. Backup todo dia, guardando só os últimos 7 dias.
+4. O perfil de produção na prática.
+5. Limite de memória: o menor que funciona, e por quê.
 

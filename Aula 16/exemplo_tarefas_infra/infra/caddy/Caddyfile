@@ -1,0 +1,96 @@
+# Aula 16: a configuração do PROXY REVERSO (Caddy).
+#
+# O proxy é a "porta de entrada" do sistema. O navegador fala SÓ com ele, e ele
+# repassa cada requisição para uma das cópias (réplicas) da API:
+#
+#   navegador ──> proxy (8080 HTTP / 8443 HTTPS) ──> api #1
+#                                                 ├─> api #2
+#                                                 └─> api #3
+#
+# O que ganhamos com ele:
+#   - HTTPS num lugar só (a API continua falando HTTP simples, dentro da rede do Docker);
+#   - várias cópias da API atrás de um endereço só (balanceamento de carga);
+#   - se uma cópia cair, ele manda para outra;
+#   - compressão das respostas e cabeçalhos ajustados num lugar só.
+
+# ---------------------------------------------------------------- opções gerais
+{
+	# Não redirecionar HTTP para HTTPS: na aula, as duas portas ficam abertas.
+	# Num servidor de verdade, APAGUE esta linha: todo acesso HTTP vira HTTPS.
+	auto_https disable_redirects
+}
+
+# ---------------------------------------------------------------- o que vale para as duas portas
+# (um "snippet": um pedaço reaproveitado com "import api" lá embaixo)
+(api) {
+	# Comprime as respostas (JSON, HTML, JS) quando o navegador aceita.
+	encode zstd gzip
+
+	# Não conta para o mundo qual servidor está na frente.
+	header -Server
+
+	# As métricas são só para DENTRO: o Prometheus busca direto em cada cópia da API,
+	# pela rede interna do Docker, sem passar por aqui. Para quem vem de fora, 404.
+	# (O proxy decide o que fica exposto: a API pode ter rotas que o mundo não vê.)
+	@interno path /actuator/prometheus /actuator/prometheus/*
+	respond @interno 404
+
+	# O servidor MCP (Aula 14) guarda a SESSÃO na memória da cópia que atendeu o
+	# "initialize". Se a próxima mensagem cair em outra cópia, ela não conhece a
+	# sessão. Por isso, no /mcp, o mesmo cliente (mesmo IP) vai sempre para a mesma cópia.
+	@mcp path /mcp /mcp/*
+	reverse_proxy @mcp {
+		dynamic a api 8080 {
+			refresh 5s
+		}
+		lb_policy client_ip_hash
+		lb_try_duration 5s
+		fail_duration 10s
+		header_up X-Forwarded-Port {http.request.port}
+	}
+
+	# Todo o resto: uma requisição para cada cópia, em rodízio (round robin).
+	reverse_proxy {
+		# "dynamic a": pergunta ao DNS do Docker quais são os IPs do serviço "api".
+		# Com "docker compose up -d --scale api=3", o DNS devolve 3 IPs e o proxy
+		# passa a usar as 3 cópias, sem mudar nada neste arquivo.
+		dynamic a api 8080 {
+			# Pergunta de novo a cada 5 segundos (cópias novas entram sozinhas).
+			refresh 5s
+		}
+		lb_policy round_robin
+
+		# Se a cópia escolhida não responder, tenta outra durante até 5 segundos,
+		# em vez de devolver erro para o usuário.
+		lb_try_duration 5s
+		# Uma cópia que falhou fica 10 segundos "de castigo", fora do rodízio.
+		fail_duration 10s
+
+		# O Caddy já avisa a API do protocolo (X-Forwarded-Proto) e do IP de quem
+		# chamou (X-Forwarded-For). Falta a PORTA que o navegador usou (8443, e não
+		# a 443 de dentro do container), para a API montar links certos.
+		header_up X-Forwarded-Port {http.request.port}
+	}
+}
+
+# ---------------------------------------------------------------- HTTP (porta 8080 do computador)
+http://:80 {
+	import api
+}
+
+# ---------------------------------------------------------------- HTTPS (porta 8443 do computador)
+# "tls internal": o próprio Caddy cria uma autoridade certificadora LOCAL e assina
+# o certificado de "localhost". A conexão é cifrada de verdade, mas o navegador não
+# conhece essa autoridade e mostra um aviso ("Sua conexão não é particular").
+# Num servidor de verdade, com domínio, troque este bloco por:
+#
+#     tarefas.seudominio.com.br {
+#         import api
+#     }
+#
+# e o Caddy pede um certificado gratuito ao Let's Encrypt sozinho (precisa das
+# portas 80 e 443 abertas para a internet e do domínio apontando para o servidor).
+https://localhost {
+	tls internal
+	import api
+}

@@ -1,0 +1,250 @@
+ROTEIRO DA AULA 16 - INFRAESTRUTURA
+Passo a passo da demonstracao e links para abrir durante a aula.
+
+Funciona no Windows (PowerShell), Linux e Mac: so precisa do Docker e
+do navegador. Todos os comandos abaixo sao digitados DENTRO da pasta:
+
+    Aula 16/exemplo_tarefas_infra
+
+
+======================================================================
+0. ANTES DE COMECAR
+======================================================================
+
+0.1  Abra o Docker Desktop e espere ficar "running".
+
+0.2  Entre na pasta do projeto:
+
+         cd "Aula 16/exemplo_tarefas_infra"
+
+0.3  Pare qualquer coisa na porta 8080 (a Aula 15, a IDE). Na Aula 16
+     quem usa a 8080 e o PROXY.
+
+         Linux/Mac:   ss -ltnp | grep 8080
+         PowerShell:  netstat -ano | findstr :8080
+
+     Se for a Aula 15:
+
+         cd "../../Aula 15/exemplo_tarefas_seguranca"
+         docker compose --profile app down
+         cd "../../Aula 16/exemplo_tarefas_infra"
+
+0.4  (Antes da aula) Construa a imagem uma vez, para nao esperar ao vivo:
+
+         docker compose build api
+
+     NAO crie o .env ainda: a falta do JWT_SEGREDO vira demonstracao
+     no passo 4.
+
+
+======================================================================
+1. COMO ERA E COMO FICA (slides 1 a 8)
+======================================================================
+
+1.1  Mostre o docker-compose.yml da Aula 15, servico "api":
+     imagem do Maven, "mvn spring-boot:run", codigo-fonte montado.
+     Pergunte: o que vai para o servidor? O codigo? O Maven?
+
+1.2  Abra o Dockerfile da Aula 16. Leia as duas etapas:
+     "construcao" (Maven + JDK) e a final (so JRE).
+
+
+======================================================================
+2. A IMAGEM (slides 9 a 18)
+======================================================================
+
+2.1  Tamanhos:
+
+         docker image ls
+
+     Compare: maven:3.9.12-eclipse-temurin-25 (480 MB) e
+     tarefas-api:aula16 (cerca de 413 MB, sendo 327 MB do Java).
+
+2.2  As camadas:
+
+         docker history tarefas-api:aula16
+
+     Aponte: dependencies (79 MB), spring-boot-loader, application
+     (menos de 1 MB).
+
+2.3  Cache de camadas ao vivo: mude um texto do index.html (por
+     exemplo, o titulo) e reconstrua:
+
+         docker compose build api
+
+     Mostre no log: as camadas de cima saem "CACHED"; so a etapa do
+     Maven e a camada "application" sao refeitas.
+
+2.4  O usuario sem poderes (depois do passo 3.1):
+
+         docker compose exec api id
+
+     Esperado: uid=999(tarefas). Pergunte: e na Aula 15? (root)
+
+
+======================================================================
+3. UM COMANDO PARA O SISTEMA INTEIRO (slides 19 a 25)
+======================================================================
+
+3.1  Suba tudo:
+
+         docker compose up -d
+         docker compose ps
+
+     Esperado: postgres, rabbitmq, api e proxy "healthy"; prometheus e
+     grafana "Up". Na primeira vez sem o passo 0.4, 1 a 3 minutos.
+
+3.2  Abra http://localhost:8080, crie uma conta e entre. Mostre no
+     menu, a direita, o codigo da instancia (ex.: 🖥️ 0a24346625e6).
+
+3.3  F12 > Network > clique numa requisicao > Response Headers:
+     X-Instancia e X-Request-Id.
+
+3.4  HTTPS: abra https://localhost:8443. Mostre o aviso do navegador,
+     clique em Avancado > Continuar. Clique no cadeado e mostre o
+     certificado: emitido por "Caddy Local Authority".
+
+3.5  Mostre o Caddyfile (infra/caddy/Caddyfile): as duas portas, o
+     "dynamic a api 8080" e o "respond @interno 404".
+
+         http://localhost:8080/actuator/prometheus   -> 404
+
+
+======================================================================
+4. VARIAS COPIAS E O 401 MISTERIOSO (slides 26 a 33)
+======================================================================
+
+4.1  Tres copias:
+
+         docker compose up -d --scale api=3
+         docker compose ps api
+
+4.2  Entre pela tela de novo e clique pelas paginas. De cada 3 cliques,
+     2 voltam para o login. Deixe a turma tentar explicar.
+
+     Resposta: sem JWT_SEGREDO, cada copia sorteou a SUA chave. O token
+     feito pela api-1 e recusado pela api-2.
+
+4.3  A correcao:
+
+         Linux/Mac:   cp .env.exemplo .env
+                      echo "JWT_SEGREDO=$(openssl rand -base64 48)" >> .env
+         PowerShell:  Copy-Item .env.exemplo .env
+                      e escreva no .env uma linha JWT_SEGREDO= com 32 ou
+                      mais caracteres aleatorios
+
+         docker compose up -d --scale api=3
+
+     Entre de novo e clique: o nome no menu muda a cada clique, sem 401.
+
+4.4  O rodizio no terminal (Linux/Mac/Git Bash):
+
+         for i in 1 2 3 4 5 6; do curl -s -D - -o /dev/null http://localhost:8080/actuator/health/readiness | grep -i x-instancia; done
+
+     PowerShell:
+
+         1..6 | % { (Invoke-WebRequest http://localhost:8080/actuator/health/readiness).Headers["X-Instancia"] }
+
+4.5  Prometheus: http://localhost:9090/targets -> 3 alvos, um por copia.
+
+4.6  O MCP preso a uma copia: abra http://localhost:8080/mcp.html,
+     conecte e liste as ferramentas varias vezes. Funciona porque o
+     proxy manda o /mcp de um mesmo IP sempre para a mesma copia.
+
+
+======================================================================
+5. QUANDO ALGO CAI (slides 34 a 38)
+======================================================================
+
+5.1  Num terminal, deixe chamando a API sem parar:
+
+         Linux/Mac:   while true; do curl -s -o /dev/null -w "%{http_code} " http://localhost:8080/actuator/health/readiness; sleep 0.3; done
+         PowerShell:  while ($true) { (Invoke-WebRequest http://localhost:8080/actuator/health/readiness).StatusCode; Start-Sleep -m 300 }
+
+5.2  No outro, derrube o Java de uma copia:
+
+         docker compose exec api kill 1
+         docker compose ps api
+
+     O primeiro terminal continua 200. A copia volta sozinha
+     (restart: unless-stopped).
+
+5.3  O desligamento gracioso no log:
+
+         docker compose logs api | grep -i graceful
+
+     "Commencing graceful shutdown. Waiting for active requests to complete"
+
+
+======================================================================
+6. BACKUP E RESTAURACAO (slides 39 a 42)
+======================================================================
+
+6.1  Cadastre duas tarefas pela tela. Faca o backup:
+
+         docker compose --profile backup run --rm backup
+
+6.2  O "acidente": apague as tarefas direto no banco.
+
+         docker compose exec postgres psql -U tarefas -d tarefas -c "delete from tarefas"
+
+     Recarregue a tela: lista vazia.
+
+6.3  Restaure (use o nome do arquivo que o passo 6.1 mostrou):
+
+         docker compose stop api
+         docker compose --profile backup run --rm restaurar tarefas-AAAA-MM-DD_HHMMSS.sql.gz
+         docker compose start api
+
+     Recarregue: as tarefas voltaram.
+
+
+======================================================================
+7. AULA OU PRODUCAO (slides 43 a 46)
+======================================================================
+
+7.1  No .env, acrescente PERFIL=producao e APAGUE a linha do
+     JWT_SEGREDO. Suba:
+
+         docker compose up -d --scale api=1
+         docker compose logs api | grep JWT_SEGREDO
+
+     "JWT_SEGREDO e obrigatorio neste ambiente". A API fica reiniciando.
+
+7.2  Devolva o JWT_SEGREDO ao .env e suba de novo. Mostre:
+
+         http://localhost:8080/swagger-ui.html      -> 404
+         docker compose logs api --tail 3           -> linhas em JSON
+
+7.3  Tire o PERFIL=producao do .env e suba de novo, para o resto da aula.
+
+
+======================================================================
+8. O CI E A CARTA C5 (slides 47 a 50)
+======================================================================
+
+8.1  Mostre .github/workflows/aula16-ci.yml: o job "imagem" sobe o
+     sistema com 2 copias e faz o teste de fumaca. Abra a aba Actions
+     do repositorio e mostre uma execucao.
+
+8.2  Carta C5 (Arca) do Projeto Final: Dockerfile + docker-compose.yml
+     + "docker compose up" sem passos manuais. O projeto da aula e o
+     exemplo completo; a carta pede so o essencial.
+
+8.3  Sorteio das cartas-desafio do Projeto Final (Projeto Final/projeto-final.md).
+
+
+======================================================================
+9. DEPOIS DA AULA
+======================================================================
+
+         docker compose down          (para tudo, os dados ficam)
+         docker compose down -v       (para e APAGA tudo)
+
+Se algo der errado:
+
+  - "port is already allocated" na 8080: outra coisa usa a porta (passo 0.3).
+  - api "unhealthy": docker compose logs api. Banco com senha antiga?
+    O PostgreSQL so le a senha na PRIMEIRA subida: docker compose down -v.
+  - O navegador nao abre https://localhost:8443: confira se o proxy esta
+    "Up" (docker compose ps proxy) e aceite o aviso do certificado.

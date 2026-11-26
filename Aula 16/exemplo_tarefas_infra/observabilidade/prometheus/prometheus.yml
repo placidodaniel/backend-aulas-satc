@@ -1,0 +1,16 @@
+# Prometheus: de 5 em 5 segundos pede as métricas da API (modelo "pull").
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: exemplo-tarefas
+    metrics_path: /actuator/prometheus
+    # Aula 16: a API roda DENTRO do Compose e pode ter várias cópias.
+    # Em vez de um endereço fixo, o Prometheus pergunta ao DNS do Docker
+    # "quais são os IPs do serviço api?" e coleta de CADA cópia.
+    # No Grafana, cada cópia aparece como uma "instance" diferente.
+    dns_sd_configs:
+      - names: ["api"]
+        type: A
+        port: 8080
+        refresh_interval: 10s
