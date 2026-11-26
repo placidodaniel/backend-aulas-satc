@@ -251,7 +251,7 @@ services:
   # Lá você escolhe o teste, vê o navegador clicando e digitando (com a tela de cada passo)
   # e pode rodar de novo ao vivo. A API sobe junto (depends_on).
   playwright:
-    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    image: mcr.microsoft.com/playwright:v1.65.1-noble
     profiles: ["ui"]
     working_dir: /work
     # init + ipc: recomendados pela Microsoft para o Chromium em container.
@@ -275,7 +275,7 @@ services:
   # Mesmos testes, sem interface: roda tudo e imprime o resultado no terminal.
   #   docker compose --profile ui run --rm playwright-run
   playwright-run:
-    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    image: mcr.microsoft.com/playwright:v1.65.1-noble
     profiles: ["ui"]
     working_dir: /work
     init: true
